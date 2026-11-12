@@ -44,6 +44,7 @@ def init_database() -> None:
     db = SessionLocal()
     try:
         _seed_initial_data(db)
+        _migrate_existing_data_to_nio(db)
     finally:
         db.close()
 
@@ -125,18 +126,18 @@ def _seed_initial_data(db: Session) -> None:
             estado_suscripcion="ACTIVO",
             fecha_vencimiento_suscripcion=datetime.now(timezone.utc) + timedelta(days=30),
             pedidos_mes_actual=1,
-            moneda="USD",
-            simbolo_moneda="$",
+            moneda="NIO",
+            simbolo_moneda="C$",
             acepta_efectivo=True,
             acepta_transferencia=True,
             datos_bancarios_texto=(
-                "Banco: BBVA / Bancomer | Cuenta CLABE: 012180001234567890 | "
+                "Banco: BAC Credomatic Nicaragua | Cuenta Córdobas: 365-123456-0 | "
                 "Titular: Pizzería Napoli S.A."
             ),
             modo_pago_api_activo=False,  # Inicia en Modo 1 tal como se definió
             tiene_mesas_fisicas=True,
             reservaciones_habilitadas=False,  # Se habilita cuando se active Modo 2 de pagos
-            monto_anticipo_reserva_default=10.0,
+            monto_anticipo_reserva_default=350.0,
         )
         db.add(comercio)
         db.commit()
@@ -169,9 +170,9 @@ def _seed_initial_data(db: Session) -> None:
             horario_cierre="23:00",
             abierto_ahora=True,
             tiempo_estimado_entrega_min=35,
-            costo_envio_base=2.50,
-            pedido_minimo_domicilio=8.00,
-            envio_gratis_desde=30.00,
+            costo_envio_base=50.00,
+            pedido_minimo_domicilio=150.00,
+            envio_gratis_desde=600.00,
             ancho_ticket_termico="80mm",
             encabezado_ticket="PIZZERÍA & BURGER NAPOLI - CENTRO",
         )
@@ -189,9 +190,9 @@ def _seed_initial_data(db: Session) -> None:
             horario_cierre="22:30",
             abierto_ahora=True,
             tiempo_estimado_entrega_min=40,
-            costo_envio_base=3.00,
-            pedido_minimo_domicilio=10.00,
-            envio_gratis_desde=35.00,
+            costo_envio_base=60.00,
+            pedido_minimo_domicilio=200.00,
+            envio_gratis_desde=700.00,
             ancho_ticket_termico="58mm",
             encabezado_ticket="PIZZERÍA & BURGER NAPOLI - NORTE",
         )
@@ -206,13 +207,13 @@ def _seed_initial_data(db: Session) -> None:
                 ZonaEnvioSucursal(
                     sucursal_id=suc_centro.id,
                     nombre_zona="Colonia Centro",
-                    costo_envio=2.50,
+                    costo_envio=50.00,
                     tiempo_extra_min=0,
                 ),
                 ZonaEnvioSucursal(
                     sucursal_id=suc_centro.id,
                     nombre_zona="Zona Sur / Roma",
-                    costo_envio=4.00,
+                    costo_envio=80.00,
                     tiempo_extra_min=10,
                 ),
             ]
@@ -275,13 +276,13 @@ def _seed_initial_data(db: Session) -> None:
         db.refresh(cat_pizzas)
         db.refresh(cat_bebidas)
 
-        # Platos con su lista de Ingredientes Removibles ($0) y Extras con costo
+        # Platos con su lista de Ingredientes Removibles (C$ 0) y Extras con costo
         plato_burger = ProductoPlato(
             tenant_id=comercio.id,
             categoria_id=cat_burgers.id,
             nombre="Hamburguesa Clásica Napoli",
             descripcion="Carne angus 200g, queso americano, lechuga, tomate, cebolla, pepinillos y mayonesa de la casa.",
-            precio_base=9.50,
+            precio_base=180.00,
             tiempo_preparacion_min=15,
         )
         plato_pizza = ProductoPlato(
@@ -289,7 +290,7 @@ def _seed_initial_data(db: Session) -> None:
             categoria_id=cat_pizzas.id,
             nombre="Pizza Pepperoni Artesanal",
             descripcion="Masa madre, salsa pomodoro, mozzarella fresco, pepperoni, orégano y aceitunas negras.",
-            precio_base=13.00,
+            precio_base=280.00,
             tiempo_preparacion_min=20,
         )
         plato_refresco = ProductoPlato(
@@ -297,7 +298,7 @@ def _seed_initial_data(db: Session) -> None:
             categoria_id=cat_bebidas.id,
             nombre="Refresco Lata 355ml",
             descripcion="Coca-Cola, Coca-Cola Sin Azúcar o Sprite bien frío.",
-            precio_base=2.00,
+            precio_base=35.00,
             tiempo_preparacion_min=2,
         )
         db.add_all([plato_burger, plato_pizza, plato_refresco])
@@ -354,7 +355,7 @@ def _seed_initial_data(db: Session) -> None:
                     plato_id=plato_burger.id,
                     nombre="Extra Tocino Ahumado",
                     tipo="EXTRA",
-                    precio_adicional=2.00,
+                    precio_adicional=40.00,
                     es_removible=False,
                 ),
                 IngredienteOpcionPlato(
@@ -362,7 +363,7 @@ def _seed_initial_data(db: Session) -> None:
                     plato_id=plato_burger.id,
                     nombre="Extra Queso Cheddar",
                     tipo="EXTRA",
-                    precio_adicional=1.50,
+                    precio_adicional=30.00,
                     es_removible=False,
                 ),
                 # Ingredientes y variantes de la Pizza
@@ -387,7 +388,7 @@ def _seed_initial_data(db: Session) -> None:
                     plato_id=plato_pizza.id,
                     nombre="Tamaño Familiar",
                     tipo="VARIANTE",
-                    precio_adicional=5.00,
+                    precio_adicional=120.00,
                     es_removible=False,
                 ),
                 IngredienteOpcionPlato(
@@ -395,7 +396,7 @@ def _seed_initial_data(db: Session) -> None:
                     plato_id=plato_pizza.id,
                     nombre="Orilla Rellena de Queso",
                     tipo="EXTRA",
-                    precio_adicional=3.00,
+                    precio_adicional=60.00,
                     es_removible=False,
                 ),
             ]
@@ -427,13 +428,13 @@ def _seed_initial_data(db: Session) -> None:
             resumen_ia_chat=(
                 "El cliente Carlos Ruiz entró por el link directo de Sucursal Centro. "
                 "Solicitó 1 Hamburguesa Clásica especificando que NO quiere cebolla ni tomate, "
-                "y pidió agregar Extra Tocino (+$2.00) más 2 Refrescos. Envió su ubicación GPS "
-                "en Colonia Centro y eligió pagar en Efectivo con un billete de $50 (requiere $32.00 de cambio)."
+                "y pidió agregar Extra Tocino (+C$ 40.00) más 2 Refrescos. Envió su ubicación GPS "
+                "en Colonia Centro y eligió pagar en Efectivo con un billete de C$ 500 (requiere C$ 160.00 de cambio)."
             ),
             como_se_realizo_resumen=(
                 "1. Entrada por QR/Link [Napoli-Centro] -> 2. Selección en menú + exclusión de ingredientes "
                 "detectada por el bot ('sin cebolla, sin tomate') -> 3. Envío de Pin GPS en WhatsApp -> "
-                "4. Confirmación de pago en Efectivo (Modo 1)."
+                "4. Confirmación de pago en Efectivo (Modo 1 en Córdobas)."
             ),
             activa=True,
         )
@@ -463,14 +464,14 @@ def _seed_initial_data(db: Session) -> None:
                     tenant_id=comercio.id,
                     remitente="CLIENTE",
                     tipo_contenido="TEXTO",
-                    contenido="Quiero 1 Hamburguesa Clásica pero sin cebolla y sin tomate, ponle extra tocino, y 2 refrescos de lata para Calle 10 #45 Col. Centro. Pago en efectivo con billete de $50.",
+                    contenido="Quiero 1 Hamburguesa Clásica pero sin cebolla y sin tomate, ponle extra tocino, y 2 refrescos de lata para Calle 10 #45 Col. Centro. Pago en efectivo con billete de C$ 500.",
                 ),
                 MensajeChatWhatsApp(
                     sesion_id=sesion_demo.id,
                     tenant_id=comercio.id,
                     remitente="BOT",
                     tipo_contenido="TEXTO",
-                    contenido="¡Perfecto Carlos! Registré tu pedido #ORD-1001:\n• 1x Hamburguesa Clásica ($9.50)\n  🚫 SIN: Cebolla, Tomate\n  ➕ EXTRA: Extra Tocino Ahumado (+$2.00)\n• 2x Refresco Lata 355ml ($4.00)\n• Envío Colonia Centro: $2.50\n💰 Total: $18.00 (Pagas con $50.00 -> Cambio: $32.00).\nEstado actual: 📥 RECIBIDO.",
+                    contenido="¡Perfecto Carlos! Registré tu pedido #ORD-1001:\n• 1x Hamburguesa Clásica (C$ 180.00)\n  🚫 SIN: Cebolla, Tomate\n  ➕ EXTRA: Extra Tocino Ahumado (+C$ 40.00)\n• 2x Refresco Lata 355ml (C$ 70.00)\n• Envío Colonia Centro: C$ 50.00\n💰 Total: C$ 340.00 (Pagas con C$ 500.00 -> Cambio: C$ 160.00).\nEstado actual: 📥 RECIBIDO.",
                 ),
             ]
         )
@@ -491,16 +492,16 @@ def _seed_initial_data(db: Session) -> None:
             longitud_gps=-99.1345,
             google_maps_link="https://www.google.com/maps?q=19.4335,-99.1345",
             estado_pedido="RECIBIDO",
-            subtotal=15.50,
-            costo_envio=2.50,
-            total=18.00,
+            subtotal=290.00,
+            costo_envio=50.00,
+            total=340.00,
             resumen_chat_ia=sesion_demo.resumen_ia_chat,
             como_se_realizo_pedido=sesion_demo.como_se_realizo_resumen,
-            notas_especiales="Tocar el timbre 2 veces. Llevar cambio de $50.",
+            notas_especiales="Tocar el timbre 2 veces. Llevar cambio de C$ 500.",
             metodo_pago="EFECTIVO",
             estado_pago="PENDIENTE",
-            paga_con_monto=50.00,
-            cambio_a_entregar=32.00,
+            paga_con_monto=500.00,
+            cambio_a_entregar=160.00,
         )
         db.add(pedido_demo)
         db.commit()
@@ -513,14 +514,14 @@ def _seed_initial_data(db: Session) -> None:
                     plato_id=plato_burger.id,
                     nombre_plato="Hamburguesa Clásica Napoli",
                     cantidad=1,
-                    precio_unitario_base=9.50,
+                    precio_unitario_base=180.00,
                     sin_ingredientes_json=json.dumps(["Cebolla", "Tomate"], ensure_ascii=False),
                     extras_json=json.dumps(
-                        [{"nombre": "Extra Tocino Ahumado", "precio": 2.00}],
+                        [{"nombre": "Extra Tocino Ahumado", "precio": 40.00}],
                         ensure_ascii=False,
                     ),
-                    precio_extras_unitario=2.00,
-                    subtotal_linea=11.50,
+                    precio_extras_unitario=40.00,
+                    subtotal_linea=220.00,
                     notas_plato="Bien cocida",
                 ),
                 DetallePedido(
@@ -528,11 +529,11 @@ def _seed_initial_data(db: Session) -> None:
                     plato_id=plato_refresco.id,
                     nombre_plato="Refresco Lata 355ml",
                     cantidad=2,
-                    precio_unitario_base=2.00,
+                    precio_unitario_base=35.00,
                     sin_ingredientes_json="[]",
                     extras_json="[]",
                     precio_extras_unitario=0.0,
-                    subtotal_linea=4.00,
+                    subtotal_linea=70.00,
                 ),
             ]
         )
@@ -543,12 +544,107 @@ def _seed_initial_data(db: Session) -> None:
                 pedido_id=pedido_demo.id,
                 modo_operacion="MODO_1_DIRECTO",
                 metodo="EFECTIVO",
-                monto=18.00,
-                moneda="USD",
+                monto=340.00,
+                moneda="NIO",
                 estado="PENDIENTE",
-                paga_con=50.00,
-                cambio=32.00,
+                paga_con=500.00,
+                cambio=160.00,
             )
         )
         db.commit()
+
+
+def _migrate_existing_data_to_nio(db: Session) -> None:
+    """
+    Migra comercios existentes con moneda 'USD' / '$' a Córdobas ('NIO' / 'C$')
+    y escala los precios de muestra a moneda nacional (Córdobas nicaragüenses).
+    """
+    comercios = db.query(TenantComercio).all()
+    for c in comercios:
+        if c.moneda == "USD" or c.simbolo_moneda == "$":
+            c.moneda = "NIO"
+            c.simbolo_moneda = "C$"
+            if not c.datos_bancarios_texto or "BBVA" in c.datos_bancarios_texto or "0000" in c.datos_bancarios_texto:
+                c.datos_bancarios_texto = (
+                    "Banco: BAC Credomatic Nicaragua | Cuenta Córdobas: 365-123456-0 | "
+                    "Titular: Pizzería Napoli S.A."
+                )
+
+    # Actualizar platos de muestra si siguen en precios bajos de dólares (< 30)
+    platos = db.query(ProductoPlato).all()
+    for pl in platos:
+        if pl.precio_base < 30.0:
+            if "Hamburguesa" in pl.nombre:
+                pl.precio_base = 180.00
+            elif "Pizza" in pl.nombre:
+                pl.precio_base = 280.00
+            elif "Refresco" in pl.nombre:
+                pl.precio_base = 35.00
+            else:
+                pl.precio_base = round(pl.precio_base * 36.5, 2)
+
+    # Actualizar extras si estaban en dólares (< 15)
+    extras = db.query(IngredienteOpcionPlato).all()
+    for ex in extras:
+        if 0 < ex.precio_adicional < 15.0:
+            if "Tocino" in ex.nombre:
+                ex.precio_adicional = 40.00
+            elif "Cheddar" in ex.nombre:
+                ex.precio_adicional = 30.00
+            elif "Familiar" in ex.nombre:
+                ex.precio_adicional = 120.00
+            elif "Orilla" in ex.nombre:
+                ex.precio_adicional = 60.00
+            else:
+                ex.precio_adicional = round(ex.precio_adicional * 36.5, 2)
+
+    # Actualizar sucursales
+    sucursales = db.query(SucursalComercio).all()
+    for suc in sucursales:
+        if suc.costo_envio_base < 10.0:
+            if "Centro" in suc.nombre_sucursal:
+                suc.costo_envio_base = 50.00
+                suc.pedido_minimo_domicilio = 150.00
+                suc.envio_gratis_desde = 600.00
+            else:
+                suc.costo_envio_base = 60.00
+                suc.pedido_minimo_domicilio = 200.00
+                suc.envio_gratis_desde = 700.00
+
+    # Zonas de envío
+    zonas = db.query(ZonaEnvioSucursal).all()
+    for z in zonas:
+        if z.costo_envio < 10.0:
+            if "Centro" in z.nombre_zona:
+                z.costo_envio = 50.00
+            else:
+                z.costo_envio = 80.00
+
+    # Pedido demo ORD-1001
+    pedidos = db.query(Pedido).filter(Pedido.folio == "ORD-1001").all()
+    for ped in pedidos:
+        if ped.total < 50.0:
+            ped.subtotal = 290.00
+            ped.costo_envio = 50.00
+            ped.total = 340.00
+            ped.paga_con_monto = 500.00
+            ped.cambio_a_entregar = 160.00
+            ped.notas_especiales = "Tocar el timbre 2 veces. Llevar cambio de C$ 500."
+            ped.resumen_chat_ia = (
+                "El cliente Carlos Ruiz solicitó 1 Hamburguesa Clásica Napoli SIN cebolla ni tomate "
+                "y con Extra Tocino (+C$ 40), más 2 Refrescos de lata. Total C$ 340.00. Pagará en Efectivo con C$ 500.00."
+            )
+
+    detalles = db.query(DetallePedido).all()
+    for d in detalles:
+        if "Hamburguesa" in d.nombre_plato and d.precio_unitario_base < 25.0:
+            d.precio_unitario_base = 180.00
+            d.precio_extras_unitario = 40.00
+            d.subtotal_linea = 220.00
+            d.extras_json = json.dumps([{"nombre": "Extra Tocino Ahumado", "precio": 40.00}], ensure_ascii=False)
+        elif "Refresco" in d.nombre_plato and d.precio_unitario_base < 10.0:
+            d.precio_unitario_base = 35.00
+            d.subtotal_linea = 70.00
+
+    db.commit()
 

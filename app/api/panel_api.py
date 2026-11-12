@@ -62,14 +62,32 @@ class CrearComercioRequest(BaseModel):
     slug: str
     giro: str = "Restaurante"
     plan_codigo: str = "PLAN_PRO"
-    moneda: str = "USD"
-    simbolo_moneda: str = "$"
+    moneda: str = "NIO"
+    simbolo_moneda: str = "C$"
     email_dueno: EmailStr
     nombre_dueno: str
     password_dueno: str
     nombre_sucursal_principal: str = "Sucursal Principal"
     direccion_sucursal: str = "Dirección por definir"
-    costo_envio_base: float = 2.50
+    costo_envio_base: float = 50.00
+
+
+class ConfigurarComercioRequest(BaseModel):
+    moneda: Optional[str] = None
+    simbolo_moneda: Optional[str] = None
+    nombre_comercial: Optional[str] = None
+    telefono_propietario: Optional[str] = None
+    datos_bancarios_texto: Optional[str] = None
+    acepta_efectivo: Optional[bool] = None
+    acepta_transferencia: Optional[bool] = None
+
+
+class ActualizarPrecioPlatoRequest(BaseModel):
+    precio_base: float
+
+
+class ActualizarPrecioIngredienteRequest(BaseModel):
+    precio_adicional: float
 
 
 class CambiarEstadoSuscripcionRequest(BaseModel):
@@ -1003,6 +1021,147 @@ def toggle_disponibilidad_ingrediente(
         "ingrediente_id": ing.id,
         "nombre": ing.nombre,
         "disponible_global": ing.disponible_global,
+    }
+
+
+@router.patch("/comercio/platos/{plato_id}/precio")
+def actualizar_precio_plato(
+    plato_id: int,
+    payload: ActualizarPrecioPlatoRequest,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permite editar rápidamente el precio base de un plato existente."""
+    plato = db.query(ProductoPlato).filter(ProductoPlato.id == plato_id).first()
+    if not plato:
+        raise HTTPException(status_code=404, detail="Plato no encontrado.")
+
+    verify_tenant_isolation(current_user, plato.tenant_id)
+    if payload.precio_base < 0:
+        raise HTTPException(status_code=400, detail="El precio no puede ser negativo.")
+
+    precio_anterior = plato.precio_base
+    plato.precio_base = round(payload.precio_base, 2)
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="CAMBIO_PRECIO_PLATO",
+        recurso_tipo="PRODUCTO_PLATO",
+        recurso_id=str(plato.id),
+        usuario_id=current_user.id,
+        tenant_id=plato.tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"plato": plato.nombre, "anterior": precio_anterior, "nuevo": plato.precio_base},
+    )
+
+    return {"status": "ok", "plato_id": plato.id, "precio_base": plato.precio_base}
+
+
+@router.patch("/comercio/ingredientes/{ingrediente_id}/precio")
+def actualizar_precio_ingrediente(
+    ingrediente_id: int,
+    payload: ActualizarPrecioIngredienteRequest,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permite editar rápidamente el precio adicional de un extra o variante."""
+    ing = (
+        db.query(IngredienteOpcionPlato)
+        .filter(IngredienteOpcionPlato.id == ingrediente_id)
+        .first()
+    )
+    if not ing:
+        raise HTTPException(status_code=404, detail="Ingrediente u opción no encontrado.")
+
+    verify_tenant_isolation(current_user, ing.tenant_id)
+    if payload.precio_adicional < 0:
+        raise HTTPException(status_code=400, detail="El precio adicional no puede ser negativo.")
+
+    precio_anterior = ing.precio_adicional
+    ing.precio_adicional = round(payload.precio_adicional, 2)
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="CAMBIO_PRECIO_EXTRA",
+        recurso_tipo="INGREDIENTE_OPCION",
+        recurso_id=str(ing.id),
+        usuario_id=current_user.id,
+        tenant_id=ing.tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"extra": ing.nombre, "anterior": precio_anterior, "nuevo": ing.precio_adicional},
+    )
+
+    return {"status": "ok", "ingrediente_id": ing.id, "precio_adicional": ing.precio_adicional}
+
+
+@router.patch("/comercio/{tenant_id}/configuracion")
+def actualizar_configuracion_comercio(
+    tenant_id: int,
+    payload: ConfigurarComercioRequest,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permite editar la moneda (C$, $, etc.), nombre comercial, datos bancarios y formas de pago del restaurante."""
+    verify_tenant_isolation(current_user, tenant_id)
+
+    comercio = (
+        db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    )
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    cambios = {}
+    if payload.moneda is not None and payload.moneda.strip():
+        cambios["moneda"] = f"{comercio.moneda} -> {payload.moneda.strip().upper()}"
+        comercio.moneda = payload.moneda.strip().upper()
+    if payload.simbolo_moneda is not None and payload.simbolo_moneda.strip():
+        cambios["simbolo_moneda"] = f"{comercio.simbolo_moneda} -> {payload.simbolo_moneda.strip()}"
+        comercio.simbolo_moneda = payload.simbolo_moneda.strip()
+    if payload.nombre_comercial is not None and payload.nombre_comercial.strip():
+        cambios["nombre_comercial"] = f"{comercio.nombre_comercial} -> {payload.nombre_comercial.strip()}"
+        comercio.nombre_comercial = payload.nombre_comercial.strip()
+    if payload.telefono_propietario is not None:
+        comercio.telefono_propietario = payload.telefono_propietario.strip()
+    if payload.datos_bancarios_texto is not None:
+        comercio.datos_bancarios_texto = payload.datos_bancarios_texto.strip()
+    if payload.acepta_efectivo is not None:
+        comercio.acepta_efectivo = payload.acepta_efectivo
+    if payload.acepta_transferencia is not None:
+        comercio.acepta_transferencia = payload.acepta_transferencia
+
+    db.commit()
+    db.refresh(comercio)
+
+    record_audit_log(
+        db=db,
+        accion="CONFIGURACION_COMERCIO",
+        recurso_tipo="TENANT_COMERCIO",
+        recurso_id=str(comercio.id),
+        usuario_id=current_user.id,
+        tenant_id=comercio.id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles=cambios,
+    )
+
+    return {
+        "status": "ok",
+        "comercio": {
+            "id": comercio.id,
+            "moneda": comercio.moneda,
+            "simbolo_moneda": comercio.simbolo_moneda,
+            "nombre_comercial": comercio.nombre_comercial,
+            "datos_bancarios_texto": comercio.datos_bancarios_texto,
+            "acepta_efectivo": comercio.acepta_efectivo,
+            "acepta_transferencia": comercio.acepta_transferencia,
+        },
     }
 
 

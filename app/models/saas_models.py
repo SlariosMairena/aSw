@@ -83,8 +83,8 @@ class TenantComercio(Base):
     pedidos_mes_actual = Column(Integer, default=0, nullable=False)
 
     # Configuración Monetaria y de Pagos del Comercio (Nivel B)
-    moneda = Column(String(10), default="USD", nullable=False)
-    simbolo_moneda = Column(String(10), default="$", nullable=False)
+    moneda = Column(String(10), default="NIO", nullable=False)
+    simbolo_moneda = Column(String(10), default="C$", nullable=False)
 
     # Modo 1 (Directo al Restaurante: Efectivo y Transferencia con foto de comprobante)
     acepta_efectivo = Column(Boolean, default=True, nullable=False)
