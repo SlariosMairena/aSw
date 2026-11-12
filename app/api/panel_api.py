@@ -860,6 +860,152 @@ def toggle_disponibilidad_plato(
     }
 
 
+@router.put("/comercio/platos/{plato_id}")
+def editar_plato_existente(
+    plato_id: int,
+    payload: CrearPlatoRequest,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Actualiza el nombre, precio base, descripción, ingredientes removibles ($0) y extras de un plato existente."""
+    plato = db.query(ProductoPlato).filter(ProductoPlato.id == plato_id).first()
+    if not plato:
+        raise HTTPException(status_code=404, detail="Plato no encontrado.")
+
+    verify_tenant_isolation(current_user, plato.tenant_id)
+
+    cat = (
+        db.query(CategoriaMenu)
+        .filter(
+            CategoriaMenu.tenant_id == plato.tenant_id,
+            CategoriaMenu.nombre == payload.categoria_nombre.strip(),
+        )
+        .first()
+    )
+    if not cat:
+        cat = CategoriaMenu(
+            tenant_id=plato.tenant_id,
+            nombre=payload.categoria_nombre.strip(),
+            orden=1,
+        )
+        db.add(cat)
+        db.commit()
+        db.refresh(cat)
+
+    plato.categoria_id = cat.id
+    plato.nombre = payload.nombre.strip()
+    plato.descripcion = payload.descripcion.strip()
+    plato.precio_base = payload.precio_base
+    plato.tiempo_preparacion_min = payload.tiempo_preparacion_min
+
+    # Reemplazar lista de ingredientes base removibles y extras con los nuevos datos editados
+    db.query(IngredienteOpcionPlato).filter(
+        IngredienteOpcionPlato.plato_id == plato.id
+    ).delete()
+
+    for ing_nombre in payload.ingredientes_removibles:
+        if ing_nombre.strip():
+            db.add(
+                IngredienteOpcionPlato(
+                    tenant_id=plato.tenant_id,
+                    plato_id=plato.id,
+                    nombre=ing_nombre.strip(),
+                    tipo="INGREDIENTE_BASE",
+                    precio_adicional=0.0,
+                    es_removible=True,
+                )
+            )
+
+    for extra in payload.extras_con_costo:
+        if extra.nombre.strip():
+            db.add(
+                IngredienteOpcionPlato(
+                    tenant_id=plato.tenant_id,
+                    plato_id=plato.id,
+                    nombre=extra.nombre.strip(),
+                    tipo=extra.tipo,
+                    precio_adicional=extra.precio_adicional,
+                    es_removible=False,
+                )
+            )
+
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="EDITAR_PLATO_MENU",
+        recurso_tipo="PRODUCTO_PLATO",
+        recurso_id=str(plato.id),
+        usuario_id=current_user.id,
+        tenant_id=plato.tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"plato": plato.nombre, "nuevo_precio_base": plato.precio_base},
+    )
+
+    return {"status": "ok", "plato_id": plato.id}
+
+
+@router.delete("/comercio/platos/{plato_id}")
+def eliminar_plato_existente(
+    plato_id: int,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Elimina un plato y sus ingredientes del catálogo del restaurante."""
+    plato = db.query(ProductoPlato).filter(ProductoPlato.id == plato_id).first()
+    if not plato:
+        raise HTTPException(status_code=404, detail="Plato no encontrado.")
+
+    verify_tenant_isolation(current_user, plato.tenant_id)
+    nombre_borrado = plato.nombre
+    tenant_id = plato.tenant_id
+
+    db.delete(plato)
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="ELIMINAR_PLATO_MENU",
+        recurso_tipo="PRODUCTO_PLATO",
+        recurso_id=str(plato_id),
+        usuario_id=current_user.id,
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"plato_eliminado": nombre_borrado},
+    )
+    return {"status": "ok", "deleted_id": plato_id}
+
+
+@router.patch("/comercio/ingredientes/{ingrediente_id}/toggle-disponibilidad")
+def toggle_disponibilidad_ingrediente(
+    ingrediente_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permite marcar como 'Agotado hoy' un ingrediente o extra individual con 1 clic."""
+    ing = (
+        db.query(IngredienteOpcionPlato)
+        .filter(IngredienteOpcionPlato.id == ingrediente_id)
+        .first()
+    )
+    if not ing:
+        raise HTTPException(status_code=404, detail="Ingrediente no encontrado.")
+
+    verify_tenant_isolation(current_user, ing.tenant_id)
+    ing.disponible_global = not ing.disponible_global
+    db.commit()
+    return {
+        "status": "ok",
+        "ingrediente_id": ing.id,
+        "nombre": ing.nombre,
+        "disponible_global": ing.disponible_global,
+    }
+
+
 @router.post("/comercio/{tenant_id}/sucursales")
 def crear_sucursal_comercio(
     tenant_id: int,

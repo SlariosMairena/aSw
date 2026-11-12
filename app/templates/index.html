@@ -244,13 +244,20 @@
         <!-- PESTAÑA B: MENÚ CON INGREDIENTES REMOVIBLES Y EXTRAS -->
         <div id="tabContent_menu" class="hidden space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Formulario para crear plato con ingredientes -->
+                <!-- Formulario para crear o editar plato con ingredientes -->
                 <div class="glass rounded-2xl p-5 space-y-4">
-                    <h3 class="text-base font-bold text-white">➕ Agregar Plato con Lista de Ingredientes</h3>
+                    <div class="flex items-center justify-between">
+                        <h3 id="formPlatoTitle" class="text-base font-bold text-white">➕ Agregar Nuevo Plato</h3>
+                        <button id="btnCancelarEdicionPlato" type="button" onclick="resetFormularioPlato()"
+                            class="hidden text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600">
+                            ✕ Cancelar Edición
+                        </button>
+                    </div>
                     <p class="text-xs text-slate-400">
-                        El bot de WhatsApp leerá estos ingredientes para permitir que el cliente pida <strong>"sin cebolla"</strong> ($0) o agregue extras con costo.
+                        Aquí puedes <strong>crear un plato nuevo</strong> o tocar <strong>"✏️ Editar"</strong> en cualquier plato existente de la derecha para modificar su precio, ingredientes removibles ($0) o extras.
                     </p>
-                    <form onsubmit="handleCrearPlato(event)" class="space-y-3 text-xs">
+                    <form onsubmit="handleGuardarPlato(event)" class="space-y-3 text-xs">
+                        <input id="platoEditId" type="hidden" value="">
                         <div>
                             <label class="block text-slate-300 font-semibold mb-1">Categoría</label>
                             <input id="platoCategoria" type="text" required value="Hamburguesas Artesanales"
@@ -281,16 +288,19 @@
                             <input id="platoExtras" type="text" value="Extra Tocino:2.00, Extra Queso:1.50, Papas Grandes:2.50"
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
                         </div>
-                        <button type="submit"
+                        <button id="btnSubmitPlato" type="submit"
                             class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition">
                             Guardar Plato e Ingredientes
                         </button>
                     </form>
                 </div>
 
-                <!-- Lista de platos actuales y botón "Agotado Hoy" -->
+                <!-- Lista de platos actuales con Editar, Eliminar y "Agotado Hoy" -->
                 <div class="lg:col-span-2 glass rounded-2xl p-5">
-                    <h3 class="text-base font-bold text-white mb-4">🍽️ Catálogo Actual y Botón "Agotado Hoy" en 1 Clic</h3>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <h3 class="text-base font-bold text-white">🍽️ Catálogo Actual (Editar, "Agotado Hoy" y Control por Ingrediente)</h3>
+                        <span class="text-[11px] text-slate-400">Tip: También puedes hacer clic sobre cualquier ingrediente para marcarlo como agotado</span>
+                    </div>
                     <div id="menuPlatosGrid" class="space-y-3"></div>
                 </div>
             </div>
@@ -984,13 +994,14 @@
         }
 
         // =========================================================
-        // MENÚ E INGREDIENTES + BOTÓN "AGOTADO HOY"
+        // MENÚ E INGREDIENTES + EDITAR / ELIMINAR / "AGOTADO HOY"
         // =========================================================
         function renderMenuPlatos(platos, moneda) {
             document.getElementById('menuPlatosGrid').innerHTML = platos.map(pl => `
                 <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="space-y-1">
-                        <div class="flex items-center gap-2">
+                    <div class="space-y-1 flex-1">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-indigo-300 font-semibold">${pl.categoria}</span>
                             <span class="font-bold text-sm text-white">${pl.nombre}</span>
                             <span class="text-xs font-extrabold text-emerald-400">${moneda}${pl.precio_base.toFixed(2)}</span>
                             <span class="text-[11px] px-2 py-0.5 rounded-full font-bold ${
@@ -1002,27 +1013,87 @@
                         <p class="text-xs text-slate-400">${pl.descripcion || ''}</p>
                         <div class="flex flex-wrap gap-1.5 pt-1">
                             ${pl.ingredientes_removibles.map(ing => `
-                                <span class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                                    Removible ($0): <strong>${ing.nombre}</strong>
-                                </span>
+                                <button type="button" onclick="toggleIngredienteDisponibilidad(${ing.id})"
+                                    title="Clic para marcar este ingrediente como Disponible o Agotado hoy"
+                                    class="text-[11px] px-2 py-0.5 rounded border transition ${
+                                        ing.disponible
+                                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                                            : 'bg-rose-950/70 text-rose-300 border-rose-500/40 line-through'
+                                    }">
+                                    Removible ($0): <strong>${ing.nombre}</strong> ${ing.disponible ? '' : '(Agotado)'}
+                                </button>
                             `).join('')}
                             ${pl.extras_y_variantes.map(ex => `
-                                <span class="text-[11px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                                    +${ex.nombre} (+${moneda}${ex.precio_adicional.toFixed(2)})
-                                </span>
+                                <button type="button" onclick="toggleIngredienteDisponibilidad(${ex.id})"
+                                    title="Clic para marcar este extra como Disponible o Agotado hoy"
+                                    class="text-[11px] px-2 py-0.5 rounded border transition ${
+                                        ex.disponible
+                                            ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/30'
+                                            : 'bg-rose-950/70 text-rose-300 border-rose-500/40 line-through'
+                                    }">
+                                    +${ex.nombre} (+${moneda}${ex.precio_adicional.toFixed(2)}) ${ex.disponible ? '' : '(Agotado)'}
+                                </button>
                             `).join('')}
                         </div>
                     </div>
-                    <button onclick="togglePlatoDisponibilidad(${pl.id})"
-                        class="px-3.5 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                            pl.disponible_global
-                                ? 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40'
-                                : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
-                        }">
-                        ${pl.disponible_global ? '🚫 Marcar "Agotado Hoy"' : '✅ Volver a Habilitar'}
-                    </button>
+                    <div class="flex flex-wrap sm:flex-col gap-1.5">
+                        <button onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition whitespace-nowrap">
+                            ✏️ Editar Plato
+                        </button>
+                        <button onclick="togglePlatoDisponibilidad(${pl.id})"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                                pl.disponible_global
+                                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                                    : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
+                            }">
+                            ${pl.disponible_global ? '🚫 Agotado Hoy' : '✅ Habilitar'}
+                        </button>
+                        <button onclick="eliminarPlato(${pl.id})"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition whitespace-nowrap">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        function cargarPlatoEnFormularioParaEditar(platoId) {
+            const pl = (currentComercioData.platos || []).find(x => x.id === platoId);
+            if (!pl) return;
+
+            document.getElementById('platoEditId').value = pl.id;
+            document.getElementById('platoCategoria').value = pl.categoria || 'General';
+            document.getElementById('platoNombre').value = pl.nombre;
+            document.getElementById('platoPrecio').value = pl.precio_base;
+            document.getElementById('platoDesc').value = pl.descripcion || '';
+            document.getElementById('platoIngRemovibles').value = (pl.ingredientes_removibles || [])
+                .map(i => i.nombre)
+                .join(', ');
+            document.getElementById('platoExtras').value = (pl.extras_y_variantes || [])
+                .map(e => `${e.nombre}:${e.precio_adicional.toFixed(2)}`)
+                .join(', ');
+
+            document.getElementById('formPlatoTitle').textContent = `✏️ Editando: ${pl.nombre}`;
+            document.getElementById('btnSubmitPlato').textContent = '💾 Guardar Cambios del Plato';
+            document.getElementById('btnSubmitPlato').className =
+                'w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition';
+            document.getElementById('btnCancelarEdicionPlato').classList.remove('hidden');
+            showToast(`Editando "${pl.nombre}". Modifica los campos a la izquierda y guarda.`);
+        }
+
+        function resetFormularioPlato() {
+            document.getElementById('platoEditId').value = '';
+            document.getElementById('platoNombre').value = '';
+            document.getElementById('platoPrecio').value = '';
+            document.getElementById('platoDesc').value = '';
+            document.getElementById('platoIngRemovibles').value = 'Cebolla, Tomate, Lechuga, Mayonesa';
+            document.getElementById('platoExtras').value = 'Extra Tocino:2.00, Extra Queso:1.50';
+            document.getElementById('formPlatoTitle').textContent = '➕ Agregar Nuevo Plato';
+            document.getElementById('btnSubmitPlato').textContent = 'Guardar Plato e Ingredientes';
+            document.getElementById('btnSubmitPlato').className =
+                'w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition';
+            document.getElementById('btnCancelarEdicionPlato').classList.add('hidden');
         }
 
         async function togglePlatoDisponibilidad(platoId) {
@@ -1030,15 +1101,41 @@
                 await apiFetch(`/api/v1/panel/comercio/platos/${platoId}/toggle-disponibilidad`, {
                     method: 'PATCH'
                 });
-                showToast('Disponibilidad actualizada al instante para el Bot de WhatsApp.');
+                showToast('Disponibilidad del plato actualizada al instante para el Bot.');
                 await reloadComercioDashboard();
             } catch (err) {
                 showToast(err.message, true);
             }
         }
 
-        async function handleCrearPlato(e) {
+        async function toggleIngredienteDisponibilidad(ingredienteId) {
+            try {
+                const res = await apiFetch(`/api/v1/panel/comercio/ingredientes/${ingredienteId}/toggle-disponibilidad`, {
+                    method: 'PATCH'
+                });
+                showToast(`Ingrediente "${res.nombre}": ${res.disponible_global ? 'Disponible' : 'Agotado hoy'}`);
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function eliminarPlato(platoId) {
+            try {
+                await apiFetch(`/api/v1/panel/comercio/platos/${platoId}`, {
+                    method: 'DELETE'
+                });
+                showToast('Plato eliminado del menú.');
+                resetFormularioPlato();
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function handleGuardarPlato(e) {
             e.preventDefault();
+            const editId = document.getElementById('platoEditId').value;
             const removibles = document.getElementById('platoIngRemovibles').value
                 .split(',')
                 .map(s => s.trim())
@@ -1056,21 +1153,30 @@
                 };
             });
 
+            const bodyPayload = {
+                categoria_nombre: document.getElementById('platoCategoria').value,
+                nombre: document.getElementById('platoNombre').value,
+                precio_base: parseFloat(document.getElementById('platoPrecio').value),
+                descripcion: document.getElementById('platoDesc').value,
+                ingredientes_removibles: removibles,
+                extras_con_costo
+            };
+
             try {
-                await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos`, {
-                    method: 'POST',
-                    body: {
-                        categoria_nombre: document.getElementById('platoCategoria').value,
-                        nombre: document.getElementById('platoNombre').value,
-                        precio_base: parseFloat(document.getElementById('platoPrecio').value),
-                        descripcion: document.getElementById('platoDesc').value,
-                        ingredientes_removibles: removibles,
-                        extras_con_costo
-                    }
-                });
-                document.getElementById('platoNombre').value = '';
-                document.getElementById('platoPrecio').value = '';
-                showToast('¡Plato e ingredientes guardados! El bot ya los reconoce.');
+                if (editId) {
+                    await apiFetch(`/api/v1/panel/comercio/platos/${editId}`, {
+                        method: 'PUT',
+                        body: bodyPayload
+                    });
+                    showToast('¡Cambios del plato e ingredientes guardados correctamente!');
+                } else {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos`, {
+                        method: 'POST',
+                        body: bodyPayload
+                    });
+                    showToast('¡Nuevo plato e ingredientes guardados!');
+                }
+                resetFormularioPlato();
                 await reloadComercioDashboard();
             } catch (err) {
                 showToast(err.message, true);
