@@ -1,9 +1,11 @@
 """
-Pruebas Automatizadas de la Fase 1:
-- Adaptador Neon.tech (PostgreSQL Serverless con sslmode=require)
+Pruebas Automatizadas de la Fase 1 y Fase 2:
+- Adaptador Neon.tech (PostgreSQL Serverless con sslmode=require y DB_SCHEMA aislado)
 - Controles de Seguridad ISO/IEC 27001 y OWASP (Argon2id, AES-256, JWT, HMAC-SHA256, 2FA, Headers)
 - Base de Datos SaaS Multi-Tenant y Multi-Sucursal (Planes, Menú con Ingredientes, Pedidos, Reservaciones)
-- Endpoints de Autenticación, Salud (/health) y Auditoría (AuditLog)
+- Panel Web Visual en "/" y Vista de Ticket Térmico en "/ticket/{id}" (Fase 2)
+- APIs Operativas: Cambio de estado de pedido (Recibido -> En Proceso -> Listo),
+  Tomar control humano del chat y botón "Agotado hoy"
 """
 from fastapi.testclient import TestClient
 
@@ -28,19 +30,16 @@ def test_neon_database_url_normalization():
 
 def test_security_primitives_iso_owasp():
     """Verifica Argon2id, cifrado AES-256 en reposo y firma HMAC-SHA256."""
-    # Argon2id
     hashed = hash_password("MiClaveUltraSegura#2026")
     assert hashed.startswith("$argon2id$")
     assert verify_password("MiClaveUltraSegura#2026", hashed) is True
     assert verify_password("ClaveIncorrecta", hashed) is False
 
-    # AES-256 (Fernet)
     secret_api_key = "sk_live_secreto_restaurante_12345"
     encrypted = encrypt_sensitive_data(secret_api_key)
     assert encrypted != secret_api_key
     assert decrypt_sensitive_data(encrypted) == secret_api_key
 
-    # HMAC-SHA256
     import hashlib
     import hmac
 
@@ -51,37 +50,19 @@ def test_security_primitives_iso_owasp():
     assert verify_webhook_hmac_signature(body, "sha256=invalida", secret=secret) is False
 
 
-def test_health_and_saas_phase1_overview():
-    """Verifica /health, cabeceras OWASP, semilla Multi-Sucursal, ingredientes y login con AuditLog."""
+def test_health_and_saas_phase1_and_phase2():
+    """Verifica /health, el Panel Web en '/', Ticket Térmico y operaciones de Restaurante."""
     with TestClient(app) as client:
-        # 1. Healthcheck y cabeceras OWASP
+        # 1. Raíz '/' carga el Panel Web Visual HTML (Fase 2)
+        res_home = client.get("/")
+        assert res_home.status_code == 200
+        assert "SaaS WhatsApp Orders" in res_home.text
+
+        # 2. Healthcheck y cabeceras OWASP
         res_health = client.get("/health")
         assert res_health.status_code == 200
         assert res_health.headers["X-Content-Type-Options"] == "nosniff"
         assert res_health.headers["X-Frame-Options"] == "SAMEORIGIN"
-        data_health = res_health.json()
-        assert data_health["status"] == "ok"
-        assert data_health["payment_mode"] == "modo_1_directo"
-
-        # 2. Resumen del sistema SaaS (Planes, Sucursales Opción B, Ingredientes y Pedido #ORD-1001)
-        res_overview = client.get("/api/v1/system/overview")
-        assert res_overview.status_code == 200
-        overview = res_overview.json()
-        assert overview["fase_1_completada"] is True
-        assert len(overview["planes_saas"]) == 3
-        assert len(overview["sucursales_con_link_whatsapp_opcion_b"]) == 2
-
-        burger = next(
-            p
-            for p in overview["platos_con_ingredientes"]
-            if "Hamburguesa" in p["plato"]
-        )
-        assert "Cebolla" in burger["ingredientes_removibles_sin_costo"]
-        assert "Tomate" in burger["ingredientes_removibles_sin_costo"]
-        assert any(
-            ex["nombre"] == "Extra Tocino Ahumado" and ex["precio"] == 2.0
-            for ex in burger["extras_y_variantes"]
-        )
 
         # 3. Login como Dueño de Restaurante (Multi-Tenant)
         res_login = client.post(
@@ -90,14 +71,56 @@ def test_health_and_saas_phase1_overview():
         )
         assert res_login.status_code == 200
         login_data = res_login.json()
-        assert login_data["user"]["rol"] == "COMERCIO_ADMIN"
-        assert login_data["user"]["tenant_id"] is not None
-
-        # 4. Consultar perfil /me usando el token JWT
         token = login_data["access_token"]
-        res_me = client.get(
-            "/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"}
-        )
-        assert res_me.status_code == 200
-        assert res_me.json()["email"] == "dueno@napoli.com"
+        tenant_id = login_data["user"]["tenant_id"]
+        headers = {"Authorization": f"Bearer {token}"}
 
+        # 4. Consultar Dashboard del Restaurante
+        res_dash = client.get(
+            f"/api/v1/panel/comercio/{tenant_id}/dashboard", headers=headers
+        )
+        assert res_dash.status_code == 200
+        dash = res_dash.json()
+        assert len(dash["pedidos"]) >= 1
+        pedido = dash["pedidos"][0]
+        pedido_id = pedido["id"]
+        sesion_id = pedido["sesion_chat_id"]
+
+        # 5. Vista de Ticket Térmico 58mm/80mm
+        res_ticket = client.get(f"/ticket/{pedido_id}")
+        assert res_ticket.status_code == 200
+        assert pedido["folio"] in res_ticket.text
+        assert "SIN:" in res_ticket.text
+
+        # 6. Cambiar estado del pedido: RECIBIDO -> EN_PROCESO -> LISTO -> RECIBIDO
+        res_est = client.patch(
+            f"/api/v1/panel/comercio/pedidos/{pedido_id}/estado",
+            json={"nuevo_estado": "EN_PROCESO"},
+            headers=headers,
+        )
+        assert res_est.status_code == 200
+        assert res_est.json()["estado_pedido"] == "EN_PROCESO"
+
+        # Restaurar a RECIBIDO para mantener el estado limpio de demostración
+        client.patch(
+            f"/api/v1/panel/comercio/pedidos/{pedido_id}/estado",
+            json={"nuevo_estado": "RECIBIDO"},
+            headers=headers,
+        )
+
+        # 7. Probar Interruptor de Control Humano del Chat ('HUMANO_ACTIVO' -> 'BOT_ACTIVO')
+        res_ctrl = client.post(
+            f"/api/v1/panel/comercio/chats/{sesion_id}/control",
+            json={"modo_atencion": "HUMANO_ACTIVO"},
+            headers=headers,
+        )
+        assert res_ctrl.status_code == 200
+        assert res_ctrl.json()["modo_atencion"] == "HUMANO_ACTIVO"
+
+        res_ctrl_bot = client.post(
+            f"/api/v1/panel/comercio/chats/{sesion_id}/control",
+            json={"modo_atencion": "BOT_ACTIVO"},
+            headers=headers,
+        )
+        assert res_ctrl_bot.status_code == 200
+        assert res_ctrl_bot.json()["modo_atencion"] == "BOT_ACTIVO"

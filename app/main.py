@@ -3,14 +3,20 @@ Punto de Entrada Principal del Servidor SaaS (FastAPI).
 Incluye:
 - Inicialización automática de Base de Datos (Neon.tech PostgreSQL / SQLite local)
 - Middlewares de Seguridad ISO/IEC 27001 y OWASP (Headers + Rate Limiting)
-- Endpoint ultraligero /health para mantener activo Render sin despertar innecesariamente a Neon.tech
-- Rutas de Autenticación y Estado de Arquitectura de Fase 1
+- Panel Web Visual Unificado en "/" (Login + Panel SuperAdmin + Panel Restaurante/Cocina)
+- Vista Previa / Impresión de Ticket Térmico 58mm/80mm en "/ticket/{pedido_id}"
+- Endpoint ultraligero /health para Render / Docker
 """
+import json
 from contextlib import asynccontextmanager
-from fastapi import Depends, FastAPI
+from pathlib import Path
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.auth import router as auth_router
+from app.api.panel_api import router as panel_router
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.init_db import init_database
@@ -24,6 +30,9 @@ from app.models.saas_models import (
     TenantComercio,
 )
 
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -33,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.APP_NAME,
-    version="1.0.0",
+    version="2.0.0",
     description=(
         "SaaS Multi-Tenant y Multi-Sucursal para Bot Único de Pedidos por WhatsApp "
         "con Panel Web de Restaurantes, Resumen de Chat con IA y Seguridad ISO 27001 / OWASP."
@@ -45,8 +54,75 @@ app = FastAPI(
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RateLimitMiddleware)
 
-# Rutas de Autenticación
+# Rutas de API (Autenticación + Panel Web Operativo)
 app.include_router(auth_router)
+app.include_router(panel_router)
+
+
+@app.get("/", response_class=HTMLResponse, tags=["Panel Web Visual (Fase 2)"])
+def web_panel_home(request: Request):
+    """Carga el Panel Web SaaS Unificado (Login, Panel SuperAdmin y Panel de Restaurantes)."""
+    return templates.TemplateResponse(request, "index.html", {})
+
+
+@app.get(
+    "/ticket/{pedido_id}",
+    response_class=HTMLResponse,
+    tags=["Impresión de Ticket Térmico (58mm/80mm)"],
+)
+def ver_ticket_termico(
+    pedido_id: int, request: Request, db: Session = Depends(get_db)
+):
+    """Renderiza el formato de Comanda para Impresora Térmica de 58mm o 80mm."""
+    pedido = db.query(Pedido).filter(Pedido.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+
+    comercio = (
+        db.query(TenantComercio)
+        .filter(TenantComercio.id == pedido.tenant_id)
+        .first()
+    )
+    sucursal = pedido.sucursal
+
+    items = []
+    for det in pedido.detalles:
+        try:
+            sin_list = json.loads(det.sin_ingredientes_json or "[]")
+        except Exception:
+            sin_list = []
+        try:
+            extras_list = json.loads(det.extras_json or "[]")
+        except Exception:
+            extras_list = []
+        items.append(
+            {
+                "nombre_plato": det.nombre_plato,
+                "cantidad": det.cantidad,
+                "subtotal_linea": det.subtotal_linea,
+                "sin_ingredientes": sin_list,
+                "extras": extras_list,
+                "notas_plato": det.notas_plato,
+            }
+        )
+
+    ancho_ticket = sucursal.ancho_ticket_termico if sucursal else "80mm"
+    fecha_formateada = (
+        pedido.creado_en.strftime("%d/%m/%Y %H:%M") if pedido.creado_en else ""
+    )
+
+    return templates.TemplateResponse(
+        request,
+        "ticket.html",
+        {
+            "pedido": pedido,
+            "comercio": comercio,
+            "sucursal": sucursal,
+            "items": items,
+            "ancho_ticket": ancho_ticket,
+            "fecha_formateada": fecha_formateada,
+        },
+    )
 
 
 @app.get("/health", tags=["Infraestructura y Salud (Render / Docker)"])
@@ -66,9 +142,9 @@ def health_check():
     }
 
 
-@app.get("/api/v1/system/overview", tags=["Estado de Fase 1"])
+@app.get("/api/v1/system/overview", tags=["Estado del Sistema"])
 def system_overview(db: Session = Depends(get_db)):
-    """Resumen de verificación de la estructura SaaS creada en la Fase 1."""
+    """Resumen de verificación de la estructura SaaS creada en la Fase 1 y Fase 2."""
     planes = db.query(PlanSaaS).all()
     comercios = db.query(TenantComercio).all()
     sucursales = db.query(SucursalComercio).all()
@@ -77,6 +153,7 @@ def system_overview(db: Session = Depends(get_db)):
 
     return {
         "fase_1_completada": True,
+        "fase_2_panel_web_completado": True,
         "planes_saas": [
             {
                 "codigo": p.codigo,
@@ -130,4 +207,3 @@ def system_overview(db: Session = Depends(get_db)):
             for ped in pedidos
         ],
     }
-

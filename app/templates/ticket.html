@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comanda #{{ pedido.folio }} - Ticket Térmico ({{ ancho_ticket }})</title>
+    <style>
+        :root {
+            --ticket-width: {{ '58mm' if ancho_ticket == '58mm' else '80mm' }};
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background-color: #0f172a;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 24px 12px;
+            color: #000;
+        }
+        .toolbar {
+            background: #1e293b;
+            color: #f8fafc;
+            padding: 12px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-family: system-ui, -apple-system, sans-serif;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+        }
+        .btn {
+            background: #10b981;
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .btn-secondary {
+            background: #475569;
+        }
+        .ticket-paper {
+            width: var(--ticket-width);
+            background: #ffffff;
+            padding: 12px 10px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+            font-size: 12px;
+            line-height: 1.35;
+        }
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 8px 0;
+        }
+        .double-divider {
+            border-top: 2px solid #000;
+            margin: 8px 0;
+        }
+        .folio-box {
+            border: 2px solid #000;
+            padding: 6px;
+            margin: 6px 0;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+        .mod-sin {
+            background: #000;
+            color: #fff;
+            padding: 2px 4px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 2px;
+            font-size: 11px;
+        }
+        .mod-extra {
+            padding-left: 8px;
+            font-weight: bold;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 3px;
+        }
+        .grand-total {
+            font-size: 15px;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+        @media print {
+            body {
+                background: #fff;
+                padding: 0;
+            }
+            .toolbar {
+                display: none !important;
+            }
+            .ticket-paper {
+                box-shadow: none;
+                width: 100%;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <span>🖨️ <strong>Vista Previa Ticket Térmico ({{ ancho_ticket }})</strong></span>
+        <button class="btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+        <button class="btn btn-secondary" onclick="window.close()">Cerrar</button>
+    </div>
+
+    <div class="ticket-paper">
+        <div class="center bold" style="font-size: 14px;">{{ comercio.nombre_comercial | upper }}</div>
+        <div class="center">{{ sucursal.nombre_sucursal }}</div>
+        {% if sucursal.direccion_fisica %}
+        <div class="center" style="font-size: 10px;">{{ sucursal.direccion_fisica }}</div>
+        {% endif %}
+
+        <div class="folio-box">
+            PEDIDO #{{ pedido.folio }}<br>
+            <span style="font-size: 12px;">ESTADO: {{ pedido.estado_pedido }}</span>
+        </div>
+
+        <div><strong>FECHA:</strong> {{ fecha_formateada }}</div>
+        <div><strong>ENTREGA:</strong> {{ pedido.tipo_entrega }}</div>
+        <div><strong>CLIENTE:</strong> {{ pedido.nombre_cliente }}</div>
+        <div><strong>WHATSAPP:</strong> +{{ pedido.telefono_cliente }}</div>
+        {% if pedido.direccion_entrega %}
+        <div><strong>DIR:</strong> {{ pedido.direccion_entrega }}</div>
+        {% endif %}
+        {% if pedido.zona_envio_nombre %}
+        <div><strong>ZONA:</strong> {{ pedido.zona_envio_nombre }}</div>
+        {% endif %}
+
+        <div class="double-divider"></div>
+        <div class="bold">CANT  DESCRIPCIÓN            IMPORTE</div>
+        <div class="divider"></div>
+
+        {% for item in items %}
+        <div class="item-row">
+            <span>{{ item.cantidad }}x {{ item.nombre_plato }}</span>
+            <span>{{ comercio.simbolo_moneda }}{{ "%.2f"|format(item.subtotal_linea) }}</span>
+        </div>
+        {% if item.sin_ingredientes %}
+        <div>
+            <span class="mod-sin">[!] SIN: {{ item.sin_ingredientes | join(', ') | upper }}</span>
+        </div>
+        {% endif %}
+        {% for ex in item.extras %}
+        <div class="mod-extra">
+            [+] {{ ex.nombre }} (+{{ comercio.simbolo_moneda }}{{ "%.2f"|format(ex.precio) }})
+        </div>
+        {% endfor %}
+        {% if item.notas_plato %}
+        <div style="font-size: 11px; padding-left: 8px;">* Nota: {{ item.notas_plato }}</div>
+        {% endif %}
+        {% endfor %}
+
+        <div class="double-divider"></div>
+        <div class="total-row">
+            <span>SUBTOTAL:</span>
+            <span>{{ comercio.simbolo_moneda }}{{ "%.2f"|format(pedido.subtotal) }}</span>
+        </div>
+        <div class="total-row">
+            <span>ENVÍO:</span>
+            <span>{{ comercio.simbolo_moneda }}{{ "%.2f"|format(pedido.costo_envio) }}</span>
+        </div>
+        <div class="total-row grand-total">
+            <span>TOTAL A COBRAR:</span>
+            <span>{{ comercio.simbolo_moneda }}{{ "%.2f"|format(pedido.total) }} {{ comercio.moneda }}</span>
+        </div>
+
+        <div class="divider"></div>
+        <div><strong>MÉTODO PAGO:</strong> {{ pedido.metodo_pago }}</div>
+        {% if pedido.paga_con_monto %}
+        <div><strong>PAGA CON:</strong> {{ comercio.simbolo_moneda }}{{ "%.2f"|format(pedido.paga_con_monto) }}</div>
+        <div class="bold"><strong>CAMBIO A DAR:</strong> {{ comercio.simbolo_moneda }}{{ "%.2f"|format(pedido.cambio_a_entregar or 0) }}</div>
+        {% endif %}
+
+        {% if pedido.notas_especiales %}
+        <div class="divider"></div>
+        <div class="bold">NOTAS DEL CLIENTE:</div>
+        <div>{{ pedido.notas_especiales }}</div>
+        {% endif %}
+
+        <div class="divider"></div>
+        <div class="bold">RESUMEN IA DEL CHAT:</div>
+        <div style="font-size: 10px;">{{ pedido.resumen_chat_ia }}</div>
+
+        <div class="double-divider"></div>
+        <div class="center" style="font-size: 10px;">
+            {{ sucursal.pie_ticket or '¡Gracias por tu pedido por WhatsApp!' }}
+        </div>
+    </div>
+</body>
+</html>
+
