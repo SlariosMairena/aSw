@@ -1,0 +1,30 @@
+# =====================================================================
+# render.yaml — Blueprint para Despliegue Automático en Render.com
+# Conectado a tu Base de Datos PostgreSQL Serverless en Neon.tech
+# =====================================================================
+services:
+  - type: web
+    name: saas-whatsapp-pedidos
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false # Pega aquí tu cadena de conexión de Neon.tech (?sslmode=require)
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_MASTER_KEY
+        generateValue: true
+      - key: WEBHOOK_HMAC_SECRET
+        generateValue: true
+      - key: WHATSAPP_PROVIDER
+        value: evolution_qr
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+

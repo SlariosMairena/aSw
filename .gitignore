@@ -1,0 +1,22 @@
+# Entorno y secretos (ISO 27001: Nunca subir secretos al repositorio)
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Base de datos local de desarrollo y archivos subidos
+*.db
+*.sqlite3
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
