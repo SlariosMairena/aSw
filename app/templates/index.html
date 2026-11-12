@@ -1287,25 +1287,17 @@
         }
 
         // =========================================================
-        // CONSTRUCTOR VISUAL DE INGREDIENTES REMOVIBLES Y EXTRAS
+        // CONSTRUCTOR DINÁMICO DE INGREDIENTES Y EXTRAS
+        // (Adaptado dinámicamente según el giro/catálogo de cada comercio)
         // =========================================================
-        const QUICK_INGREDIENTS_PRESETS = [
+        const FALLBACK_INGREDIENTS = [
             'Cebolla', 'Tomate', 'Lechuga', 'Mayonesa', 'Pepinillos',
-            'Mostaza', 'Salsa BBQ', 'Picante / Chile', 'Queso',
-            'Aguacate', 'Cilantro', 'Crema', 'Aceitunas Negras', 'Orégano'
+            'Mostaza', 'Salsa BBQ', 'Picante', 'Queso', 'Aguacate'
         ];
-        
-        // Sugerencias rápidas para Extras y Variantes con precios comunes
-        const QUICK_EXTRAS_PRESETS = [
-            { nombre: 'Extra Tocino', tipo: 'EXTRA', precio: 2.00 },
+        const FALLBACK_EXTRAS = [
             { nombre: 'Extra Queso', tipo: 'EXTRA', precio: 1.50 },
-            { nombre: 'Papas Fritas', tipo: 'EXTRA', precio: 2.50 },
-            { nombre: 'Huevo Estrellado', tipo: 'EXTRA', precio: 1.25 },
-            { nombre: 'Guacamole', tipo: 'EXTRA', precio: 2.00 },
-            { nombre: 'Orilla de Queso', tipo: 'EXTRA', precio: 3.00 },
-            { nombre: 'Tamaño Mediano', tipo: 'VARIANTE', precio: 2.50 },
-            { nombre: 'Tamaño Familiar', tipo: 'VARIANTE', precio: 5.00 },
-            { nombre: 'Carne Doble', tipo: 'VARIANTE', precio: 3.50 }
+            { nombre: 'Porción Extra', tipo: 'EXTRA', precio: 2.00 },
+            { nombre: 'Tamaño Grande', tipo: 'VARIANTE', precio: 3.00 }
         ];
 
         let formIngredientesBaseList = ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'];
@@ -1314,11 +1306,48 @@
             { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 1.50 }
         ];
 
+        // Obtiene ingredientes base y extras únicos ya utilizados en el catálogo del local
+        function getComercioIngredientPresets() {
+            const platos = (currentComercioData && currentComercioData.platos) ? currentComercioData.platos : [];
+            const ingBaseSet = new Set();
+            const extrasMap = new Map();
+
+            platos.forEach(p => {
+                (p.ingredientes_removibles || []).forEach(i => {
+                    if (i.nombre) ingBaseSet.add(i.nombre.trim());
+                });
+                (p.extras_y_variantes || []).forEach(e => {
+                    if (e.nombre && !extrasMap.has(e.nombre.toLowerCase().trim())) {
+                        extrasMap.set(e.nombre.toLowerCase().trim(), {
+                            nombre: e.nombre.trim(),
+                            tipo: e.tipo || 'EXTRA',
+                            precio: Number(e.precio_adicional || 1.50)
+                        });
+                    }
+                });
+            });
+
+            // Si el comercio aún tiene pocos platos, complementamos con presets estándar
+            FALLBACK_INGREDIENTS.forEach(f => ingBaseSet.add(f));
+            FALLBACK_EXTRAS.forEach(fe => {
+                if (!extrasMap.has(fe.nombre.toLowerCase())) {
+                    extrasMap.set(fe.nombre.toLowerCase(), fe);
+                }
+            });
+
+            return {
+                ingredientesBase: Array.from(ingBaseSet).slice(0, 20),
+                extras: Array.from(extrasMap.values()).slice(0, 16)
+            };
+        }
+
         function renderIngredientBuilderUI() {
-            // 1. Barra de botones rápidos de ingredientes base
+            const presets = getComercioIngredientPresets();
+
+            // 1. Barra de botones rápidos de ingredientes base propios del comercio
             const quickBar = document.getElementById('quickIngredientsBar');
             if (quickBar) {
-                quickBar.innerHTML = QUICK_INGREDIENTS_PRESETS.map(item => {
+                quickBar.innerHTML = presets.ingredientesBase.map(item => {
                     const isSelected = formIngredientesBaseList.some(
                         x => x.toLowerCase() === item.toLowerCase()
                     );
@@ -1352,10 +1381,10 @@
                 }
             }
 
-            // 3. Barra de botones rápidos para Extras y Variantes
+            // 3. Barra de sugerencias rápidas para Extras y Variantes propios de este comercio
             const quickExtrasBar = document.getElementById('quickExtrasBar');
             if (quickExtrasBar) {
-                quickExtrasBar.innerHTML = QUICK_EXTRAS_PRESETS.map(item => {
+                quickExtrasBar.innerHTML = presets.extras.map(item => {
                     const isSelected = formExtrasList.some(
                         x => x.nombre.toLowerCase() === item.nombre.toLowerCase()
                     );
