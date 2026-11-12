@@ -278,16 +278,63 @@
                             <textarea id="platoDesc" rows="2" placeholder="Doble carne, salsa BBQ, aros de cebolla..."
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white"></textarea>
                         </div>
-                        <div>
-                            <label class="block text-emerald-300 font-semibold mb-1">Ingredientes Base Removibles (separados por coma, sin costo):</label>
-                            <input id="platoIngRemovibles" type="text" value="Cebolla, Tomate, Lechuga, Mayonesa, Salsa BBQ"
-                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+
+                        <!-- NUEVO CONSTRUCTOR VISUAL DE INGREDIENTES BASE REMOVIBLES ($0) -->
+                        <div class="p-3 rounded-xl bg-slate-950/80 border border-emerald-500/30 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-emerald-300 font-bold">
+                                    🥗 Ingredientes Base del Plato (Removibles sin costo)
+                                </label>
+                                <span id="countIngBaseBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400">
+                                Toca los ingredientes rápidos o escribe uno y presiona <strong>+ Agregar</strong>:
+                            </p>
+
+                            <!-- Botones de selección rápida en 1 clic -->
+                            <div id="quickIngredientsBar" class="flex flex-wrap gap-1"></div>
+
+                            <!-- Input para agregar un ingrediente personalizado -->
+                            <div class="flex gap-1.5">
+                                <input id="inputNuevoIngBase" type="text" placeholder="Escribir otro ingrediente (ej. Aros de cebolla)..."
+                                    onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomIngBase();}"
+                                    class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500">
+                                <button type="button" onclick="addCustomIngBase()"
+                                    class="px-3 py-1.5 rounded-lg bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200 border border-emerald-500/40 font-bold text-xs transition">
+                                    + Agregar
+                                </button>
+                            </div>
+
+                            <!-- Lista visual de ingredientes seleccionados con botón X para quitar -->
+                            <div id="selectedIngBaseContainer" class="flex flex-wrap gap-1.5 pt-1 min-h-[28px]"></div>
                         </div>
-                        <div>
-                            <label class="block text-amber-300 font-semibold mb-1">Extras o Variantes con costo (Formato Nombre:Precio separados por coma):</label>
-                            <input id="platoExtras" type="text" value="Extra Tocino:2.00, Extra Queso:1.50, Papas Grandes:2.50"
-                                class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+
+                        <!-- NUEVO CONSTRUCTOR VISUAL DE EXTRAS Y VARIANTES CON COSTO -->
+                        <div class="p-3 rounded-xl bg-slate-950/80 border border-amber-500/30 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-amber-300 font-bold">
+                                    ➕ Extras o Variantes con Costo Adicional
+                                </label>
+                                <span id="countExtrasBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
+                            </div>
+
+                            <div class="flex gap-1.5">
+                                <input id="inputExtraNombre" type="text" placeholder="Ej. Extra Tocino"
+                                    onkeydown="if(event.key==='Enter'){event.preventDefault();addExtraItemFromInputs();}"
+                                    class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500">
+                                <input id="inputExtraPrecio" type="number" step="0.01" placeholder="$ 2.00"
+                                    onkeydown="if(event.key==='Enter'){event.preventDefault();addExtraItemFromInputs();}"
+                                    class="w-24 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500">
+                                <button type="button" onclick="addExtraItemFromInputs()"
+                                    class="px-3 py-1.5 rounded-lg bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 border border-amber-500/40 font-bold text-xs transition">
+                                    + Extra
+                                </button>
+                            </div>
+
+                            <!-- Lista visual de extras agregados -->
+                            <div id="selectedExtrasContainer" class="space-y-1.5 pt-1"></div>
                         </div>
+
                         <button id="btnSubmitPlato" type="submit"
                             class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition">
                             Guardar Plato e Ingredientes
@@ -1058,6 +1105,131 @@
             `).join('');
         }
 
+        // =========================================================
+        // CONSTRUCTOR VISUAL DE INGREDIENTES REMOVIBLES Y EXTRAS
+        // =========================================================
+        const QUICK_INGREDIENTS_PRESETS = [
+            'Cebolla', 'Tomate', 'Lechuga', 'Mayonesa', 'Pepinillos',
+            'Mostaza', 'Salsa BBQ', 'Picante / Chile', 'Queso',
+            'Aguacate', 'Cilantro', 'Crema', 'Aceitunas Negras', 'Orégano'
+        ];
+        let formIngredientesBaseList = ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'];
+        let formExtrasList = [
+            { nombre: 'Extra Tocino', tipo: 'EXTRA', precio_adicional: 2.00 },
+            { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 1.50 }
+        ];
+
+        function renderIngredientBuilderUI() {
+            // 1. Barra de botones rápidos (se iluminan si ya están incluidos en el plato)
+            const quickBar = document.getElementById('quickIngredientsBar');
+            if (quickBar) {
+                quickBar.innerHTML = QUICK_INGREDIENTS_PRESETS.map(item => {
+                    const isSelected = formIngredientesBaseList.some(
+                        x => x.toLowerCase() === item.toLowerCase()
+                    );
+                    return `
+                        <button type="button" onclick="toggleQuickIngredient('${item}')"
+                            class="px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                                isSelected
+                                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
+                                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+                            }">
+                            ${isSelected ? '✓ ' : '+ '}${item}
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            // 2. Chips/etiquetas de los ingredientes base actualmente seleccionados
+            const baseContainer = document.getElementById('selectedIngBaseContainer');
+            const badgeBase = document.getElementById('countIngBaseBadge');
+            if (badgeBase) badgeBase.textContent = `${formIngredientesBaseList.length} seleccionados`;
+            if (baseContainer) {
+                if (formIngredientesBaseList.length === 0) {
+                    baseContainer.innerHTML = `<span class="text-[11px] text-slate-500 italic">Ningún ingrediente removible agregado todavía.</span>`;
+                } else {
+                    baseContainer.innerHTML = formIngredientesBaseList.map((ing, idx) => `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold">
+                            <span>${ing}</span>
+                            <button type="button" onclick="removeIngBaseAt(${idx})" class="text-emerald-300 hover:text-white font-bold">✕</button>
+                        </span>
+                    `).join('');
+                }
+            }
+
+            // 3. Lista visual de Extras con precio
+            const extrasContainer = document.getElementById('selectedExtrasContainer');
+            const badgeExtras = document.getElementById('countExtrasBadge');
+            if (badgeExtras) badgeExtras.textContent = `${formExtrasList.length} extras`;
+            if (extrasContainer) {
+                if (formExtrasList.length === 0) {
+                    extrasContainer.innerHTML = `<div class="text-[11px] text-slate-500 italic">Sin extras con costo adicional.</div>`;
+                } else {
+                    extrasContainer.innerHTML = formExtrasList.map((ex, idx) => `
+                        <div class="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs">
+                            <span class="font-semibold text-amber-200">➕ ${ex.nombre}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-emerald-300">+$${Number(ex.precio_adicional).toFixed(2)}</span>
+                                <button type="button" onclick="removeExtraAt(${idx})" class="text-rose-300 hover:text-white font-bold px-1">✕</button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function toggleQuickIngredient(nombre) {
+            const existingIdx = formIngredientesBaseList.findIndex(
+                x => x.toLowerCase() === nombre.toLowerCase()
+            );
+            if (existingIdx >= 0) {
+                formIngredientesBaseList.splice(existingIdx, 1);
+            } else {
+                formIngredientesBaseList.push(nombre);
+            }
+            renderIngredientBuilderUI();
+        }
+
+        function addCustomIngBase() {
+            const input = document.getElementById('inputNuevoIngBase');
+            const val = (input.value || '').trim();
+            if (!val) return;
+            if (!formIngredientesBaseList.some(x => x.toLowerCase() === val.toLowerCase())) {
+                formIngredientesBaseList.push(val);
+            }
+            input.value = '';
+            renderIngredientBuilderUI();
+        }
+
+        function removeIngBaseAt(index) {
+            formIngredientesBaseList.splice(index, 1);
+            renderIngredientBuilderUI();
+        }
+
+        function addExtraItemFromInputs() {
+            const nameInput = document.getElementById('inputExtraNombre');
+            const priceInput = document.getElementById('inputExtraPrecio');
+            const nombre = (nameInput.value || '').trim();
+            const precio = parseFloat(priceInput.value);
+            if (!nombre) {
+                showToast('Escribe el nombre del extra (ej. Extra Tocino)', true);
+                return;
+            }
+            formExtrasList.push({
+                nombre,
+                tipo: 'EXTRA',
+                precio_adicional: isNaN(precio) ? 1.50 : precio
+            });
+            nameInput.value = '';
+            priceInput.value = '';
+            renderIngredientBuilderUI();
+        }
+
+        function removeExtraAt(index) {
+            formExtrasList.splice(index, 1);
+            renderIngredientBuilderUI();
+        }
+
         function cargarPlatoEnFormularioParaEditar(platoId) {
             const pl = (currentComercioData.platos || []).find(x => x.id === platoId);
             if (!pl) return;
@@ -1067,19 +1239,21 @@
             document.getElementById('platoNombre').value = pl.nombre;
             document.getElementById('platoPrecio').value = pl.precio_base;
             document.getElementById('platoDesc').value = pl.descripcion || '';
-            document.getElementById('platoIngRemovibles').value = (pl.ingredientes_removibles || [])
-                .map(i => i.nombre)
-                .join(', ');
-            document.getElementById('platoExtras').value = (pl.extras_y_variantes || [])
-                .map(e => `${e.nombre}:${e.precio_adicional.toFixed(2)}`)
-                .join(', ');
+
+            formIngredientesBaseList = (pl.ingredientes_removibles || []).map(i => i.nombre);
+            formExtrasList = (pl.extras_y_variantes || []).map(e => ({
+                nombre: e.nombre,
+                tipo: e.tipo || 'EXTRA',
+                precio_adicional: Number(e.precio_adicional || 0)
+            }));
+            renderIngredientBuilderUI();
 
             document.getElementById('formPlatoTitle').textContent = `✏️ Editando: ${pl.nombre}`;
             document.getElementById('btnSubmitPlato').textContent = '💾 Guardar Cambios del Plato';
             document.getElementById('btnSubmitPlato').className =
                 'w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold transition';
             document.getElementById('btnCancelarEdicionPlato').classList.remove('hidden');
-            showToast(`Editando "${pl.nombre}". Modifica los campos a la izquierda y guarda.`);
+            showToast(`Editando "${pl.nombre}". Toca los botones de ingredientes o extras para modificarlos.`);
         }
 
         function resetFormularioPlato() {
@@ -1087,8 +1261,12 @@
             document.getElementById('platoNombre').value = '';
             document.getElementById('platoPrecio').value = '';
             document.getElementById('platoDesc').value = '';
-            document.getElementById('platoIngRemovibles').value = 'Cebolla, Tomate, Lechuga, Mayonesa';
-            document.getElementById('platoExtras').value = 'Extra Tocino:2.00, Extra Queso:1.50';
+            formIngredientesBaseList = ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'];
+            formExtrasList = [
+                { nombre: 'Extra Tocino', tipo: 'EXTRA', precio_adicional: 2.00 },
+                { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 1.50 }
+            ];
+            renderIngredientBuilderUI();
             document.getElementById('formPlatoTitle').textContent = '➕ Agregar Nuevo Plato';
             document.getElementById('btnSubmitPlato').textContent = 'Guardar Plato e Ingredientes';
             document.getElementById('btnSubmitPlato').className =
@@ -1136,30 +1314,14 @@
         async function handleGuardarPlato(e) {
             e.preventDefault();
             const editId = document.getElementById('platoEditId').value;
-            const removibles = document.getElementById('platoIngRemovibles').value
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean);
-            const extrasRaw = document.getElementById('platoExtras').value
-                .split(',')
-                .map(s => s.trim())
-                .filter(Boolean);
-            const extras_con_costo = extrasRaw.map(item => {
-                const [nombre, precioStr] = item.split(':');
-                return {
-                    nombre: (nombre || '').trim(),
-                    tipo: 'EXTRA',
-                    precio_adicional: parseFloat(precioStr || '1.50') || 1.50
-                };
-            });
 
             const bodyPayload = {
                 categoria_nombre: document.getElementById('platoCategoria').value,
                 nombre: document.getElementById('platoNombre').value,
                 precio_base: parseFloat(document.getElementById('platoPrecio').value),
                 descripcion: document.getElementById('platoDesc').value,
-                ingredientes_removibles: removibles,
-                extras_con_costo
+                ingredientes_removibles: formIngredientesBaseList,
+                extras_con_costo: formExtrasList
             };
 
             try {
@@ -1228,8 +1390,9 @@
             `).join('');
         }
 
-        // Auto-verificar si ya había sesión guardada
+        // Auto-verificar si ya había sesión guardada e inicializar constructor visual de ingredientes
         window.addEventListener('DOMContentLoaded', async () => {
+            renderIngredientBuilderUI();
             if (authToken) {
                 try {
                     currentUser = await apiFetch('/api/v1/auth/me');
