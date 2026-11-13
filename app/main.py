@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.api.auth import router as auth_router
 from app.api.panel_api import router as panel_router
+from app.api.payment_api import router as payment_router
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.init_db import init_database
@@ -60,9 +61,10 @@ static_dir = BASE_DIR / "static"
 static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# Rutas de API (Autenticación + Panel Web Operativo)
+# Rutas de API (Autenticación + Panel Web Operativo + Pasarela de Pagos)
 app.include_router(auth_router)
 app.include_router(panel_router)
+app.include_router(payment_router)
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Panel Web Visual (Fase 2)"])
@@ -127,6 +129,30 @@ def ver_ticket_termico(
             "items": items,
             "ancho_ticket": ancho_ticket,
             "fecha_formateada": fecha_formateada,
+        },
+    )
+
+
+@app.get(
+    "/pagos/checkout/{session_id}",
+    response_class=HTMLResponse,
+    tags=["Simulador de Pasarela de Pago"],
+)
+def checkout_simulador_view(
+    session_id: str, pedido_id: int, request: Request, db: Session = Depends(get_db)
+):
+    """Página de checkout simulada de pasarela bancaria."""
+    pedido = db.query(Pedido).filter(Pedido.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido no encontrado.")
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == pedido.tenant_id).first()
+    return templates.TemplateResponse(
+        request,
+        "checkout_simulator.html",
+        {
+            "pedido": pedido,
+            "comercio": comercio,
+            "session_id": session_id,
         },
     )
 

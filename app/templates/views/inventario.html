@@ -65,8 +65,8 @@
 
     <!-- PANEL PRINCIPAL DE TABLA CON FILTROS Y ACCIONES -->
     <div class="glass rounded-2xl p-5 space-y-4">
-        <!-- Barra de herramientas: búsqueda, filtros y botón nuevo insumo -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+        <!-- Barra de herramientas: búsqueda, vista, filtros y botón nuevo insumo -->
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div class="flex flex-wrap items-center gap-2">
                 <!-- Buscador -->
                 <div class="relative w-full sm:w-56">
@@ -78,7 +78,7 @@
                 </div>
 
                 <!-- Filtro por categoría -->
-                <select id="invCategorySelect" onchange="filtrarInventarioTabla()"
+                <select id="invCategorySelect" onchange="seleccionarCategoriaInventario(this.value)"
                     class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500">
                     <option value="">Todas las categorías</option>
                 </select>
@@ -100,8 +100,22 @@
                 </div>
             </div>
 
-            <!-- Botones de Acción -->
-            <div class="flex items-center gap-2">
+            <!-- Selector de Vista y Botones de Acción -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Modo de Visualización (Agrupado vs Tabla Plana) -->
+                <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700 text-xs">
+                    <button type="button" onclick="setModoVistaInventario('AGRUPADO')" id="btnVistaInv_AGRUPADO"
+                        class="px-2.5 py-1 rounded-lg bg-indigo-500 text-white font-bold transition flex items-center gap-1"
+                        title="Agrupa insumos en acordeones limpios por categoría">
+                        <i class="fa-solid fa-layer-group text-xs"></i> <span>Por Categoría</span>
+                    </button>
+                    <button type="button" onclick="setModoVistaInventario('TABLA')" id="btnVistaInv_TABLA"
+                        class="px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1"
+                        title="Muestra todos los insumos en una tabla única continua">
+                        <i class="fa-solid fa-table-list text-xs"></i> <span>Tabla Completa</span>
+                    </button>
+                </div>
+
                 <button type="button" onclick="cargarInventario()" title="Refrescar lista de inventario"
                     class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-1.5">
                     <i class="fa-solid fa-rotate"></i> <span>Refrescar</span>
@@ -113,8 +127,18 @@
             </div>
         </div>
 
-        <!-- TABLA RESPONSIVA DE INSUMOS -->
-        <div class="overflow-x-auto rounded-xl border border-slate-800">
+        <!-- Píldoras Rápidas de Categorías con Resumen -->
+        <div id="invCategoriasChipsBar" class="flex flex-wrap gap-1.5 pb-1"></div>
+
+        <!-- VISTA A: AGRUPADA POR CATEGORÍAS (ACORDEÓN CÓMODO Y COLAPSABLE) -->
+        <div id="invVistaAgrupada" class="space-y-3">
+            <div class="text-center py-8 text-slate-400">
+                <i class="fa-solid fa-spinner fa-spin mr-2"></i> Cargando categorías del inventario...
+            </div>
+        </div>
+
+        <!-- VISTA B: TABLA CONTINUA PLANA -->
+        <div id="invVistaTabla" class="hidden overflow-x-auto rounded-xl border border-slate-800">
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
                     <tr>
@@ -138,10 +162,9 @@
             </table>
         </div>
 
-        <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-            <span><i class="fa-regular fa-lightbulb text-amber-400 mr-1"></i> <strong>Tip para el dueño:</strong> Pulsa <strong>[+]</strong> para sumar compras de ingredientes o <strong>[-]</strong> para registrar mermas o desperdicios al instante.</span>
+        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1">
+            <span><i class="fa-regular fa-lightbulb text-amber-400 mr-1"></i> <strong>Tip:</strong> Puedes tocar cada categoría para expandir o colapsar sus insumos y mantener tu pantalla ordenada.</span>
             <span id="invFiltradosInfo">Mostrando todos los insumos</span>
         </div>
     </div>
 </div>
-

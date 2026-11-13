@@ -5,6 +5,22 @@
 let inventarioItems = [];
 let inventarioCategorias = [];
 let filtroEstadoActual = 'TODOS'; // 'TODOS', 'BAJO_STOCK', 'AGOTADOS'
+let categoriaSeleccionadaActual = '';
+let modoVistaInventario = 'AGRUPADO'; // 'AGRUPADO' (acordeones por categoría) | 'TABLA' (tabla continua)
+let categoriasColapsadas = {}; // Guarda qué categorías están abiertas/cerradas
+
+const CATEGORY_ICONS = {
+    'Carnes': 'fa-drumstick-bite',
+    'Panadería': 'fa-bread-slice',
+    'Lácteos': 'fa-cheese',
+    'Bebidas': 'fa-wine-bottle',
+    'Vegetales': 'fa-carrot',
+    'Vegetales & Frutas': 'fa-apple-whole',
+    'Salsas': 'fa-jar',
+    'Salsas & Especias': 'fa-pepper-hot',
+    'Empaques': 'fa-box',
+    'Empaques & Descartables': 'fa-boxes-packing'
+};
 
 /**
  * Carga el inventario desde el endpoint del panel
@@ -13,10 +29,17 @@ async function cargarInventario() {
     if (!activeTenantId) return;
 
     const tbody = document.getElementById('inventarioTableBody');
+    const containerAgrupado = document.getElementById('invVistaAgrupada');
+    
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">
             <i class="fa-solid fa-spinner fa-spin mr-2"></i> Consultando stock en tiempo real...
         </td></tr>`;
+    }
+    if (containerAgrupado) {
+        containerAgrupado.innerHTML = `<div class="text-center py-8 text-slate-400">
+            <i class="fa-solid fa-spinner fa-spin mr-2"></i> Organizando categorías del inventario...
+        </div>`;
     }
 
     try {
@@ -61,7 +84,6 @@ async function cargarInventario() {
         // 2. Llenar select de categorías
         const catSelect = document.getElementById('invCategorySelect');
         if (catSelect) {
-            const currentVal = catSelect.value;
             catSelect.innerHTML = `<option value="">Todas las categorías (${inventarioCategorias.length})</option>`;
             inventarioCategorias.forEach(cat => {
                 const opt = document.createElement('option');
@@ -69,10 +91,13 @@ async function cargarInventario() {
                 opt.textContent = cat;
                 catSelect.appendChild(opt);
             });
-            catSelect.value = currentVal;
+            catSelect.value = categoriaSeleccionadaActual;
         }
 
-        // 3. Renderizar tabla con los filtros activos
+        // 3. Renderizar píldoras rápidas de categorías
+        renderizarChipsCategorias();
+
+        // 4. Renderizar según filtros activos y modo de vista
         filtrarInventarioTabla();
 
     } catch (err) {
@@ -82,7 +107,113 @@ async function cargarInventario() {
                 <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error al cargar el inventario: ${err.message}
             </td></tr>`;
         }
+        if (containerAgrupado) {
+            containerAgrupado.innerHTML = `<div class="p-4 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-center text-xs">
+                <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error al cargar el inventario: ${err.message}
+            </div>`;
+        }
         showToast('Error cargando inventario: ' + err.message, true);
+    }
+}
+
+/**
+ * Renderiza píldoras interactivas arriba del inventario para cambiar de categoría con 1 clic
+ */
+function renderizarChipsCategorias() {
+    const container = document.getElementById('invCategoriasChipsBar');
+    if (!container) return;
+
+    // Calcular totales por categoría
+    const statsPorCat = {};
+    inventarioItems.forEach(it => {
+        const c = it.categoria || 'General';
+        statsPorCat[c] = (statsPorCat[c] || 0) + 1;
+    });
+
+    const isAllActive = !categoriaSeleccionadaActual;
+
+    let html = `
+        <button type="button" onclick="seleccionarCategoriaInventario('')"
+            class="px-3 py-1 rounded-xl text-xs font-semibold border transition ${
+                isAllActive
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-md shadow-emerald-500/20'
+                    : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:bg-slate-800'
+            }">
+            <span>Todas</span> <span class="text-[10px] opacity-75">(${inventarioItems.length})</span>
+        </button>
+    `;
+
+    inventarioCategorias.forEach(cat => {
+        const isActive = categoriaSeleccionadaActual === cat;
+        const count = statsPorCat[cat] || 0;
+        const iconName = CATEGORY_ICONS[cat] || 'fa-tag';
+
+        html += `
+            <button type="button" onclick="seleccionarCategoriaInventario('${escapeJsStr(cat)}')"
+                class="px-2.5 py-1 rounded-xl text-xs font-medium border transition flex items-center gap-1.5 ${
+                    isActive
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-md shadow-emerald-500/20'
+                        : 'bg-slate-900/90 text-slate-300 border-slate-700 hover:bg-slate-800'
+                }">
+                <i class="fa-solid ${iconName} text-[11px] opacity-80"></i>
+                <span>${escapeHtml(cat)}</span>
+                <span class="text-[10px] opacity-75">(${count})</span>
+            </button>
+        `;
+    });
+
+    container.innerHTML = html;
+}
+
+/**
+ * Selecciona una categoría tanto desde las píldoras como desde el select
+ */
+function seleccionarCategoriaInventario(cat) {
+    categoriaSeleccionadaActual = cat;
+    const catSelect = document.getElementById('invCategorySelect');
+    if (catSelect) catSelect.value = cat;
+    renderizarChipsCategorias();
+    filtrarInventarioTabla();
+}
+
+/**
+ * Cambia entre modo agrupado por categorías (acordeón) y tabla plana
+ */
+function setModoVistaInventario(modo) {
+    modoVistaInventario = modo;
+    const btnAgrupado = document.getElementById('btnVistaInv_AGRUPADO');
+    const btnTabla = document.getElementById('btnVistaInv_TABLA');
+
+    const vistaAgrupada = document.getElementById('invVistaAgrupada');
+    const vistaTabla = document.getElementById('invVistaTabla');
+
+    if (modo === 'AGRUPADO') {
+        if (btnAgrupado) btnAgrupado.className = 'px-2.5 py-1 rounded-lg bg-indigo-500 text-white font-bold transition flex items-center gap-1';
+        if (btnTabla) btnTabla.className = 'px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1';
+        if (vistaAgrupada) vistaAgrupada.classList.remove('hidden');
+        if (vistaTabla) vistaTabla.classList.add('hidden');
+    } else {
+        if (btnAgrupado) btnAgrupado.className = 'px-2.5 py-1 rounded-lg text-slate-300 hover:text-white transition flex items-center gap-1';
+        if (btnTabla) btnTabla.className = 'px-2.5 py-1 rounded-lg bg-indigo-500 text-white font-bold transition flex items-center gap-1';
+        if (vistaAgrupada) vistaAgrupada.classList.add('hidden');
+        if (vistaTabla) vistaTabla.classList.remove('hidden');
+    }
+
+    filtrarInventarioTabla();
+}
+
+/**
+ * Alterna el colapso de un acordeón de categoría
+ */
+function toggleColapsoCategoria(cat) {
+    categoriasColapsadas[cat] = !categoriasColapsadas[cat];
+    const body = document.getElementById(`catBody_${cat.replace(/[^a-zA-Z0-9]/g, '_')}`);
+    const icon = document.getElementById(`catIcon_${cat.replace(/[^a-zA-Z0-9]/g, '_')}`);
+    if (body) {
+        body.classList.toggle('hidden', categoriasColapsadas[cat]);
+    }
+    if (icon) {
+        icon.className = `fa-solid fa-chevron-${categoriasColapsadas[cat] ? 'right' : 'down'} text-xs text-slate-400 transition-transform`;
     }
 }
 
@@ -91,7 +222,7 @@ async function cargarInventario() {
  */
 function filtrarInventarioTabla() {
     const search = (document.getElementById('invSearchInput')?.value || '').toLowerCase().trim();
-    const cat = document.getElementById('invCategorySelect')?.value || '';
+    const cat = categoriaSeleccionadaActual;
 
     const filtrados = inventarioItems.filter(item => {
         // Filtro texto
@@ -119,7 +250,125 @@ function filtrarInventarioTabla() {
         infoEl.textContent = `Mostrando ${filtrados.length} de ${inventarioItems.length} insumos`;
     }
 
-    renderizarTablaInventario(filtrados);
+    if (modoVistaInventario === 'AGRUPADO') {
+        renderizarVistaAgrupada(filtrados);
+    } else {
+        renderizarTablaInventario(filtrados);
+    }
+}
+
+/**
+ * Renderiza la vista agrupada en acordeones ordenados por categoría
+ */
+function renderizarVistaAgrupada(items) {
+    const container = document.getElementById('invVistaAgrupada');
+    if (!container) return;
+
+    if (!items || items.length === 0) {
+        container.innerHTML = `
+            <div class="glass rounded-2xl p-8 text-center text-slate-400 border border-slate-800">
+                <i class="fa-solid fa-boxes-stacked text-3xl mb-2 text-slate-600 block"></i>
+                <p class="font-bold text-slate-300">Ningún insumo coincide con el filtro seleccionado</p>
+                <p class="text-xs text-slate-500 mt-1">Prueba cambiando el buscador o selecciona otra categoría.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Agrupar items por categoría
+    const grupos = {};
+    items.forEach(it => {
+        const c = it.categoria || 'General';
+        if (!grupos[c]) grupos[c] = [];
+        grupos[c].push(it);
+    });
+
+    const curSymbol = currentComercioData?.simbolo_moneda || 'C$';
+
+    let html = '';
+    Object.keys(grupos).sort().forEach(cat => {
+        const catItems = grupos[cat];
+        const safeCatId = cat.replace(/[^a-zA-Z0-9]/g, '_');
+        const isCollapsed = !!categoriasColapsadas[cat];
+
+        // Calcular métricas de la categoría
+        let valorCat = 0;
+        let alertasCat = 0;
+        let agotadosCat = 0;
+
+        catItems.forEach(it => {
+            const stock = Number(it.stock_actual || 0);
+            const costo = Number(it.costo_unitario || 0);
+            valorCat += (stock * costo);
+            if (stock <= 0) agotadosCat++;
+            else if (stock <= it.stock_minimo) alertasCat++;
+        });
+
+        const iconName = CATEGORY_ICONS[cat] || 'fa-layer-group';
+
+        html += `
+            <div class="glass rounded-2xl border border-slate-800/80 overflow-hidden shadow-lg transition">
+                <!-- Cabecera del Acordeón de la Categoría -->
+                <div onclick="toggleColapsoCategoria('${escapeJsStr(cat)}')"
+                    class="p-4 bg-slate-900/80 hover:bg-slate-850 cursor-pointer flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 select-none">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-400 flex items-center justify-center text-sm font-bold border border-indigo-500/25">
+                            <i class="fa-solid ${iconName}"></i>
+                        </span>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-bold text-sm text-white">${escapeHtml(cat)}</h4>
+                                <span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold border border-slate-700">
+                                    ${catItems.length} insumos
+                                </span>
+                            </div>
+                            <span class="text-[11px] text-slate-400">
+                                Valor estimado: <strong class="text-emerald-400">${curSymbol} ${valorCat.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        ${alertasCat > 0 ? `
+                            <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-triangle-exclamation text-[9px]"></i> ${alertasCat} bajo stock
+                            </span>
+                        ` : ''}
+                        ${agotadosCat > 0 ? `
+                            <span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold flex items-center gap-1">
+                                <i class="fa-solid fa-ban text-[9px]"></i> ${agotadosCat} agotados
+                            </span>
+                        ` : ''}
+                        <button type="button" class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+                            <i id="catIcon_${safeCatId}" class="fa-solid fa-chevron-${isCollapsed ? 'right' : 'down'} text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cuerpo de Insumos de la Categoría -->
+                <div id="catBody_${safeCatId}" class="${isCollapsed ? 'hidden' : ''} overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800/80">
+                            <tr>
+                                <th class="px-4 py-2.5">Insumo</th>
+                                <th class="px-3 py-2.5 text-center">Stock Actual</th>
+                                <th class="px-3 py-2.5 text-center">Mínimo</th>
+                                <th class="px-3 py-2.5 text-center">Estado</th>
+                                <th class="px-3 py-2.5 text-right">Costo Unit.</th>
+                                <th class="px-3 py-2.5 text-right">Valor Total</th>
+                                <th class="px-4 py-2.5 text-center">Ajuste Rápido / Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/50 bg-slate-900/30">
+                            ${catItems.map(item => buildFilaItemInventarioHTML(item, curSymbol, false)).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 /**
@@ -142,7 +391,85 @@ function setFiltroEstadoInventario(estado) {
 }
 
 /**
- * Dibuja las filas de la tabla de inventario
+ * Construye el HTML de una fila de insumo (compartido entre vista agrupada y tabla continua)
+ */
+function buildFilaItemInventarioHTML(item, curSymbol, showCategoryColumn = true) {
+    const stock = Number(item.stock_actual || 0);
+    const min = Number(item.stock_minimo || 0);
+    const costo = Number(item.costo_unitario || 0);
+    const valorTotal = stock * costo;
+
+    let badgeHtml = '';
+    if (stock <= 0) {
+        badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold"><i class="fa-solid fa-ban text-[9px] mr-1"></i> AGOTADO</span>`;
+    } else if (stock <= min) {
+        badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold"><i class="fa-solid fa-triangle-exclamation text-[9px] mr-1"></i> BAJO</span>`;
+    } else {
+        badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"><i class="fa-solid fa-check text-[9px] mr-1"></i> ÓPTIMO</span>`;
+    }
+
+    const safeItemJson = encodeURIComponent(JSON.stringify(item));
+
+    return `
+    <tr class="hover:bg-slate-900/60 transition group border-b border-slate-800/60">
+        <td class="px-4 py-3">
+            <div class="font-bold text-white text-xs">${escapeHtml(item.nombre_insumo)}</div>
+            ${item.proveedor ? `<div class="text-[10px] text-slate-400 flex items-center gap-1"><i class="fa-solid fa-truck text-[9px]"></i> ${escapeHtml(item.proveedor)}</div>` : ''}
+        </td>
+        ${showCategoryColumn ? `
+            <td class="px-3 py-3">
+                <span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-medium">
+                    ${escapeHtml(item.categoria)}
+                </span>
+            </td>
+        ` : ''}
+        <td class="px-3 py-3 text-center">
+            <div class="font-extrabold text-sm ${stock <= 0 ? 'text-rose-400' : stock <= min ? 'text-amber-300' : 'text-slate-100'}">
+                ${stock.toFixed(2)}
+            </div>
+            <div class="text-[10px] text-slate-400">${escapeHtml(item.unidad_medida)}</div>
+        </td>
+        <td class="px-3 py-3 text-center">
+            <span class="text-slate-400 font-semibold text-xs">${min.toFixed(2)}</span>
+        </td>
+        <td class="px-3 py-3 text-center whitespace-nowrap">
+            ${badgeHtml}
+        </td>
+        <td class="px-3 py-3 text-right">
+            <span class="text-slate-300 font-semibold">${curSymbol} ${costo.toFixed(2)}</span>
+        </td>
+        <td class="px-3 py-3 text-right">
+            <span class="text-emerald-400 font-bold">${curSymbol} ${valorTotal.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        </td>
+        <td class="px-4 py-3 text-center whitespace-nowrap">
+            <div class="flex items-center justify-center gap-1">
+                <button type="button" title="Registrar Entrada / Compra (+)" 
+                    onclick="abrirModalAjusteRapido('${item.id}', '${escapeJsStr(item.nombre_insumo)}', '${escapeJsStr(item.unidad_medida)}', 'SUMAR')"
+                    class="w-7 h-7 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center font-bold text-xs transition">
+                    <i class="fa-solid fa-plus text-[10px]"></i>
+                </button>
+                <button type="button" title="Registrar Salida / Merma (-)" 
+                    onclick="abrirModalAjusteRapido('${item.id}', '${escapeJsStr(item.nombre_insumo)}', '${escapeJsStr(item.unidad_medida)}', 'RESTAR')"
+                    class="w-7 h-7 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center justify-center font-bold text-xs transition">
+                    <i class="fa-solid fa-minus text-[10px]"></i>
+                </button>
+                <button type="button" title="Editar Insumo" 
+                    onclick="abrirModalEditarInsumoJson('${safeItemJson}')"
+                    class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center text-xs transition">
+                    <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                </button>
+                <button type="button" title="Eliminar Insumo" 
+                    onclick="eliminarItemInventario('${item.id}', '${escapeJsStr(item.nombre_insumo)}')"
+                    class="w-7 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 flex items-center justify-center text-xs transition">
+                    <i class="fa-solid fa-trash text-[10px]"></i>
+                </button>
+            </div>
+        </td>
+    </tr>`;
+}
+
+/**
+ * Dibuja las filas de la tabla plana continua
  */
 function renderizarTablaInventario(items) {
     const tbody = document.getElementById('inventarioTableBody');
@@ -156,80 +483,7 @@ function renderizarTablaInventario(items) {
     }
 
     const curSymbol = currentComercioData?.simbolo_moneda || 'C$';
-
-    tbody.innerHTML = items.map(item => {
-        const stock = Number(item.stock_actual || 0);
-        const min = Number(item.stock_minimo || 0);
-        const costo = Number(item.costo_unitario || 0);
-        const valorTotal = stock * costo;
-
-        // Determinar badge de estado
-        let badgeHtml = '';
-        if (stock <= 0) {
-            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold"><i class="fa-solid fa-ban text-[9px] mr-1"></i> AGOTADO</span>`;
-        } else if (stock <= min) {
-            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold"><i class="fa-solid fa-triangle-exclamation text-[9px] mr-1"></i> BAJO</span>`;
-        } else {
-            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"><i class="fa-solid fa-check text-[9px] mr-1"></i> ÓPTIMO</span>`;
-        }
-
-        const safeItemJson = encodeURIComponent(JSON.stringify(item));
-
-        return `
-        <tr class="hover:bg-slate-900/60 transition group border-b border-slate-800/60">
-            <td class="px-4 py-3">
-                <div class="font-bold text-white text-xs">${escapeHtml(item.nombre_insumo)}</div>
-                ${item.proveedor ? `<div class="text-[10px] text-slate-400 flex items-center gap-1"><i class="fa-solid fa-truck text-[9px]"></i> ${escapeHtml(item.proveedor)}</div>` : ''}
-            </td>
-            <td class="px-3 py-3">
-                <span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-medium">
-                    ${escapeHtml(item.categoria)}
-                </span>
-            </td>
-            <td class="px-3 py-3 text-center">
-                <div class="font-extrabold text-sm ${stock <= 0 ? 'text-rose-400' : stock <= min ? 'text-amber-300' : 'text-slate-100'}">
-                    ${stock.toFixed(2)}
-                </div>
-                <div class="text-[10px] text-slate-400">${escapeHtml(item.unidad_medida)}</div>
-            </td>
-            <td class="px-3 py-3 text-center">
-                <span class="text-slate-400 font-semibold text-xs">${min.toFixed(2)}</span>
-            </td>
-            <td class="px-3 py-3 text-center whitespace-nowrap">
-                ${badgeHtml}
-            </td>
-            <td class="px-3 py-3 text-right">
-                <span class="text-slate-300 font-semibold">${costo.toFixed(2)}</span>
-            </td>
-            <td class="px-3 py-3 text-right">
-                <span class="text-emerald-400 font-bold">${valorTotal.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-            </td>
-            <td class="px-4 py-3 text-center whitespace-nowrap">
-                <div class="flex items-center justify-center gap-1">
-                    <button type="button" title="Registrar Entrada / Compra (+)" 
-                        onclick="abrirModalAjusteRapido('${item.id}', '${escapeJsStr(item.nombre_insumo)}', '${escapeJsStr(item.unidad_medida)}', 'SUMAR')"
-                        class="w-7 h-7 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center font-bold text-xs transition">
-                        <i class="fa-solid fa-plus text-[10px]"></i>
-                    </button>
-                    <button type="button" title="Registrar Salida / Merma (-)" 
-                        onclick="abrirModalAjusteRapido('${item.id}', '${escapeJsStr(item.nombre_insumo)}', '${escapeJsStr(item.unidad_medida)}', 'RESTAR')"
-                        class="w-7 h-7 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center justify-center font-bold text-xs transition">
-                        <i class="fa-solid fa-minus text-[10px]"></i>
-                    </button>
-                    <button type="button" title="Editar Insumo" 
-                        onclick="abrirModalEditarInsumoJson('${safeItemJson}')"
-                        class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center text-xs transition">
-                        <i class="fa-solid fa-pen-to-square text-[10px]"></i>
-                    </button>
-                    <button type="button" title="Eliminar Insumo" 
-                        onclick="eliminarItemInventario('${item.id}', '${escapeJsStr(item.nombre_insumo)}')"
-                        class="w-7 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 flex items-center justify-center text-xs transition">
-                        <i class="fa-solid fa-trash text-[10px]"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>`;
-    }).join('');
+    tbody.innerHTML = items.map(item => buildFilaItemInventarioHTML(item, curSymbol, true)).join('');
 }
 
 /**
@@ -238,7 +492,7 @@ function renderizarTablaInventario(items) {
 function abrirModalNuevoInsumo() {
     document.getElementById('invItemEditId').value = '';
     document.getElementById('invItemNombre').value = '';
-    document.getElementById('invItemCategoria').value = '';
+    document.getElementById('invItemCategoria').value = categoriaSeleccionadaActual || '';
     document.getElementById('invItemUnidad').value = 'kg';
     document.getElementById('invItemStockActual').value = '';
     document.getElementById('invItemStockMinimo').value = '';
@@ -273,7 +527,6 @@ function abrirModalEditarInsumoJson(safeJson) {
         document.getElementById('modalInvIcon').innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
         document.getElementById('modalInvTitle').textContent = `Editar: ${item.nombre_insumo}`;
         document.getElementById('btnSubmitItemInventarioText').textContent = 'Actualizar Datos';
-        // En edición el stock se modifica vía movimientos para trazabilidad, pero dejamos ver el valor
         document.getElementById('wrapperStockInicial').classList.add('hidden');
 
         document.getElementById('modalItemInventario').classList.remove('hidden');
@@ -466,4 +719,3 @@ function escapeJsStr(str) {
     if (!str) return '';
     return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
-

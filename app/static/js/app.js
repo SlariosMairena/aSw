@@ -291,9 +291,9 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
         // =========================================================
         function switchComercioTab(tabName) {
             ['pedidos', 'menu', 'inventario', 'sucursales'].forEach(t => {
-                const el = document.getElementById(	abContent_);
+                const el = document.getElementById(`tabContent_${t}`);
                 if (el) el.classList.toggle('hidden', t !== tabName);
-                const btn = document.getElementById(	abBtn_);
+                const btn = document.getElementById(`tabBtn_${t}`);
                 if (btn) {
                     if (t === tabName) {
                         btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5';
@@ -443,12 +443,23 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                         </button>
                     </div>
 
-                    <!-- Botones de Comanda Térmica y Control del Chat -->
-                    <div class="flex gap-2 pt-1">
+                    <!-- Botones de Comanda Térmica, Pago Online y Control del Chat -->
+                    <div class="flex flex-wrap gap-2 pt-1">
                         <button onclick="openChatModal(${p.id})"
-                            class="flex-1 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition">
-                            <i class="fa-solid fa-comments mr-1"></i> Chat / Tomar Control
+                            class="flex-1 py-2 px-3 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition whitespace-nowrap">
+                            <i class="fa-solid fa-comments mr-1"></i> Chat
                         </button>
+                        ${p.estado_pago === 'PAGADO' ? `
+                            <span class="py-2 px-3 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-check"></i> Pagado Online
+                            </span>
+                        ` : `
+                            <button onclick="iniciarCheckoutSimulado(${p.id})"
+                                title="Abrir link de pago online simulado de este pedido"
+                                class="py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 font-bold text-xs transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-credit-card"></i> Pagar Online
+                            </button>
+                        `}
                         <a href="/ticket/${p.id}" target="_blank"
                             class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs transition flex items-center gap-1">
                             <i class="fa-solid fa-print mr-1"></i> Ticket
@@ -456,6 +467,20 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     </div>
                 </div>
             `;
+        }
+
+        async function iniciarCheckoutSimulado(pedidoId) {
+            try {
+                const res = await apiFetch(`/api/v1/pagos/checkout-link/${pedidoId}`, {
+                    method: 'POST'
+                });
+                if (res && res.checkout_url) {
+                    window.open(res.checkout_url, '_blank');
+                    showToast('✓ Ventana de pago online (Simulador Modo 2) abierta');
+                }
+            } catch (err) {
+                showToast(err.message, true);
+            }
         }
 
         async function cambiarEstadoPedido(pedidoId, nuevoEstado) {

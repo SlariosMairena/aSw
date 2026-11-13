@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout Seguro • Pasarela de Pago Simulada</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glass {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-full flex items-center justify-center p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 font-sans">
+
+    <div class="glass max-w-md w-full rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-700/80 space-y-6">
+        <!-- Encabezado Pasarela -->
+        <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg font-bold border border-indigo-500/30">
+                    <i class="fa-solid fa-credit-card"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white uppercase tracking-wider">Pasarela de Pagos (Modo 2)</h2>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                        <i class="fa-solid fa-flask mr-1"></i> SIMULADOR ACTIVO
+                    </span>
+                </div>
+            </div>
+            <span class="text-xs text-slate-400 font-mono">256-bit SSL</span>
+        </div>
+
+        <!-- Resumen del Pedido -->
+        <div class="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-2">
+            <div class="flex justify-between items-center text-xs text-slate-400">
+                <span>Comercio:</span>
+                <span class="font-bold text-slate-200">{{ comercio.nombre_comercial }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs text-slate-400">
+                <span>Folio de Pedido:</span>
+                <span class="font-bold text-indigo-400 font-mono">#{{ pedido.folio }}</span>
+            </div>
+            <div class="flex justify-between items-center text-xs text-slate-400">
+                <span>Cliente:</span>
+                <span class="text-slate-200">{{ pedido.nombre_cliente }}</span>
+            </div>
+            <div class="pt-2 border-t border-slate-800 flex justify-between items-baseline">
+                <span class="text-xs font-bold text-slate-300 uppercase">Monto Total a Pagar:</span>
+                <span class="text-2xl font-black text-emerald-400">{{ comercio.simbolo_moneda or 'C$' }} {{ "%.2f"|format(pedido.total) }}</span>
+            </div>
+        </div>
+
+        <!-- Tarjeta de Crédito Simulada Visual -->
+        <div class="p-5 rounded-2xl bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 space-y-4 shadow-xl">
+            <div class="flex justify-between items-center text-slate-400 text-xs">
+                <span>Tarjeta Bancaria de Prueba</span>
+                <div class="flex gap-2 text-base text-slate-300">
+                    <i class="fa-brands fa-cc-visa text-sky-400"></i>
+                    <i class="fa-brands fa-cc-mastercard text-amber-400"></i>
+                </div>
+            </div>
+            <div class="font-mono text-base tracking-widest text-white text-center py-1">
+                •••• •••• •••• 4242
+            </div>
+            <div class="flex justify-between items-center text-[11px] text-slate-400 font-mono">
+                <span>Vence: 12/28</span>
+                <span>CVC: 888</span>
+                <span>TITULAR: PRUEBA SANDBOX</span>
+            </div>
+        </div>
+
+        <!-- Botones de Acción de Prueba -->
+        <div class="space-y-3 pt-2">
+            <p class="text-[11px] text-slate-400 text-center">
+                Elige qué resultado deseas simular para comprobar cómo reacciona el bot y la cocina:
+            </p>
+            
+            <button id="btnPagarExito" onclick="simularPago('EXITOSO')"
+                class="w-full py-3.5 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-circle-check"></i>
+                <span>Simular Pago Exitoso (Aprobar)</span>
+            </button>
+
+            <button id="btnPagarRechazo" onclick="simularPago('RECHAZADO')"
+                class="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-rose-500/40 text-rose-300 font-bold text-xs transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-circle-xmark"></i>
+                <span>Simular Pago Rechazado (Fondos Insuficientes)</span>
+            </button>
+        </div>
+
+        <!-- Estado / Feedback tras la simulación -->
+        <div id="resultadoBox" class="hidden p-4 rounded-2xl border text-xs text-center space-y-2"></div>
+
+        <div class="text-center text-[10px] text-slate-500">
+            <i class="fa-solid fa-shield-halved mr-1"></i> Modo 2 preparado para integración con Stripe / Pagadito / BAC
+        </div>
+    </div>
+
+    <script>
+        const pedidoId = {{ pedido.id }};
+        const sessionId = "{{ session_id }}";
+
+        async function simularPago(resultado) {
+            const btnExito = document.getElementById('btnPagarExito');
+            const btnRechazo = document.getElementById('btnPagarRechazo');
+            const resBox = document.getElementById('resultadoBox');
+
+            btnExito.disabled = true;
+            btnRechazo.disabled = true;
+            btnExito.classList.add('opacity-50');
+            btnRechazo.classList.add('opacity-50');
+
+            resBox.className = 'p-4 rounded-2xl border text-xs text-center space-y-2 bg-slate-900 border-indigo-500/50 text-indigo-300';
+            resBox.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-lg mr-2"></i> Procesando transacción con pasarela bancaria...';
+            resBox.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/v1/pagos/webhook-simulado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        pedido_id: pedidoId,
+                        resultado: resultado,
+                        demo_mode: true,
+                        mensaje_error: resultado === 'RECHAZADO' ? 'Tarjeta declinada por el banco emisor' : null
+                    })
+                });
+
+                const data = await res.json();
+
+                if (resultado === 'EXITOSO' && res.ok) {
+                    resBox.className = 'p-4 rounded-2xl border text-xs text-center space-y-2 bg-emerald-950/80 border-emerald-500 text-emerald-200 animate-bounce-once';
+                    resBox.innerHTML = `
+                        <div class="text-base font-black text-emerald-400">
+                            <i class="fa-solid fa-circle-check mr-1.5"></i> ¡Pago Aprobado Exitosamente!
+                        </div>
+                        <p class="text-[11px] text-slate-300">ID Transacción: <strong>${data.tx_id}</strong></p>
+                        <p class="text-[11px] text-emerald-300">El pedido ahora aparece como <strong>PAGADO</strong> y la comanda ya se envió a cocina.</p>
+                        <div class="pt-2">
+                            <button onclick="window.close()" class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-600">
+                                Cerrar Ventana
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    resBox.className = 'p-4 rounded-2xl border text-xs text-center space-y-2 bg-rose-950/80 border-rose-500 text-rose-200';
+                    resBox.innerHTML = `
+                        <div class="text-base font-black text-rose-400">
+                            <i class="fa-solid fa-circle-xmark mr-1.5"></i> Pago Rechazado
+                        </div>
+                        <p class="text-[11px] text-slate-300">${data.detail || 'Fondos insuficientes o tarjeta rechazada'}</p>
+                        <div class="pt-2">
+                            <button onclick="location.reload()" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 font-semibold text-xs hover:bg-slate-700">
+                                Intentar de nuevo
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (err) {
+                resBox.className = 'p-4 rounded-2xl border text-xs text-center bg-rose-950/80 border-rose-500 text-rose-200';
+                resBox.textContent = 'Error de conexión: ' + err.message;
+            } finally {
+                btnExito.disabled = false;
+                btnRechazo.disabled = false;
+                btnExito.classList.remove('opacity-50');
+                btnRechazo.classList.remove('opacity-50');
+            }
+        }
+    </script>
+</body>
+</html>
+
