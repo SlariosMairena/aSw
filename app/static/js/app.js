@@ -388,7 +388,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 : `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"><i class="fa-solid fa-robot mr-1"></i> BOT ACTIVO</span>`;
 
             return `
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-700/80 space-y-3 shadow-lg">
+                <div id="cardPedido_${p.id}" class="p-4 rounded-xl bg-slate-900 border border-slate-700/80 space-y-3 shadow-lg transition-all duration-300 relative overflow-hidden group">
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="font-extrabold text-base text-white">#${p.folio}</span>
@@ -459,14 +459,45 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
         }
 
         async function cambiarEstadoPedido(pedidoId, nuevoEstado) {
+            const card = document.getElementById(`cardPedido_${pedidoId}`);
+            let overlay = null;
+            if (card) {
+                card.style.pointerEvents = 'none';
+                overlay = document.createElement('div');
+                overlay.className = 'absolute inset-0 bg-slate-950/85 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 z-10 transition-all duration-200';
+                
+                let iconColor = 'text-sky-400';
+                let stateLabel = '1. Recibido';
+                if (nuevoEstado === 'EN_PROCESO') {
+                    iconColor = 'text-amber-400';
+                    stateLabel = '2. En Cocina';
+                } else if (nuevoEstado === 'LISTO') {
+                    iconColor = 'text-emerald-400';
+                    stateLabel = '3. Listo';
+                }
+
+                overlay.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center shadow-lg">
+                        <i class="fa-solid fa-spinner fa-spin ${iconColor} text-lg"></i>
+                    </div>
+                    <span class="text-xs font-bold text-white tracking-wide">Moviendo a ${stateLabel}...</span>
+                    <span class="text-[10px] text-slate-400">Actualizando pedido & aviso WhatsApp...</span>
+                `;
+                card.appendChild(overlay);
+            }
+
             try {
                 const res = await apiFetch(`/api/v1/panel/comercio/pedidos/${pedidoId}/estado`, {
                     method: 'PATCH',
                     body: { nuevo_estado: nuevoEstado }
                 });
-                showToast(`Estado cambiado a ${nuevoEstado}. Aviso enviado al WhatsApp del cliente.`);
+                showToast(`✓ Estado actualizado a ${nuevoEstado}. Notificación enviada a WhatsApp.`);
                 await reloadComercioDashboard();
             } catch (err) {
+                if (overlay && card) {
+                    overlay.remove();
+                    card.style.pointerEvents = 'auto';
+                }
                 showToast(err.message, true);
             }
         }
