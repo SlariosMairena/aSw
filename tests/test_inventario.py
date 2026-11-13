@@ -77,3 +77,4 @@ def test_inventario_api_crud_flow():
     )
     assert res_restaurar.status_code == 200
     assert res_restaurar.json()["stock_nuevo"] == stock_original
+

@@ -5,13 +5,17 @@
     <div class="glass max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
             <div class="flex items-center gap-2">
-                <span id="modalInvIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">📦</span>
+                <span id="modalInvIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </span>
                 <div>
                     <h3 id="modalInvTitle" class="text-base font-bold text-white">Nuevo Insumo de Inventario</h3>
                     <p class="text-[11px] text-slate-400">Controla tus materias primas, costos y alertas de stock mínimo</p>
                 </div>
             </div>
-            <button onclick="cerrarModalItemInventario()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+            <button onclick="cerrarModalItemInventario()" class="text-slate-400 hover:text-white text-base font-bold px-2 py-1 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
         </div>
 
         <form onsubmit="handleGuardarItemInventario(event)" class="space-y-3.5 text-xs">
@@ -90,7 +94,7 @@
 
             <button type="submit" id="btnSubmitItemInventario"
                 class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-1.5">
-                <span>💾</span> <span id="btnSubmitItemInventarioText">Guardar Insumo</span>
+                <i class="fa-solid fa-floppy-disk"></i> <span id="btnSubmitItemInventarioText">Guardar Insumo</span>
             </button>
         </form>
     </div>
@@ -106,7 +110,9 @@
                 <h3 id="ajusteModalTitulo" class="text-base font-bold text-white">Ajustar Stock de Insumo</h3>
                 <p id="ajusteModalSub" class="text-[11px] text-slate-400"></p>
             </div>
-            <button onclick="cerrarModalAjusteStock()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+            <button onclick="cerrarModalAjusteStock()" class="text-slate-400 hover:text-white text-base font-bold px-2 py-1 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
         </div>
 
         <form onsubmit="handleEjecutarAjusteStock(event)" class="space-y-3.5 text-xs">
@@ -117,20 +123,20 @@
                 <div class="grid grid-cols-3 gap-2 text-center">
                     <label class="cursor-pointer">
                         <input type="radio" name="ajusteTipoRadio" value="SUMAR" checked class="peer sr-only">
-                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500 peer-checked:text-emerald-300 transition font-bold">
-                            ➕ Compra / Entrada
+                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500 peer-checked:text-emerald-300 transition font-bold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-plus text-xs"></i> <span>Entrada</span>
                         </div>
                     </label>
                     <label class="cursor-pointer">
                         <input type="radio" name="ajusteTipoRadio" value="RESTAR" class="peer sr-only">
-                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-amber-500/20 peer-checked:border-amber-500 peer-checked:text-amber-300 transition font-bold">
-                            ➖ Salida / Merma
+                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-amber-500/20 peer-checked:border-amber-500 peer-checked:text-amber-300 transition font-bold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-minus text-xs"></i> <span>Salida</span>
                         </div>
                     </label>
                     <label class="cursor-pointer">
                         <input type="radio" name="ajusteTipoRadio" value="FIJAR" class="peer sr-only">
-                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-indigo-500/20 peer-checked:border-indigo-500 peer-checked:text-indigo-300 transition font-bold">
-                            🔢 Conteo Físico
+                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-indigo-500/20 peer-checked:border-indigo-500 peer-checked:text-indigo-300 transition font-bold flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-calculator text-xs"></i> <span>Conteo</span>
                         </div>
                     </label>
                 </div>
@@ -152,8 +158,9 @@
 
             <button type="submit"
                 class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20">
-                <span>⚡</span> <span>Confirmar Ajuste</span>
+                <i class="fa-solid fa-check"></i> <span>Confirmar Ajuste</span>
             </button>
         </form>
     </div>
 </div>
+

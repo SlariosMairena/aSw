@@ -4,14 +4,18 @@
 <div id="modalConfigComercio" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="glass max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700">
         <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-            <div class="flex items-center gap-2">
-                <span class="text-xl">⚙️</span>
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm font-bold border border-indigo-500/30">
+                    <i class="fa-solid fa-gear"></i>
+                </span>
                 <div>
                     <h3 class="text-base font-bold text-white">Configuración del Negocio & Moneda</h3>
                     <p class="text-[11px] text-slate-400">Personaliza la moneda de cobro, nombre y formas de pago</p>
                 </div>
             </div>
-            <button onclick="closeConfigComercioModal()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+            <button onclick="closeConfigComercioModal()" class="text-slate-400 hover:text-white text-base font-bold px-2 py-1 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
         </div>
         <form onsubmit="handleGuardarConfigComercio(event)" class="space-y-4 text-xs">
             <!-- Selector rápido de moneda -->
@@ -19,19 +23,19 @@
                 <label class="block text-slate-300 font-semibold mb-1">Preajustes Rápidos de Moneda:</label>
                 <div class="flex flex-wrap gap-1.5">
                     <button type="button" onclick="setMonedaPreset('C$', 'NIO')" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-[11px]">
-                        🇳🇮 Córdobas (C$ - NIO)
+                        NIO • Córdobas (C$)
                     </button>
                     <button type="button" onclick="setMonedaPreset('$', 'USD')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                        🇺🇸 Dólares ($ - USD)
+                        USD • Dólares ($)
                     </button>
                     <button type="button" onclick="setMonedaPreset('$', 'MXN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                        🇲🇽 Pesos ($ - MXN)
+                        MXN • Pesos ($)
                     </button>
                     <button type="button" onclick="setMonedaPreset('Q', 'GTQ')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                        🇬🇹 Quetzales (Q - GTQ)
+                        GTQ • Quetzales (Q)
                     </button>
                     <button type="button" onclick="setMonedaPreset('€', 'EUR')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                        🇪🇺 Euros (€ - EUR)
+                        EUR • Euros (€)
                     </button>
                 </div>
             </div>
@@ -81,9 +85,10 @@
             </div>
 
             <button type="submit"
-                class="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs transition shadow-lg shadow-indigo-500/20">
-                💾 Guardar Configuración del Restaurante
+                class="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs transition shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Configuración del Restaurante</span>
             </button>
         </form>
     </div>
 </div>
+

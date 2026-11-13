@@ -5,7 +5,9 @@
         <div class="xl:col-span-5 glass rounded-2xl p-5 space-y-4 shadow-xl border border-slate-700/70 sticky top-20">
             <div class="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div class="flex items-center gap-2">
-                    <span id="formPlatoIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">➕</span>
+                    <span id="formPlatoIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
+                        <i class="fa-solid fa-plus"></i>
+                    </span>
                     <div>
                         <h3 id="formPlatoTitle" class="text-sm font-bold text-white">Nuevo Plato</h3>
                         <p id="formPlatoSubtitle" class="text-[11px] text-slate-400">Configura nombre, precio, ingredientes removibles y extras</p>
@@ -13,7 +15,7 @@
                 </div>
                 <button id="btnCancelarEdicionPlato" type="button" onclick="resetFormularioPlato()"
                     class="hidden text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-600 transition">
-                    ✕ Cancelar
+                    <i class="fa-solid fa-xmark mr-1"></i> Cancelar
                 </button>
             </div>
 
@@ -52,7 +54,7 @@
                 <div class="p-3.5 rounded-xl bg-slate-950/90 border border-emerald-500/30 space-y-2.5">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-1.5">
-                            <span class="text-base">🥗</span>
+                            <i class="fa-solid fa-leaf text-emerald-400"></i>
                             <span class="text-emerald-300 font-bold text-xs">Ingredientes Base Removibles ($0)</span>
                         </div>
                         <span id="countIngBaseBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
@@ -73,8 +75,8 @@
                             onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomIngBase();}"
                             class="flex-1 px-3 py-2 rounded-lg bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500 transition">
                         <button type="button" onclick="addCustomIngBase()"
-                            class="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition flex items-center gap-1">
-                            <span>+</span> Añadir
+                            class="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus text-xs"></i> <span>Añadir</span>
                         </button>
                     </div>
 
@@ -89,7 +91,7 @@
                 <div class="p-3.5 rounded-xl bg-slate-950/90 border border-amber-500/30 space-y-2.5">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-1.5">
-                            <span class="text-base">➕</span>
+                            <i class="fa-solid fa-circle-plus text-amber-400"></i>
                             <span class="text-amber-300 font-bold text-xs">Extras o Variantes con Costo</span>
                         </div>
                         <span id="countExtrasBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
@@ -108,8 +110,8 @@
                     <div class="grid grid-cols-12 gap-1.5 pt-1">
                         <div class="col-span-4">
                             <select id="inputExtraTipo" class="w-full px-2 py-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:outline-none focus:border-amber-500">
-                                <option value="EXTRA">➕ Extra</option>
-                                <option value="VARIANTE">📏 Variante</option>
+                                <option value="EXTRA">Extra (+)</option>
+                                <option value="VARIANTE">Variante (Tamaño)</option>
                             </select>
                         </div>
                         <div class="col-span-5">
@@ -125,8 +127,8 @@
                         </div>
                     </div>
                     <button type="button" onclick="addExtraItemFromInputs()"
-                        class="w-full py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-xs transition flex items-center justify-center gap-1">
-                        <span>+</span> Añadir a la lista
+                        class="w-full py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-xs transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-plus text-xs"></i> <span>Añadir a la lista</span>
                     </button>
 
                     <!-- Lista visual interactiva de extras cargados tipo badge/chip editable -->
@@ -138,7 +140,7 @@
 
                 <button id="btnSubmitPlato" type="submit"
                     class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2">
-                    <span>💾</span> <span id="btnSubmitPlatoText">Guardar Plato en el Menú</span>
+                    <i class="fa-solid fa-floppy-disk"></i> <span id="btnSubmitPlatoText">Guardar Plato en el Menú</span>
                 </button>
             </form>
         </div>
@@ -148,14 +150,18 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
                 <div>
                     <h3 class="text-base font-bold text-white flex items-center gap-2">
-                        🍽️ Catálogo del Menú
+                        <i class="fa-solid fa-utensils text-indigo-400"></i>
+                        <span>Catálogo del Menú</span>
                         <span id="catalogTotalCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">0 platos</span>
                     </h3>
                     <p class="text-xs text-slate-400">Administra disponibilidad general o apaga ingredientes específicos que se hayan terminado hoy.</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <input id="searchMenuInput" type="text" oninput="filterCatalogCards()" placeholder="🔍 Buscar plato..."
-                        class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500 w-36 sm:w-44">
+                    <div class="relative w-36 sm:w-44">
+                        <span class="absolute left-3 top-2 text-slate-400 text-xs"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input id="searchMenuInput" type="text" oninput="filterCatalogCards()" placeholder="Buscar plato..."
+                            class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-indigo-500">
+                    </div>
                     <select id="filterCategoryMenuSelect" onchange="filterCatalogCards()"
                         class="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none">
                         <option value="">Todas las categorías</option>
@@ -184,3 +190,4 @@
         </div>
     </div>
 </div>
+

@@ -33,7 +33,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 gain.connect(ctx.destination);
                 osc.start();
                 osc.stop(ctx.currentTime + 0.65);
-                showToast('🔔 Sonido de alerta de cocina reproducido.');
+                showToast('Sonido de alerta de cocina reproducido.');
             } catch (e) {
                 showToast('Alerta visual activada.');
             }
@@ -198,7 +198,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                 ${c.sucursales.map(s => `
                                     <a href="${s.deep_link_whatsapp}" target="_blank"
                                         class="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30">
-                                        📲 Link WhatsApp [${s.codigo_whatsapp}]
+                                        <i class="fa-brands fa-whatsapp text-emerald-400 mr-1"></i> Link WhatsApp [${s.codigo_whatsapp}]
                                     </a>
                                 `).join('')}
                             </div>
@@ -206,11 +206,11 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                         <div class="flex flex-wrap items-center gap-2">
                             <button onclick="inspectComercioAsSuperAdmin(${c.id})"
                                 class="px-3.5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs transition">
-                                👁️ Abrir Tablero de Pedidos de este Restaurante
+                                <i class="fa-solid fa-arrow-up-right-from-square mr-1.5"></i> Abrir Tablero de Pedidos de este Restaurante
                             </button>
                             <button onclick="toggleEstadoSuscripcion(${c.id}, '${c.estado_suscripcion === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO'}')"
                                 class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-semibold text-slate-200 transition">
-                                ${c.estado_suscripcion === 'ACTIVO' ? '⏸ Suspender por Falta de Pago' : '▶ Reactivar Suscripción'}
+                                ${c.estado_suscripcion === 'ACTIVO' ? '<i class="fa-solid fa-pause mr-1"></i> Suspender' : '<i class="fa-solid fa-play mr-1"></i> Reactivar'}
                             </button>
                         </div>
                     </div>
@@ -317,7 +317,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 const c = data.comercio;
                 const sym = c.simbolo_moneda || 'C$';
 
-                document.getElementById('comercioTitle').textContent = `🍕 ${c.nombre_comercial}`;
+                document.getElementById('comercioTitle').innerHTML = `<i class="fa-solid fa-utensils text-emerald-400 mr-2"></i>${escapeHtml(c.nombre_comercial)}`;
                 document.getElementById('comercioPlanBadge').textContent = `${c.plan_nombre} • ${c.estado_suscripcion}`;
                 document.getElementById('comercioSubInfo').textContent =
                     `Pedidos del mes: ${c.pedidos_mes_actual} • Datos transferencia Modo 1: ${c.datos_bancarios_texto}`;
@@ -367,7 +367,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     ${it.sin_ingredientes && it.sin_ingredientes.length > 0 ? `
                         <div class="mt-1">
                             <span class="inline-block px-2 py-0.5 rounded bg-rose-500/25 border border-rose-500/50 text-rose-200 font-bold text-[11px]">
-                                🚫 SIN: ${it.sin_ingredientes.join(', ')}
+                                <i class="fa-solid fa-circle-xmark mr-1"></i> SIN: ${it.sin_ingredientes.join(', ')}
                             </span>
                         </div>
                     ` : ''}
@@ -375,7 +375,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                         <div class="mt-1">
                             ${it.extras.map(ex => `
                                 <span class="inline-block mr-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 font-semibold text-[11px]">
-                                    ➕ ${ex.nombre} (+${moneda}${Number(ex.precio).toFixed(2)})
+                                    <i class="fa-solid fa-circle-plus mr-1"></i> ${ex.nombre} (+${moneda}${Number(ex.precio).toFixed(2)})
                                 </span>
                             `).join('')}
                         </div>
@@ -384,8 +384,8 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
             `).join('');
 
             const chatModeBadge = p.modo_atencion_chat === 'HUMANO_ACTIVO'
-                ? `<span class="px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] font-bold">👨‍💼 CONTROL HUMANO ACTIVO</span>`
-                : `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">🤖 BOT ACTIVO</span>`;
+                ? `<span class="px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] font-bold"><i class="fa-solid fa-hand mr-1"></i> CONTROL HUMANO ACTIVO</span>`
+                : `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"><i class="fa-solid fa-robot mr-1"></i> BOT ACTIVO</span>`;
 
             return `
                 <div class="p-4 rounded-xl bg-slate-900 border border-slate-700/80 space-y-3 shadow-lg">
@@ -398,12 +398,12 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     </div>
 
                     <div class="text-xs text-slate-300 space-y-0.5">
-                        <div>👤 <strong>${p.nombre_cliente}</strong> (+${p.telefono_cliente})</div>
-                        <div>🛵 <strong>${p.tipo_entrega}:</strong> ${p.direccion_entrega || 'Recoger en sucursal'}</div>
+                        <div><i class="fa-solid fa-user text-slate-400 mr-1 text-[11px]"></i> <strong>${p.nombre_cliente}</strong> (+${p.telefono_cliente})</div>
+                        <div><i class="fa-solid fa-motorcycle text-slate-400 mr-1 text-[11px]"></i> <strong>${p.tipo_entrega}:</strong> ${p.direccion_entrega || 'Recoger en sucursal'}</div>
                         ${p.google_maps_link ? `
                             <div>
                                 <a href="${p.google_maps_link}" target="_blank" class="text-sky-400 hover:underline font-semibold">
-                                    📍 Abrir Pin GPS de WhatsApp en Google Maps ➔
+                                    <i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> Abrir Pin GPS de WhatsApp en Google Maps <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
                                 </a>
                             </div>
                         ` : ''}
@@ -413,13 +413,13 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
 
                     <!-- Resumen del Chat con IA directo en la tarjeta -->
                     <div class="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-[11px] text-indigo-200">
-                        <strong>🧠 Resumen del Chat (IA):</strong> ${p.resumen_chat_ia}
+                        <strong><i class="fa-solid fa-wand-magic-sparkles text-indigo-400 mr-1"></i> Resumen del Chat (IA):</strong> ${p.resumen_chat_ia}
                     </div>
 
                     <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
                         <div>
                             <div class="font-bold text-slate-300">Pago: ${p.metodo_pago}</div>
-                            ${p.paga_con_monto ? `<div class="text-[11px] text-amber-300">Paga con ${moneda}${p.paga_con_monto} ➔ Cambio: ${moneda}${p.cambio_a_entregar}</div>` : ''}
+                            ${p.paga_con_monto ? `<div class="text-[11px] text-amber-300">Paga con ${moneda}${p.paga_con_monto} | Cambio: ${moneda}${p.cambio_a_entregar}</div>` : ''}
                         </div>
                         <div class="text-right">
                             <div class="text-[11px] text-slate-400">Total (+Envío ${moneda}${p.costo_envio})</div>
@@ -431,15 +431,15 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     <div class="grid grid-cols-3 gap-1.5 pt-1">
                         <button onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO')"
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'RECIBIDO' ? 'bg-sky-500 text-slate-950 border-sky-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
-                            📥 Recibido
+                            <i class="fa-solid fa-inbox mr-1"></i> Recibido
                         </button>
                         <button onclick="cambiarEstadoPedido(${p.id}, 'EN_PROCESO')"
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'EN_PROCESO' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
-                            👨‍🍳 En Proceso
+                            <i class="fa-solid fa-fire-burner mr-1"></i> En Proceso
                         </button>
                         <button onclick="cambiarEstadoPedido(${p.id}, 'LISTO')"
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'LISTO' ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
-                            ✅ Listo
+                            <i class="fa-solid fa-circle-check mr-1"></i> Listo
                         </button>
                     </div>
 
@@ -447,11 +447,11 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     <div class="flex gap-2 pt-1">
                         <button onclick="openChatModal(${p.id})"
                             class="flex-1 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition">
-                            💬 Chat / Tomar Control
+                            <i class="fa-solid fa-comments mr-1"></i> Chat / Tomar Control
                         </button>
                         <a href="/ticket/${p.id}" target="_blank"
                             class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs transition flex items-center gap-1">
-                            🖨️ Ticket
+                            <i class="fa-solid fa-print mr-1"></i> Ticket
                         </a>
                     </div>
                 </div>
@@ -488,9 +488,9 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
         function renderChatModalMessages(p) {
             const modeBadge = document.getElementById('modalChatModeBadge');
             if (p.modo_atencion_chat === 'HUMANO_ACTIVO') {
-                modeBadge.innerHTML = `<span class="text-amber-400">🛑 HUMANO ACTIVO (El bot está desactivado únicamente para este chat)</span>`;
+                modeBadge.innerHTML = `<span class="text-amber-400"><i class="fa-solid fa-hand mr-1"></i> HUMANO ACTIVO (El bot está pausado para este chat)</span>`;
             } else {
-                modeBadge.innerHTML = `<span class="text-emerald-400">🤖 BOT ACTIVO (Respondiendo automáticamente en WhatsApp)</span>`;
+                modeBadge.innerHTML = `<span class="text-emerald-400"><i class="fa-solid fa-robot mr-1"></i> BOT ACTIVO (Respondiendo automáticamente en WhatsApp)</span>`;
             }
 
             const list = document.getElementById('modalMessagesList');
@@ -507,7 +507,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                     : 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-100'
                         }">
                             <div class="text-[10px] font-bold opacity-75 mb-0.5">
-                                ${isClient ? '👤 Cliente (WhatsApp)' : isHuman ? '👨‍💼 Humano (Restaurante)' : '🤖 Bot WhatsApp'} • ${m.hora}
+                                ${isClient ? '<i class="fa-solid fa-user mr-1"></i> Cliente' : isHuman ? '<i class="fa-solid fa-user-tie mr-1"></i> Restaurante' : '<i class="fa-solid fa-robot mr-1"></i> Bot WhatsApp'} • ${m.hora}
                             </div>
                             <div class="whitespace-pre-line">${m.contenido}</div>
                         </div>
@@ -531,8 +531,8 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 });
                 showToast(
                     nuevoModo === 'HUMANO_ACTIVO'
-                        ? '🛑 Tomaste el control de este chat. El bot se pausó únicamente para este cliente.'
-                        : '🤖 Bot reactivado para este cliente.'
+                        ? 'Tomaste el control de este chat. El bot se pausó únicamente para este cliente.'
+                        : 'Bot reactivado para este cliente.'
                 );
                 await reloadComercioDashboard();
                 const updated = currentComercioData.pedidos.find(x => x.id === activeChatPedido.id);
@@ -626,7 +626,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
             if (filtered.length === 0) {
                 grid.innerHTML = `
                     <div class="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800">
-                        <span class="text-3xl block mb-2">🔍</span>
+                        <i class="fa-solid fa-magnifying-glass text-3xl block mb-2 text-slate-600"></i>
                         <p class="text-sm font-semibold text-slate-300">No se encontraron platos</p>
                         <p class="text-xs text-slate-500 mt-1">Prueba con otro término de búsqueda o agrega un nuevo plato a la izquierda.</p>
                     </div>
@@ -654,14 +654,14 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                         title="Clic para editar el precio de este plato rápidamente"
                                         class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-0.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1 group cursor-pointer shadow-sm">
                                         <span>${sym}${pl.precio_base.toFixed(2)}</span>
-                                        <span class="text-[10px] text-emerald-300 opacity-60 group-hover:opacity-100">✏️</span>
+                                        <span class="text-[10px] text-emerald-300 opacity-60 group-hover:opacity-100"><i class="fa-solid fa-pen-to-square"></i></span>
                                     </button>
                                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                         pl.disponible_global
                                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                                             : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                                     }">
-                                        ${pl.disponible_global ? '● DISPONIBLE' : '✕ AGOTADO HOY'}
+                                        ${pl.disponible_global ? '<i class="fa-solid fa-circle text-[8px] mr-1 text-emerald-400"></i> DISPONIBLE' : '<i class="fa-solid fa-ban text-[9px] mr-1 text-rose-400"></i> AGOTADO HOY'}
                                     </span>
                                 </div>
 
@@ -671,7 +671,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                 <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
                                     <div class="flex items-center justify-between text-[11px]">
                                         <span class="text-emerald-300 font-semibold flex items-center gap-1">
-                                            <span>🥗</span> Ingredientes Base Removibles (${sym}0 en WhatsApp):
+                                            <span><i class="fa-solid fa-leaf text-emerald-400 mr-1"></i></span> Ingredientes Base Removibles (${sym}0 en WhatsApp):
                                         </span>
                                         <span class="text-[10px] text-slate-500">Toca para agotar/habilitar</span>
                                     </div>
@@ -684,7 +684,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                                         ? 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700 shadow-sm'
                                                         : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
                                                 }">
-                                                <span>${ing.disponible ? '✓' : '✕'}</span>
+                                                <span>${ing.disponible ? '<i class="fa-solid fa-check text-[9px] text-emerald-400"></i>' : '<i class="fa-solid fa-xmark text-[9px] text-rose-400"></i>'}</span>
                                                 <span>${ing.nombre}</span>
                                                 ${!ing.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
                                             </button>
@@ -696,9 +696,9 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                 <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
                                     <div class="flex items-center justify-between text-[11px]">
                                         <span class="text-amber-300 font-semibold flex items-center gap-1">
-                                            <span>➕</span> Extras y Variantes con Costo:
+                                            <span><i class="fa-solid fa-circle-plus text-amber-400 mr-1"></i></span> Extras y Variantes con Costo:
                                         </span>
-                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar | ✏️ para cambiar precio</span>
+                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar | <i class="fa-solid fa-pen-to-square text-[9px]"></i> para cambiar precio</span>
                                     </div>
                                     <div class="flex flex-wrap gap-1.5">
                                         ${(pl.extras_y_variantes || []).length > 0 ? (pl.extras_y_variantes || []).map(ex => `
@@ -710,7 +710,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                                 <button type="button" onclick="toggleIngredienteDisponibilidad(${ex.id})"
                                                     title="Clic para alternar entre Disponible y Agotado"
                                                     class="text-[11px] px-2 py-1 font-medium hover:bg-amber-500/20 rounded-l-lg flex items-center gap-1">
-                                                    <span>${ex.disponible ? '+' : '✕'}</span>
+                                                    <span>${ex.disponible ? '<i class="fa-solid fa-plus text-[9px] text-amber-400"></i>' : '<i class="fa-solid fa-xmark text-[9px] text-rose-400"></i>'}</span>
                                                     <span>${ex.nombre}</span>
                                                     <span class="font-bold text-emerald-400">(+${sym}${ex.precio_adicional.toFixed(2)})</span>
                                                     ${!ex.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
@@ -718,7 +718,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                                 <button type="button" onclick="editarPrecioRapidoExtra(${ex.id}, ${ex.precio_adicional}, '${ex.nombre.replace(/'/g, "\\'")}', '${sym}')"
                                                     title="Cambiar precio de este extra"
                                                     class="px-1.5 py-1 text-[11px] text-amber-300 hover:text-white hover:bg-amber-500/30 border-l border-amber-500/20 rounded-r-lg transition font-bold">
-                                                    ✏️
+                                                    <i class="fa-solid fa-pen-to-square text-[10px]"></i>
                                                 </button>
                                             </div>
                                         `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin extras configurados</span>'}
@@ -730,7 +730,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                             <div class="flex lg:flex-col gap-2 shrink-0 pt-1 lg:pt-0">
                                 <button onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
                                     class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center justify-center gap-1.5">
-                                    <span>✏️</span> <span>Editar</span>
+                                    <span><i class="fa-solid fa-pen-to-square mr-1"></i></span> <span>Editar</span>
                                 </button>
                                 <button onclick="togglePlatoDisponibilidad(${pl.id})"
                                     class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
@@ -738,12 +738,12 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                             ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
                                             : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold shadow-md'
                                     }">
-                                    <span>${pl.disponible_global ? '⏸' : '▶'}</span>
+                                    <span><i class="fa-solid fa-${pl.disponible_global ? 'pause' : 'play'} mr-1"></i></span>
                                     <span>${pl.disponible_global ? 'Agotar Plato' : 'Habilitar'}</span>
                                 </button>
                                 <button onclick="eliminarPlato(${pl.id})"
                                     class="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center justify-center gap-1">
-                                    <span>🗑️</span> <span class="hidden sm:inline">Borrar</span>
+                                    <span><i class="fa-solid fa-trash mr-1"></i></span> <span class="hidden sm:inline">Borrar</span>
                                 </button>
                             </div>
                         </div>
@@ -825,7 +825,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                     ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
                                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
                             }">
-                            ${isSelected ? '✓ ' : '+ '}${item}
+                            ${isSelected ? '<i class="fa-solid fa-check mr-1"></i>' : '<i class="fa-solid fa-plus mr-1"></i>'}${item}
                         </button>
                     `;
                 }).join('');
@@ -842,7 +842,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     baseContainer.innerHTML = formIngredientesBaseList.map((ing, idx) => `
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold">
                             <span>${ing}</span>
-                            <button type="button" onclick="removeIngBaseAt(${idx})" class="text-emerald-300 hover:text-white font-bold">✕</button>
+                            <button type="button" onclick="removeIngBaseAt(${idx})" class="text-emerald-300 hover:text-white font-bold"><i class="fa-solid fa-xmark text-xs"></i></button>
                         </span>
                     `).join('');
                 }
@@ -862,7 +862,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                                     ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
                                     : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
                             }">
-                            ${isSelected ? '✓ ' : '+ '}${item.nombre} (+${sym}${item.precio.toFixed(2)})
+                            ${isSelected ? '<i class="fa-solid fa-check mr-1"></i>' : '<i class="fa-solid fa-plus mr-1"></i>'}${item.nombre} (+${sym}${item.precio.toFixed(2)})
                         </button>
                     `;
                 }).join('');
@@ -885,8 +885,8 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                             <span class="text-[10px] opacity-75 uppercase font-bold">${ex.tipo === 'VARIANTE' ? 'VAR' : 'EXT'}</span>
                             <span>${ex.nombre}</span>
                             <span class="font-extrabold text-emerald-300">+${sym}${Number(ex.precio_adicional).toFixed(2)}</span>
-                            <button type="button" onclick="editFormExtraPrice(${idx})" title="Editar precio" class="text-amber-300 hover:text-white font-bold ml-0.5 text-xs">✏️</button>
-                            <button type="button" onclick="removeExtraAt(${idx})" title="Eliminar" class="text-rose-300 hover:text-white font-bold ml-0.5 text-xs">✕</button>
+                            <button type="button" onclick="editFormExtraPrice(${idx})" title="Editar precio" class="text-amber-300 hover:text-white font-bold ml-0.5 text-xs"><i class="fa-solid fa-pen-to-square"></i></button>
+                            <button type="button" onclick="removeExtraAt(${idx})" title="Eliminar" class="text-rose-300 hover:text-white font-bold ml-0.5 text-xs"><i class="fa-solid fa-xmark"></i></button>
                         </span>
                     `).join('');
                 }
@@ -981,7 +981,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
             }));
             renderIngredientBuilderUI();
 
-            document.getElementById('formPlatoIcon').textContent = '✏️';
+            document.getElementById('formPlatoIcon').innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
             document.getElementById('formPlatoIcon').className = 'w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm';
             document.getElementById('formPlatoTitle').textContent = `Editando: ${pl.nombre}`;
             document.getElementById('formPlatoSubtitle').textContent = 'Modifica los ingredientes, precios o extras y guarda los cambios';
@@ -1006,7 +1006,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 30.00 }
             ];
             renderIngredientBuilderUI();
-            document.getElementById('formPlatoIcon').textContent = '➕';
+            document.getElementById('formPlatoIcon').innerHTML = '<i class="fa-solid fa-plus"></i>';
             document.getElementById('formPlatoIcon').className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm';
             document.getElementById('formPlatoTitle').textContent = 'Nuevo Plato';
             document.getElementById('formPlatoSubtitle').textContent = 'Configura nombre, precio, ingredientes removibles y extras';
@@ -1208,13 +1208,13 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     <div class="space-y-1.5 text-xs flex-1">
                         <div class="font-bold text-base text-white">${s.nombre_sucursal}</div>
                         <div class="text-emerald-300 font-semibold">Código Opción B: [${s.codigo_whatsapp}]</div>
-                        <div class="text-slate-400">📍 ${s.direccion_fisica || ''}</div>
-                        <div class="text-slate-300">⏰ Horario: ${s.horario_apertura} a ${s.horario_cierre} • Entrega: <strong>${s.tiempo_estimado_entrega_min} min</strong></div>
-                        <div class="text-slate-300">🖨️ Formato Ticket Configurado: <strong>${s.ancho_ticket_termico}</strong></div>
+                        <div class="text-slate-400"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> ${s.direccion_fisica || ''}</div>
+                        <div class="text-slate-300"><i class="fa-regular fa-clock text-slate-400 mr-1"></i> Horario: ${s.horario_apertura} a ${s.horario_cierre} • Entrega: <strong>${s.tiempo_estimado_entrega_min} min</strong></div>
+                        <div class="text-slate-300"><i class="fa-solid fa-print text-slate-400 mr-1"></i> Formato Ticket: <strong>${s.ancho_ticket_termico}</strong></div>
                         <div class="pt-1">
                             <a href="${s.deep_link_whatsapp}" target="_blank"
                                 class="inline-block px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
-                                💬 Probar Link de WhatsApp de esta Sucursal
+                                <i class="fa-brands fa-whatsapp text-emerald-400 mr-1.5"></i> Probar Link de WhatsApp de esta Sucursal
                             </a>
                         </div>
                     </div>
@@ -1224,10 +1224,10 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
             const badgeRes = document.getElementById('badgeEstadoReservaciones');
             if (comercio.reservaciones_habilitadas) {
                 badgeRes.className = 'text-xs px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-                badgeRes.textContent = '✅ ACTIVO CON PAGO API (MODO 2)';
+                badgeRes.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ACTIVO CON PAGO API (MODO 2)';
             } else {
                 badgeRes.className = 'text-xs px-3 py-1 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
-                badgeRes.textContent = '🔒 EN ESPERA DE INTEGRACIÓN DE PAGO (MODO 2)';
+                badgeRes.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> EN ESPERA DE INTEGRACIÓN (MODO 2)';
             }
 
             const todasLasMesas = [];
@@ -1236,7 +1236,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
             });
             document.getElementById('mesasGridInfo').innerHTML = todasLasMesas.map(m => `
                 <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-                    <div class="font-bold text-white">🪑 ${m.nombre_mesa}</div>
+                    <div class="font-bold text-white"><i class="fa-solid fa-chair text-indigo-400 mr-1.5"></i> ${m.nombre_mesa}</div>
                     <div class="text-slate-400">${m.sucursal} • Capacidad: ${m.capacidad_personas} personas</div>
                     <div class="text-indigo-300 font-semibold mt-1">Pago obligatorio para reservar: ${comercio.simbolo_moneda}${m.monto_anticipo_reserva.toFixed(2)}</div>
                 </div>

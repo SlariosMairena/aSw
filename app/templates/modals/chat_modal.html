@@ -8,7 +8,9 @@
                 <h3 id="modalChatTitle" class="text-lg font-bold text-white">Chat de WhatsApp del Pedido</h3>
                 <p id="modalChatSubtitle" class="text-xs text-slate-400"></p>
             </div>
-            <button onclick="closeChatModal()" class="text-slate-400 hover:text-white text-xl font-bold px-2">✕</button>
+            <button onclick="closeChatModal()" class="text-slate-400 hover:text-white text-base font-bold px-2 py-1 transition">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
         </div>
 
         <!-- Interruptor para Tomar el Control de la Conversación (Human Handoff) -->
@@ -19,12 +21,12 @@
             </div>
             <div class="flex gap-2">
                 <button id="btnTakeControl" onclick="toggleChatControl('HUMANO_ACTIVO')"
-                    class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition">
-                    🛑 Tomar Control Humano (Pausar Bot aquí)
+                    class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-hand"></i> <span>Tomar Control Humano (Pausar Bot aquí)</span>
                 </button>
                 <button id="btnReleaseControl" onclick="toggleChatControl('BOT_ACTIVO')"
-                    class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
-                    🤖 Reactivar Bot para este Chat
+                    class="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-robot"></i> <span>Reactivar Bot para este Chat</span>
                 </button>
             </div>
         </div>
@@ -32,11 +34,17 @@
         <!-- Resumen IA y Cómo se realizó el pedido -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 text-xs">
             <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30">
-                <div class="font-bold text-indigo-300 mb-1">🧠 Resumen del Chat (Generado por IA):</div>
+                <div class="font-bold text-indigo-300 mb-1 flex items-center gap-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                    <span>Resumen del Chat (Generado por IA):</span>
+                </div>
                 <p id="modalResumenIA" class="text-slate-200 leading-relaxed"></p>
             </div>
             <div class="p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/30">
-                <div class="font-bold text-emerald-300 mb-1">📋 Cómo se realizó este pedido:</div>
+                <div class="font-bold text-emerald-300 mb-1 flex items-center gap-1.5">
+                    <i class="fa-solid fa-receipt text-emerald-400"></i>
+                    <span>Cómo se realizó este pedido:</span>
+                </div>
                 <p id="modalComoSeRealizo" class="text-slate-200 leading-relaxed"></p>
             </div>
         </div>
@@ -50,9 +58,10 @@
                 placeholder="Escribe aquí para responderle manualmente al cliente en su WhatsApp..."
                 class="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500">
             <button type="submit"
-                class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition">
-                Enviar a WhatsApp ➔
+                class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs transition flex items-center gap-1.5">
+                <span>Enviar a WhatsApp</span> <i class="fa-solid fa-paper-plane text-xs"></i>
             </button>
         </form>
     </div>
 </div>
+

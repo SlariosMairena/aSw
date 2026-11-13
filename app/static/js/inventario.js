@@ -15,7 +15,7 @@ async function cargarInventario() {
     const tbody = document.getElementById('inventarioTableBody');
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-slate-400">
-            <span class="inline-block animate-spin mr-2">🔄</span> Consultando stock en tiempo real...
+            <i class="fa-solid fa-spinner fa-spin mr-2"></i> Consultando stock en tiempo real...
         </td></tr>`;
     }
 
@@ -79,7 +79,7 @@ async function cargarInventario() {
         console.error('Error cargando inventario:', err);
         if (tbody) {
             tbody.innerHTML = `<tr><td colspan="8" class="text-center py-6 text-rose-400">
-                ⚠️ Error al cargar el inventario: ${err.message}
+                <i class="fa-solid fa-triangle-exclamation mr-1.5"></i> Error al cargar el inventario: ${err.message}
             </td></tr>`;
         }
         showToast('Error cargando inventario: ' + err.message, true);
@@ -166,11 +166,11 @@ function renderizarTablaInventario(items) {
         // Determinar badge de estado
         let badgeHtml = '';
         if (stock <= 0) {
-            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold animate-pulse">🛑 AGOTADO</span>`;
+            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold"><i class="fa-solid fa-ban text-[9px] mr-1"></i> AGOTADO</span>`;
         } else if (stock <= min) {
-            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">⚠️ BAJO</span>`;
+            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold"><i class="fa-solid fa-triangle-exclamation text-[9px] mr-1"></i> BAJO</span>`;
         } else {
-            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">✓ ÓPTIMO</span>`;
+            badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"><i class="fa-solid fa-check text-[9px] mr-1"></i> ÓPTIMO</span>`;
         }
 
         const safeItemJson = encodeURIComponent(JSON.stringify(item));
@@ -179,7 +179,7 @@ function renderizarTablaInventario(items) {
         <tr class="hover:bg-slate-900/60 transition group border-b border-slate-800/60">
             <td class="px-4 py-3">
                 <div class="font-bold text-white text-xs">${escapeHtml(item.nombre_insumo)}</div>
-                ${item.proveedor ? `<div class="text-[10px] text-slate-400 flex items-center gap-1">🚚 ${escapeHtml(item.proveedor)}</div>` : ''}
+                ${item.proveedor ? `<div class="text-[10px] text-slate-400 flex items-center gap-1"><i class="fa-solid fa-truck text-[9px]"></i> ${escapeHtml(item.proveedor)}</div>` : ''}
             </td>
             <td class="px-3 py-3">
                 <span class="px-2 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-[11px] font-medium">
@@ -209,22 +209,22 @@ function renderizarTablaInventario(items) {
                     <button type="button" title="Registrar Entrada / Compra (+)" 
                         onclick="abrirModalAjusteRapido('${item.id}', '${escapeJsStr(item.nombre_insumo)}', '${escapeJsStr(item.unidad_medida)}', 'SUMAR')"
                         class="w-7 h-7 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 flex items-center justify-center font-bold text-xs transition">
-                        +
+                        <i class="fa-solid fa-plus text-[10px]"></i>
                     </button>
                     <button type="button" title="Registrar Salida / Merma (-)" 
                         onclick="abrirModalAjusteRapido('${item.id}', '${escapeJsStr(item.nombre_insumo)}', '${escapeJsStr(item.unidad_medida)}', 'RESTAR')"
                         class="w-7 h-7 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center justify-center font-bold text-xs transition">
-                        -
+                        <i class="fa-solid fa-minus text-[10px]"></i>
                     </button>
                     <button type="button" title="Editar Insumo" 
                         onclick="abrirModalEditarInsumoJson('${safeItemJson}')"
                         class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center text-xs transition">
-                        ✏️
+                        <i class="fa-solid fa-pen-to-square text-[10px]"></i>
                     </button>
                     <button type="button" title="Eliminar Insumo" 
                         onclick="eliminarItemInventario('${item.id}', '${escapeJsStr(item.nombre_insumo)}')"
                         class="w-7 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 flex items-center justify-center text-xs transition">
-                        🗑️
+                        <i class="fa-solid fa-trash text-[10px]"></i>
                     </button>
                 </div>
             </td>
@@ -246,7 +246,7 @@ function abrirModalNuevoInsumo() {
     document.getElementById('invItemProveedor').value = '';
     document.getElementById('invItemNotas').value = '';
 
-    document.getElementById('modalInvIcon').textContent = '📦';
+    document.getElementById('modalInvIcon').innerHTML = '<i class="fa-solid fa-boxes-stacked"></i>';
     document.getElementById('modalInvTitle').textContent = 'Nuevo Insumo de Inventario';
     document.getElementById('btnSubmitItemInventarioText').textContent = 'Guardar Insumo';
     document.getElementById('wrapperStockInicial').classList.remove('hidden');
@@ -270,7 +270,7 @@ function abrirModalEditarInsumoJson(safeJson) {
         document.getElementById('invItemProveedor').value = item.proveedor || '';
         document.getElementById('invItemNotas').value = item.notas || '';
 
-        document.getElementById('modalInvIcon').textContent = '✏️';
+        document.getElementById('modalInvIcon').innerHTML = '<i class="fa-solid fa-pen-to-square"></i>';
         document.getElementById('modalInvTitle').textContent = `Editar: ${item.nombre_insumo}`;
         document.getElementById('btnSubmitItemInventarioText').textContent = 'Actualizar Datos';
         // En edición el stock se modifica vía movimientos para trazabilidad, pero dejamos ver el valor
@@ -466,3 +466,4 @@ function escapeJsStr(str) {
     if (!str) return '';
     return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
+
