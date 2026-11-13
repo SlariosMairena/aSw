@@ -18,6 +18,8 @@ from app.models.saas_models import (
     ClienteFrecuente,
     DetallePedido,
     IngredienteOpcionPlato,
+    ItemInventario,
+    MovimientoInventario,
     MensajeChatWhatsApp,
     MesaZona,
     PagoTransaccion,
@@ -645,6 +647,151 @@ def _migrate_existing_data_to_nio(db: Session) -> None:
         elif "Refresco" in d.nombre_plato and d.precio_unitario_base < 10.0:
             d.precio_unitario_base = 35.00
             d.subtotal_linea = 70.00
+
+    # Inicializar insumos de inventario si no existen
+    for c in comercios:
+        if db.query(ItemInventario).filter(ItemInventario.tenant_id == c.id).count() == 0:
+            suc = db.query(SucursalComercio).filter(SucursalComercio.tenant_id == c.id).first()
+            suc_id = suc.id if suc else None
+            db.add_all([
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Carne Angus Molida",
+                    categoria="Carnes",
+                    unidad_medida="kg",
+                    stock_actual=24.5,
+                    stock_minimo=5.0,
+                    costo_unitario=220.00,
+                    proveedor="Carnicería San Martín",
+                    notas="Para medallones de hamburguesas 200g"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Pan Brioche Artesanal",
+                    categoria="Panadería",
+                    unidad_medida="unidades",
+                    stock_actual=60.0,
+                    stock_minimo=15.0,
+                    costo_unitario=18.00,
+                    proveedor="Panadería La Unión",
+                    notas="Entrega fresca diaria"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Queso Cheddar Americano",
+                    categoria="Lácteos",
+                    unidad_medida="láminas",
+                    stock_actual=80.0,
+                    stock_minimo=20.0,
+                    costo_unitario=8.00,
+                    proveedor="Lácteos del Norte"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Tocino Ahumado Especial",
+                    categoria="Carnes",
+                    unidad_medida="porciones",
+                    stock_actual=45.0,
+                    stock_minimo=10.0,
+                    costo_unitario=15.00,
+                    proveedor="Embutidos La Famosa"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Masa Madre para Pizza",
+                    categoria="Panadería",
+                    unidad_medida="bolas",
+                    stock_actual=28.0,
+                    stock_minimo=8.0,
+                    costo_unitario=25.00,
+                    proveedor="Producción Propia Cocina",
+                    notas="Fermentación 48 horas"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Queso Mozzarella Fresco",
+                    categoria="Lácteos",
+                    unidad_medida="kg",
+                    stock_actual=18.0,
+                    stock_minimo=5.0,
+                    costo_unitario=160.00,
+                    proveedor="Lácteos La Sureña"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Pepperoni Artesanal Rodajas",
+                    categoria="Carnes",
+                    unidad_medida="paquetes",
+                    stock_actual=12.0,
+                    stock_minimo=3.0,
+                    costo_unitario=95.00,
+                    proveedor="Embutidos La Famosa"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Salsa Pomodoro Casera",
+                    categoria="Salsas",
+                    unidad_medida="litros",
+                    stock_actual=15.0,
+                    stock_minimo=4.0,
+                    costo_unitario=45.00,
+                    proveedor="Producción Propia Cocina"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Coca-Cola Regular Lata 355ml",
+                    categoria="Bebidas",
+                    unidad_medida="latas",
+                    stock_actual=48.0,
+                    stock_minimo=12.0,
+                    costo_unitario=20.00,
+                    proveedor="Coca-Cola FEMSA Nicaragua"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Sprite Lata 355ml",
+                    categoria="Bebidas",
+                    unidad_medida="latas",
+                    stock_actual=4.0,
+                    stock_minimo=12.0,
+                    costo_unitario=20.00,
+                    proveedor="Coca-Cola FEMSA Nicaragua",
+                    notas="⚠️ Alerta: Reorden urgente"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Aceitunas Negras Rebanadas",
+                    categoria="Vegetales",
+                    unidad_medida="latas",
+                    stock_actual=0.0,
+                    stock_minimo=2.0,
+                    costo_unitario=65.00,
+                    proveedor="Distribuidora España",
+                    notas="🚨 Agotado: Próximo despacho viernes"
+                ),
+                ItemInventario(
+                    tenant_id=c.id,
+                    sucursal_id=suc_id,
+                    nombre_insumo="Caja de Pizza Térmica",
+                    categoria="Empaques",
+                    unidad_medida="cajas",
+                    stock_actual=110.0,
+                    stock_minimo=25.0,
+                    costo_unitario=12.00,
+                    proveedor="Empaques Modernos Managua"
+                ),
+            ])
 
     db.commit()
 

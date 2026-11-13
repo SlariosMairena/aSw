@@ -1,0 +1,24 @@
+<!-- PESTAÑA C: SUCURSALES, QR DE WHATSAPP (OPCIÓN B) Y RESERVACIÓN DE MESAS -->
+<div id="tabContent_sucursales" class="hidden space-y-6">
+    <div class="glass rounded-2xl p-5">
+        <h3 class="text-base font-bold text-white mb-1">📲 Tus Sucursales y Códigos QR para tu Único Bot de WhatsApp (Opción B)</h3>
+        <p class="text-xs text-slate-400 mb-4">
+            Cada sucursal tiene su propio link directo y código QR. Cuando el cliente lo toca, se abre tu WhatsApp ya enfocado en esa sucursal.
+        </p>
+        <div id="sucursalesCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+    </div>
+
+    <!-- Módulo de Reservación de Mesas (Con Pago en Modo 2) -->
+    <div class="glass rounded-2xl p-5 border border-indigo-500/30">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div>
+                <h3 class="text-base font-bold text-white">🪑 Módulo de Reservación de Mesas (Con Pago de Anticipo)</h3>
+                <p class="text-xs text-slate-400">
+                    Tal como definimos en el plan, las reservaciones de mesa exigen un pago obligatorio y se habilitan automáticamente al activar la API de Pagos (Modo 2).
+                </p>
+            </div>
+            <span id="badgeEstadoReservaciones" class="text-xs px-3 py-1 rounded-full font-bold"></span>
+        </div>
+        <div id="mesasGridInfo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+    </div>
+</div>

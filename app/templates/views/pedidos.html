@@ -1,0 +1,35 @@
+<!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS EN 3 COLUMNAS -->
+<div id="tabContent_pedidos" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Columna 1: RECIBIDO -->
+    <div class="glass rounded-2xl p-4 flex flex-col">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+            <span class="font-bold text-sm text-sky-300 flex items-center gap-2">
+                📥 1. RECIBIDO (Nuevos)
+            </span>
+            <span id="countRecibido" class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold">0</span>
+        </div>
+        <div id="colRecibido" class="space-y-4 flex-1"></div>
+    </div>
+
+    <!-- Columna 2: EN PROCESO -->
+    <div class="glass rounded-2xl p-4 flex flex-col">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+            <span class="font-bold text-sm text-amber-300 flex items-center gap-2">
+                👨‍🍳 2. EN PROCESO (En Cocina)
+            </span>
+            <span id="countEnProceso" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
+        </div>
+        <div id="colEnProceso" class="space-y-4 flex-1"></div>
+    </div>
+
+    <!-- Columna 3: LISTO / ENTREGADO -->
+    <div class="glass rounded-2xl p-4 flex flex-col">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+            <span class="font-bold text-sm text-emerald-300 flex items-center gap-2">
+                ✅ 3. LISTO PARA ENTREGA
+            </span>
+            <span id="countListo" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
+        </div>
+        <div id="colListo" class="space-y-4 flex-1"></div>
+    </div>
+</div>

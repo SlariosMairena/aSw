@@ -38,6 +38,8 @@ from app.models.saas_models import (
     CategoriaMenu,
     DetallePedido,
     IngredienteOpcionPlato,
+    ItemInventario,
+    MovimientoInventario,
     MensajeChatWhatsApp,
     MesaZona,
     Pedido,
@@ -88,6 +90,24 @@ class ActualizarPrecioPlatoRequest(BaseModel):
 
 class ActualizarPrecioIngredienteRequest(BaseModel):
     precio_adicional: float
+
+
+class CrearItemInventarioRequest(BaseModel):
+    nombre_insumo: str
+    categoria: str = "General"
+    unidad_medida: str = "unidades"
+    stock_actual: float = 0.0
+    stock_minimo: float = 5.0
+    costo_unitario: float = 0.0
+    proveedor: Optional[str] = None
+    notas: Optional[str] = None
+    sucursal_id: Optional[int] = None
+
+
+class AjustarStockRequest(BaseModel):
+    tipo: str  # SUMAR | RESTAR | FIJAR
+    cantidad: float
+    motivo: Optional[str] = "Ajuste manual"
 
 
 class CambiarEstadoSuscripcionRequest(BaseModel):
@@ -1231,4 +1251,263 @@ def actualizar_operacion_sucursal(
     suc.ancho_ticket_termico = payload.ancho_ticket_termico
     db.commit()
     return {"status": "ok", "sucursal_id": suc.id}
+
+
+# =====================================================================
+# 5. CONTROL DE INVENTARIO Y STOCK PARA RESTAURANTES
+# =====================================================================
+@router.get("/comercio/{tenant_id}/inventario")
+def listar_inventario_comercio(
+    tenant_id: int,
+    sucursal_id: Optional[int] = None,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Consulta el inventario completo, alertas de bajo stock y valorización en Córdobas."""
+    verify_tenant_isolation(current_user, tenant_id)
+
+    query = db.query(ItemInventario).filter(
+        ItemInventario.tenant_id == tenant_id,
+        ItemInventario.activo == True,
+    )
+    if sucursal_id:
+        query = query.filter(
+            (ItemInventario.sucursal_id == sucursal_id)
+            | (ItemInventario.sucursal_id == None)
+        )
+
+    items = query.order_by(ItemInventario.categoria, ItemInventario.nombre_insumo).all()
+
+    items_data = []
+    total_items = len(items)
+    items_bajo_stock = 0
+    items_agotados = 0
+    valor_total_inventario = 0.0
+    categorias_set = set()
+
+    for it in items:
+        categorias_set.add(it.categoria)
+        valor_item = round(it.stock_actual * it.costo_unitario, 2)
+        valor_total_inventario += valor_item
+
+        if it.stock_actual <= 0:
+            estado = "AGOTADO"
+            items_agotados += 1
+        elif it.stock_actual <= it.stock_minimo:
+            estado = "BAJO_STOCK"
+            items_bajo_stock += 1
+        else:
+            estado = "NORMAL"
+
+        items_data.append(
+            {
+                "id": it.id,
+                "nombre_insumo": it.nombre_insumo,
+                "categoria": it.categoria,
+                "unidad_medida": it.unidad_medida,
+                "stock_actual": it.stock_actual,
+                "stock_minimo": it.stock_minimo,
+                "costo_unitario": it.costo_unitario,
+                "valor_total": valor_item,
+                "estado": estado,
+                "proveedor": it.proveedor or "No especificado",
+                "notas": it.notas or "",
+                "actualizado_en": (
+                    it.actualizado_en.strftime("%d/%m/%Y %H:%M")
+                    if it.actualizado_en
+                    else ""
+                ),
+            }
+        )
+
+    return {
+        "items": items_data,
+        "metricas": {
+            "total_items": total_items,
+            "items_bajo_stock": items_bajo_stock,
+            "items_agotados": items_agotados,
+            "items_optimos": total_items - (items_bajo_stock + items_agotados),
+            "valor_total_inventario": round(valor_total_inventario, 2),
+            "categorias_contabilizadas": len(categorias_set),
+        },
+        "categorias": sorted(list(categorias_set)),
+    }
+
+
+@router.post("/comercio/{tenant_id}/inventario")
+def crear_item_inventario(
+    tenant_id: int,
+    payload: CrearItemInventarioRequest,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Registra una nueva materia prima o insumo en el inventario del restaurante."""
+    verify_tenant_isolation(current_user, tenant_id)
+
+    item = ItemInventario(
+        tenant_id=tenant_id,
+        sucursal_id=payload.sucursal_id,
+        nombre_insumo=payload.nombre_insumo.strip(),
+        categoria=payload.categoria.strip() or "General",
+        unidad_medida=payload.unidad_medida.strip() or "unidades",
+        stock_actual=max(0.0, float(payload.stock_actual)),
+        stock_minimo=max(0.0, float(payload.stock_minimo)),
+        costo_unitario=max(0.0, float(payload.costo_unitario)),
+        proveedor=payload.proveedor.strip() if payload.proveedor else None,
+        notas=payload.notas.strip() if payload.notas else None,
+        activo=True,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+
+    if item.stock_actual > 0:
+        mov = MovimientoInventario(
+            tenant_id=tenant_id,
+            item_id=item.id,
+            tipo_movimiento="ENTRADA",
+            cantidad=item.stock_actual,
+            stock_anterior=0.0,
+            stock_nuevo=item.stock_actual,
+            motivo="Carga inicial de inventario",
+            actor_email=current_user.email,
+        )
+        db.add(mov)
+        db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="CREAR_ITEM_INVENTARIO",
+        recurso_tipo="ITEM_INVENTARIO",
+        recurso_id=str(item.id),
+        usuario_id=current_user.id,
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"nombre": item.nombre_insumo, "stock_inicial": item.stock_actual},
+    )
+
+    return {"status": "ok", "item_id": item.id}
+
+
+@router.patch("/comercio/inventario/{item_id}/ajustar")
+def ajustar_stock_item(
+    item_id: int,
+    payload: AjustarStockRequest,
+    request: Request,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Ajuste rápido de stock: SUMAR (compra), RESTAR (merma/consumo) o FIJAR (conteo)."""
+    item = db.query(ItemInventario).filter(ItemInventario.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Insumo no encontrado.")
+
+    verify_tenant_isolation(current_user, item.tenant_id)
+
+    tipo = payload.tipo.upper().strip()
+    cant = abs(float(payload.cantidad))
+    stock_anterior = item.stock_actual
+
+    if tipo == "SUMAR":
+        stock_nuevo = round(stock_anterior + cant, 2)
+        tipo_mov = "ENTRADA"
+    elif tipo == "RESTAR":
+        stock_nuevo = max(0.0, round(stock_anterior - cant, 2))
+        tipo_mov = "SALIDA"
+    elif tipo == "FIJAR":
+        stock_nuevo = max(0.0, round(float(payload.cantidad), 2))
+        tipo_mov = "AJUSTE"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de ajuste inválido (SUMAR, RESTAR o FIJAR).",
+        )
+
+    item.stock_actual = stock_nuevo
+    item.actualizado_en = datetime.now(timezone.utc)
+
+    mov = MovimientoInventario(
+        tenant_id=item.tenant_id,
+        item_id=item.id,
+        tipo_movimiento=tipo_mov,
+        cantidad=cant if tipo != "FIJAR" else abs(stock_nuevo - stock_anterior),
+        stock_anterior=stock_anterior,
+        stock_nuevo=stock_nuevo,
+        motivo=payload.motivo or "Ajuste desde Panel Web",
+        actor_email=current_user.email,
+    )
+    db.add(mov)
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="AJUSTE_STOCK_INVENTARIO",
+        recurso_tipo="ITEM_INVENTARIO",
+        recurso_id=str(item.id),
+        usuario_id=current_user.id,
+        tenant_id=item.tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={
+            "insumo": item.nombre_insumo,
+            "anterior": stock_anterior,
+            "nuevo": stock_nuevo,
+            "tipo": tipo,
+            "motivo": payload.motivo,
+        },
+    )
+
+    return {
+        "status": "ok",
+        "item_id": item.id,
+        "stock_anterior": stock_anterior,
+        "stock_nuevo": stock_nuevo,
+    }
+
+
+@router.put("/comercio/inventario/{item_id}")
+def actualizar_item_inventario(
+    item_id: int,
+    payload: CrearItemInventarioRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Edita los datos maestros de un insumo."""
+    item = db.query(ItemInventario).filter(ItemInventario.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Insumo no encontrado.")
+
+    verify_tenant_isolation(current_user, item.tenant_id)
+
+    item.nombre_insumo = payload.nombre_insumo.strip()
+    item.categoria = payload.categoria.strip() or "General"
+    item.unidad_medida = payload.unidad_medida.strip() or "unidades"
+    item.stock_minimo = max(0.0, float(payload.stock_minimo))
+    item.costo_unitario = max(0.0, float(payload.costo_unitario))
+    item.proveedor = payload.proveedor.strip() if payload.proveedor else None
+    item.notas = payload.notas.strip() if payload.notas else None
+    item.actualizado_en = datetime.now(timezone.utc)
+    db.commit()
+
+    return {"status": "ok", "item_id": item.id}
+
+
+@router.delete("/comercio/inventario/{item_id}")
+def eliminar_item_inventario(
+    item_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Desactiva un insumo del inventario."""
+    item = db.query(ItemInventario).filter(ItemInventario.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Insumo no encontrado.")
+
+    verify_tenant_isolation(current_user, item.tenant_id)
+    item.activo = False
+    db.commit()
+
+    return {"status": "ok", "deleted_id": item_id}
 

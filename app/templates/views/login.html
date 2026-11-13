@@ -1,0 +1,51 @@
+<!-- 1. PANTALLA DE LOGIN (CON ACCESOS RÁPIDOS DE PRUEBA) -->
+<main id="loginSection" class="flex-1 flex items-center justify-center p-6">
+    <div class="glass max-w-md w-full rounded-2xl p-8 shadow-2xl">
+        <div class="text-center mb-6">
+            <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-2xl font-black border border-emerald-500/30">
+                💬
+            </div>
+            <h2 class="text-2xl font-bold text-white">Iniciar Sesión</h2>
+            <p class="text-sm text-slate-400 mt-1">Accede como Dueño del SaaS o al Panel de un Restaurante</p>
+        </div>
+
+        <!-- Botones rápidos para probar sin teclear -->
+        <div class="mb-6 p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/70">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">⚡ Accesos Rápidos de Demostración:</p>
+            <div class="grid grid-cols-1 gap-2">
+                <button type="button" onclick="fillDemoLogin('admin@tusaas.com', 'AdminSaaS#2026!Seguro')"
+                    class="w-full text-left px-3 py-2 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs text-indigo-200 flex items-center justify-between transition">
+                    <span>👑 <strong>Tu Panel Dueño del SaaS</strong> (SUPER_ADMIN)</span>
+                    <span class="underline">Entrar</span>
+                </button>
+                <button type="button" onclick="fillDemoLogin('dueno@napoli.com', 'Napoli#2026!')"
+                    class="w-full text-left px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs text-emerald-200 flex items-center justify-between transition">
+                    <span>🍕 <strong>Panel Restaurante Napoli</strong> (Dueño Multi-Sucursal)</span>
+                    <span class="underline">Entrar</span>
+                </button>
+                <button type="button" onclick="fillDemoLogin('cocina.centro@napoli.com', 'Cocina#2026!')"
+                    class="w-full text-left px-3 py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-xs text-amber-200 flex items-center justify-between transition">
+                    <span>👨‍🍳 <strong>Pantalla Cocina</strong> (Solo Sucursal Centro)</span>
+                    <span class="underline">Entrar</span>
+                </button>
+            </div>
+        </div>
+
+        <form onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Correo Electrónico</label>
+                <input id="loginEmail" type="email" required value="dueno@napoli.com"
+                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 uppercase mb-1">Contraseña</label>
+                <input id="loginPassword" type="password" required value="Napoli#2026!"
+                    class="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white text-sm focus:outline-none focus:border-emerald-500">
+            </div>
+            <button type="submit"
+                class="w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 transition">
+                Entrar al Panel Web
+            </button>
+        </form>
+    </div>
+</main>

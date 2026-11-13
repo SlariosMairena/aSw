@@ -1,0 +1,61 @@
+<!-- ========================================================= -->
+<!-- MODAL: CREAR NUEVO COMERCIO (SOLO SUPER_ADMIN)            -->
+<!-- ========================================================= -->
+<div id="modalNuevoComercio" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+            <h3 class="text-lg font-bold text-white">🏪 Dar de Alta Nuevo Restaurante / Comercio</h3>
+            <button onclick="closeModalNuevoComercio()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+        </div>
+        <form onsubmit="handleCrearComercio(event)" class="space-y-3 text-xs">
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Nombre del Restaurante</label>
+                    <input id="ncNombre" type="text" required placeholder="Ej. Tacos El Rey"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Código / Slug Único</label>
+                    <input id="ncSlug" type="text" required placeholder="tacos-el-rey"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Plan del SaaS</label>
+                    <select id="ncPlan" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+                        <option value="PLAN_BASICO">Plan Básico ($29/mes)</option>
+                        <option value="PLAN_PRO" selected>Plan Restaurante Pro ($59/mes)</option>
+                        <option value="PLAN_HIBRIDO_PLUS">Plan Híbrido Multi-Sucursal ($25 + 2.5%)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Sucursal Principal</label>
+                    <input id="ncSucursal" type="text" required value="Sucursal Centro"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+                </div>
+            </div>
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Nombre del Dueño</label>
+                <input id="ncDuenoNombre" type="text" required placeholder="Juan Pérez"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Correo del Dueño (Login)</label>
+                    <input id="ncDuenoEmail" type="email" required placeholder="dueno@tacoselrey.com"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Contraseña Inicial</label>
+                    <input id="ncDuenoPass" type="text" required value="Tacos#2026!"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
+                </div>
+            </div>
+            <button type="submit"
+                class="w-full py-2.5 mt-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition">
+                Crear Comercio y Generar su QR de WhatsApp
+            </button>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,1259 @@
+﻿// =========================================================
+// PANEL SAAS WHATSAPP ORDERS - LOGICA PRINCIPAL
+// =========================================================
+
+        let authToken = localStorage.getItem('saas_jwt_token') || '';
+        let currentUser = null;
+        let activeTenantId = null;
+        let currentComercioData = null;
+        let activeChatPedido = null;
+
+        function showToast(msg, isError = false) {
+            const box = document.getElementById('toastBox');
+            box.textContent = msg;
+            box.className = `fixed bottom-5 right-5 z-50 max-w-md px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium transition-all ${
+                isError
+                    ? 'bg-rose-950/95 border-rose-500 text-rose-200'
+                    : 'bg-emerald-950/95 border-emerald-500 text-emerald-200'
+            }`;
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 4200);
+        }
+
+        function playKitchenBell() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.setValueAtTime(1174.66, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.65);
+                showToast('ðŸ”” Sonido de alerta de cocina reproducido.');
+            } catch (e) {
+                showToast('Alerta visual activada.');
+            }
+        }
+
+        function fillDemoLogin(email, pass) {
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginPassword').value = pass;
+            const form = document.querySelector('#loginSection form');
+            if (form) {
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    handleLogin({ preventDefault: () => {} });
+                }
+            }
+        }
+
+        async function apiFetch(url, options = {}) {
+            const headers = options.headers || {};
+            if (authToken && !url.includes('/auth/login')) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            if (options.body && typeof options.body === 'object') {
+                headers['Content-Type'] = 'application/json';
+                options.body = JSON.stringify(options.body);
+            }
+            const res = await fetch(url, { ...options, headers });
+            if (res.status === 401 && !url.includes('/auth/login')) {
+                logout();
+                throw new Error('SesiÃ³n expirada. Inicia sesiÃ³n nuevamente.');
+            }
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.detail || 'Error en la solicitud');
+            }
+            return data;
+        }
+
+        async function handleLogin(e) {
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            const email = (document.getElementById('loginEmail').value || '').trim();
+            const password = document.getElementById('loginPassword').value || '';
+            const btnSubmit = document.querySelector('#loginSection form button[type="submit"]');
+            const originalBtnText = btnSubmit ? btnSubmit.textContent : '';
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = 'Ingresando...';
+            }
+            try {
+                const data = await apiFetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    body: { email, password }
+                });
+                authToken = data.access_token;
+                localStorage.setItem('saas_jwt_token', authToken);
+                currentUser = data.user;
+                showToast(`Â¡Bienvenido ${currentUser.nombre_completo}!`);
+                await renderAppByRole();
+            } catch (err) {
+                showToast(err.message || 'Error al iniciar sesiÃ³n', true);
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = originalBtnText;
+                }
+            }
+        }
+
+        function logout() {
+            authToken = '';
+            currentUser = null;
+            localStorage.removeItem('saas_jwt_token');
+            document.getElementById('userHeaderBox').classList.add('hidden');
+            document.getElementById('superAdminSection').classList.add('hidden');
+            document.getElementById('comercioSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        async function renderAppByRole() {
+            document.getElementById('loginSection').classList.add('hidden');
+            const headerBox = document.getElementById('userHeaderBox');
+            headerBox.classList.remove('hidden');
+            headerBox.classList.add('flex');
+            document.getElementById('userBadgeRole').textContent = currentUser.rol;
+            document.getElementById('userBadgeName').textContent = currentUser.nombre_completo;
+
+            if (currentUser.rol === 'SUPER_ADMIN') {
+                document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
+                document.getElementById('comercioSection').classList.add('hidden');
+                document.getElementById('superAdminSection').classList.remove('hidden');
+                await loadSuperAdminDashboard();
+            } else {
+                activeTenantId = currentUser.tenant_id;
+                document.getElementById('superAdminSection').classList.add('hidden');
+                document.getElementById('comercioSection').classList.remove('hidden');
+                await reloadComercioDashboard(true);
+            }
+        }
+
+        async function inspectComercioAsSuperAdmin(tenantId) {
+            activeTenantId = tenantId;
+            document.getElementById('superAdminSection').classList.add('hidden');
+            document.getElementById('comercioSection').classList.remove('hidden');
+            document.getElementById('btnVolverSuperAdmin').classList.remove('hidden');
+            await reloadComercioDashboard(true);
+        }
+
+        async function switchBackToSuperAdmin() {
+            document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
+            document.getElementById('comercioSection').classList.add('hidden');
+            document.getElementById('superAdminSection').classList.remove('hidden');
+            await loadSuperAdminDashboard();
+        }
+
+        // =========================================================
+        // CARGA DEL PANEL SUPER_ADMIN (DUEÃ‘O DEL SAAS)
+        // =========================================================
+        async function loadSuperAdminDashboard() {
+            try {
+                const data = await apiFetch('/api/v1/panel/superadmin/overview');
+                const m = data.metricas_saas;
+                document.getElementById('saMetricsGrid').innerHTML = `
+                    <div class="glass rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Restaurantes Activos</div>
+                        <div class="text-2xl font-bold text-white mt-1">${m.comercios_activos} / ${m.total_comercios}</div>
+                        <div class="text-[11px] text-emerald-400 mt-1">Multi-Tenant Aislado</div>
+                    </div>
+                    <div class="glass rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Ingresos Mensuales SaaS</div>
+                        <div class="text-2xl font-bold text-emerald-400 mt-1">$${m.ingresos_fijos_mensuales_usd} USD/mes</div>
+                        <div class="text-[11px] text-slate-400 mt-1">+ Comisiones por volumen</div>
+                    </div>
+                    <div class="glass rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Pedidos en WhatsApp</div>
+                        <div class="text-2xl font-bold text-white mt-1">${m.total_pedidos_procesados}</div>
+                        <div class="text-[11px] text-sky-400 mt-1">Conector: ${m.whatsapp_provider}</div>
+                    </div>
+                    <div class="glass rounded-2xl p-4">
+                        <div class="text-xs text-slate-400">Base de Datos & Pagos</div>
+                        <div class="text-base font-bold text-indigo-300 mt-1">Esquema: ${m.database_schema}</div>
+                        <div class="text-[11px] text-amber-300 mt-1">Pagos: ${m.payment_mode}</div>
+                    </div>
+                `;
+
+                document.getElementById('saComerciosList').innerHTML = data.comercios.map(c => `
+                    <div class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-2.5">
+                                <span class="font-bold text-base text-white">${c.nombre_comercial}</span>
+                                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${
+                                    c.estado_suscripcion === 'ACTIVO'
+                                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                }">${c.estado_suscripcion}</span>
+                                <span class="text-xs text-indigo-300 font-medium">${c.plan.nombre} ($${c.plan.precio_mensual_usd}/mes)</span>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">
+                                Contacto: ${c.email_contacto || 'N/A'} â€¢ Pedidos del mes: <strong>${c.pedidos_mes_actual}</strong> â€¢ Sucursales: <strong>${c.sucursales.length}</strong>
+                            </p>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                ${c.sucursales.map(s => `
+                                    <a href="${s.deep_link_whatsapp}" target="_blank"
+                                        class="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30">
+                                        ðŸ“² Link WhatsApp [${s.codigo_whatsapp}]
+                                    </a>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button onclick="inspectComercioAsSuperAdmin(${c.id})"
+                                class="px-3.5 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs transition">
+                                ðŸ‘ï¸ Abrir Tablero de Pedidos de este Restaurante
+                            </button>
+                            <button onclick="toggleEstadoSuscripcion(${c.id}, '${c.estado_suscripcion === 'ACTIVO' ? 'SUSPENDIDO' : 'ACTIVO'}')"
+                                class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-semibold text-slate-200 transition">
+                                ${c.estado_suscripcion === 'ACTIVO' ? 'â¸ Suspender por Falta de Pago' : 'â–¶ Reactivar SuscripciÃ³n'}
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('saPlanesList').innerHTML = data.planes.map(p => `
+                    <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <div class="font-bold text-sm text-white">${p.nombre}</div>
+                            <div class="text-xs text-slate-400">${p.descripcion}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-emerald-400 text-sm">$${p.precio_mensual_usd} USD/mes</div>
+                            <div class="text-[11px] text-slate-400">${p.porcentaje_comision_pedido > 0 ? `+ ${p.porcentaje_comision_pedido}% comisiÃ³n` : `Hasta ${p.limite_pedidos_mes} pedidos`}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('saAuditList').innerHTML = data.audit_logs.map(l => `
+                    <div class="p-2.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <span class="font-bold text-emerald-300">${l.accion}</span>
+                            <span class="text-slate-400"> â€¢ ${l.actor_email || 'sistema'} (${l.recurso_tipo} #${l.recurso_id || ''})</span>
+                        </div>
+                        <span class="text-slate-500">${l.creado_en}</span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function toggleEstadoSuscripcion(tenantId, nuevoEstado) {
+            try {
+                await apiFetch(`/api/v1/panel/superadmin/comercios/${tenantId}/suscripcion`, {
+                    method: 'PATCH',
+                    body: { estado_suscripcion: nuevoEstado }
+                });
+                showToast(`SuscripciÃ³n actualizada a ${nuevoEstado}`);
+                await loadSuperAdminDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        function openModalNuevoComercio() {
+            document.getElementById('modalNuevoComercio').classList.remove('hidden');
+        }
+        function closeModalNuevoComercio() {
+            document.getElementById('modalNuevoComercio').classList.add('hidden');
+        }
+
+        async function handleCrearComercio(e) {
+            e.preventDefault();
+            try {
+                await apiFetch('/api/v1/panel/superadmin/comercios', {
+                    method: 'POST',
+                    body: {
+                        nombre_comercial: document.getElementById('ncNombre').value,
+                        slug: document.getElementById('ncSlug').value,
+                        plan_codigo: document.getElementById('ncPlan').value,
+                        nombre_sucursal_principal: document.getElementById('ncSucursal').value,
+                        nombre_dueno: document.getElementById('ncDuenoNombre').value,
+                        email_dueno: document.getElementById('ncDuenoEmail').value,
+                        password_dueno: document.getElementById('ncDuenoPass').value
+                    }
+                });
+                closeModalNuevoComercio();
+                showToast('Â¡Nuevo restaurante creado con su cÃ³digo QR de WhatsApp!');
+                await loadSuperAdminDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        // =========================================================
+        // CARGA DEL PANEL DEL RESTAURANTE / COCINA
+        // =========================================================
+        function switchComercioTab(tabName) {
+            ['pedidos', 'menu', 'inventario', 'sucursales'].forEach(t => {
+                const el = document.getElementById(`tabContent_${t}`);
+                if (el) el.classList.toggle('hidden', t !== tabName);
+                const btn = document.getElementById(`tabBtn_${t}`);
+                if (btn) {
+                    if (t === tabName) {
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5';
+                    } else {
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5';
+                    }
+                }
+            });
+
+            if (tabName === 'inventario' && typeof cargarInventario === 'function') {
+                cargarInventario();
+            }
+        }
+
+        async function reloadComercioDashboard(populateFilter = false) {
+            const sucursalFilter = document.getElementById('filtroSucursalSelect').value;
+            const query = sucursalFilter ? `?sucursal_id=${sucursalFilter}` : '';
+            try {
+                const data = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/dashboard${query}`);
+                currentComercioData = data;
+                const c = data.comercio;
+                const sym = c.simbolo_moneda || 'C$';
+
+                document.getElementById('comercioTitle').textContent = `ðŸ• ${c.nombre_comercial}`;
+                document.getElementById('comercioPlanBadge').textContent = `${c.plan_nombre} â€¢ ${c.estado_suscripcion}`;
+                document.getElementById('comercioSubInfo').textContent =
+                    `Pedidos del mes: ${c.pedidos_mes_actual} â€¢ Datos transferencia Modo 1: ${c.datos_bancarios_texto}`;
+
+                const badge = document.getElementById('headerMonedaBadge');
+                if (badge) badge.textContent = `${sym} (${c.moneda || 'NIO'})`;
+                document.querySelectorAll('.currencySymbolSpan').forEach(el => el.textContent = sym);
+
+                if (populateFilter) {
+                    const sel = document.getElementById('filtroSucursalSelect');
+                    sel.innerHTML = `<option value="">Todas las sucursales (${data.sucursales.length})</option>` +
+                        data.sucursales.map(s => `<option value="${s.id}">${s.nombre_sucursal} [${s.codigo_whatsapp}]</option>`).join('');
+                }
+
+                renderKanbanPedidos(data.pedidos, sym);
+                renderMenuPlatos(data.platos, sym);
+                renderSucursalesYMesas(data.sucursales, c);
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        function renderKanbanPedidos(pedidos, moneda) {
+            const recibidos = pedidos.filter(p => p.estado_pedido === 'RECIBIDO');
+            const enProceso = pedidos.filter(p => p.estado_pedido === 'EN_PROCESO');
+            const listos = pedidos.filter(p => p.estado_pedido === 'LISTO' || p.estado_pedido === 'ENTREGADO');
+
+            document.getElementById('countRecibido').textContent = recibidos.length;
+            document.getElementById('countEnProceso').textContent = enProceso.length;
+            document.getElementById('countListo').textContent = listos.length;
+
+            document.getElementById('colRecibido').innerHTML = recibidos.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
+                `<p class="text-xs text-slate-500 text-center py-6">Sin pedidos pendientes en esta columna</p>`;
+            document.getElementById('colEnProceso').innerHTML = enProceso.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
+                `<p class="text-xs text-slate-500 text-center py-6">NingÃºn pedido en preparaciÃ³n</p>`;
+            document.getElementById('colListo').innerHTML = listos.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
+                `<p class="text-xs text-slate-500 text-center py-6">NingÃºn pedido marcado como listo</p>`;
+        }
+
+        function buildPedidoCardHTML(p, moneda) {
+            const itemsHTML = p.items.map(it => `
+                <div class="p-2 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
+                    <div class="flex justify-between font-bold text-white">
+                        <span>${it.cantidad}x ${it.nombre_plato}</span>
+                        <span>${moneda}${it.subtotal_linea.toFixed(2)}</span>
+                    </div>
+                    ${it.sin_ingredientes && it.sin_ingredientes.length > 0 ? `
+                        <div class="mt-1">
+                            <span class="inline-block px-2 py-0.5 rounded bg-rose-500/25 border border-rose-500/50 text-rose-200 font-bold text-[11px]">
+                                ðŸš« SIN: ${it.sin_ingredientes.join(', ')}
+                            </span>
+                        </div>
+                    ` : ''}
+                    ${it.extras && it.extras.length > 0 ? `
+                        <div class="mt-1">
+                            ${it.extras.map(ex => `
+                                <span class="inline-block mr-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 font-semibold text-[11px]">
+                                    âž• ${ex.nombre} (+${moneda}${Number(ex.precio).toFixed(2)})
+                                </span>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+
+            const chatModeBadge = p.modo_atencion_chat === 'HUMANO_ACTIVO'
+                ? `<span class="px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] font-bold">ðŸ‘¨â€ðŸ’¼ CONTROL HUMANO ACTIVO</span>`
+                : `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">ðŸ¤– BOT ACTIVO</span>`;
+
+            return `
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-700/80 space-y-3 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-extrabold text-base text-white">#${p.folio}</span>
+                            <span class="text-[11px] text-slate-400 ml-1">â€¢ ${p.sucursal_nombre}</span>
+                        </div>
+                        ${chatModeBadge}
+                    </div>
+
+                    <div class="text-xs text-slate-300 space-y-0.5">
+                        <div>ðŸ‘¤ <strong>${p.nombre_cliente}</strong> (+${p.telefono_cliente})</div>
+                        <div>ðŸ›µ <strong>${p.tipo_entrega}:</strong> ${p.direccion_entrega || 'Recoger en sucursal'}</div>
+                        ${p.google_maps_link ? `
+                            <div>
+                                <a href="${p.google_maps_link}" target="_blank" class="text-sky-400 hover:underline font-semibold">
+                                    ðŸ“ Abrir Pin GPS de WhatsApp en Google Maps âž”
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="space-y-1.5">${itemsHTML}</div>
+
+                    <!-- Resumen del Chat con IA directo en la tarjeta -->
+                    <div class="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-[11px] text-indigo-200">
+                        <strong>ðŸ§  Resumen del Chat (IA):</strong> ${p.resumen_chat_ia}
+                    </div>
+
+                    <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
+                        <div>
+                            <div class="font-bold text-slate-300">Pago: ${p.metodo_pago}</div>
+                            ${p.paga_con_monto ? `<div class="text-[11px] text-amber-300">Paga con ${moneda}${p.paga_con_monto} âž” Cambio: ${moneda}${p.cambio_a_entregar}</div>` : ''}
+                        </div>
+                        <div class="text-right">
+                            <div class="text-[11px] text-slate-400">Total (+EnvÃ­o ${moneda}${p.costo_envio})</div>
+                            <div class="text-base font-extrabold text-emerald-400">${moneda}${p.total.toFixed(2)}</div>
+                        </div>
+                    </div>
+
+                    <!-- Botones para cambiar estado del pedido (notifica al WhatsApp del cliente) -->
+                    <div class="grid grid-cols-3 gap-1.5 pt-1">
+                        <button onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO')"
+                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'RECIBIDO' ? 'bg-sky-500 text-slate-950 border-sky-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            ðŸ“¥ Recibido
+                        </button>
+                        <button onclick="cambiarEstadoPedido(${p.id}, 'EN_PROCESO')"
+                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'EN_PROCESO' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            ðŸ‘¨â€ðŸ³ En Proceso
+                        </button>
+                        <button onclick="cambiarEstadoPedido(${p.id}, 'LISTO')"
+                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'LISTO' ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                            âœ… Listo
+                        </button>
+                    </div>
+
+                    <!-- Botones de Comanda TÃ©rmica y Control del Chat -->
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="openChatModal(${p.id})"
+                            class="flex-1 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition">
+                            ðŸ’¬ Chat / Tomar Control
+                        </button>
+                        <a href="/ticket/${p.id}" target="_blank"
+                            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs transition flex items-center gap-1">
+                            ðŸ–¨ï¸ Ticket
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function cambiarEstadoPedido(pedidoId, nuevoEstado) {
+            try {
+                const res = await apiFetch(`/api/v1/panel/comercio/pedidos/${pedidoId}/estado`, {
+                    method: 'PATCH',
+                    body: { nuevo_estado: nuevoEstado }
+                });
+                showToast(`Estado cambiado a ${nuevoEstado}. Aviso enviado al WhatsApp del cliente.`);
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        function openChatModal(pedidoId) {
+            const p = currentComercioData.pedidos.find(x => x.id === pedidoId);
+            if (!p) return;
+            activeChatPedido = p;
+
+            document.getElementById('modalChatTitle').textContent = `ConversaciÃ³n de WhatsApp â€” Pedido #${p.folio} (${p.nombre_cliente})`;
+            document.getElementById('modalChatSubtitle').textContent = `TelÃ©fono: +${p.telefono_cliente} â€¢ Sucursal: ${p.sucursal_nombre}`;
+            document.getElementById('modalResumenIA').textContent = p.resumen_chat_ia;
+            document.getElementById('modalComoSeRealizo').textContent = p.como_se_realizo_pedido;
+
+            renderChatModalMessages(p);
+            document.getElementById('chatModal').classList.remove('hidden');
+        }
+
+        function renderChatModalMessages(p) {
+            const modeBadge = document.getElementById('modalChatModeBadge');
+            if (p.modo_atencion_chat === 'HUMANO_ACTIVO') {
+                modeBadge.innerHTML = `<span class="text-amber-400">ðŸ›‘ HUMANO ACTIVO (El bot estÃ¡ desactivado Ãºnicamente para este chat)</span>`;
+            } else {
+                modeBadge.innerHTML = `<span class="text-emerald-400">ðŸ¤– BOT ACTIVO (Respondiendo automÃ¡ticamente en WhatsApp)</span>`;
+            }
+
+            const list = document.getElementById('modalMessagesList');
+            list.innerHTML = (p.mensajes_chat || []).map(m => {
+                const isClient = m.remitente === 'CLIENTE';
+                const isHuman = m.remitente === 'HUMANO_COMERCIO';
+                return `
+                    <div class="flex ${isClient ? 'justify-start' : 'justify-end'}">
+                        <div class="max-w-[82%] p-2.5 rounded-xl ${
+                            isClient
+                                ? 'bg-slate-800 text-slate-100'
+                                : isHuman
+                                    ? 'bg-amber-500/25 border border-amber-500/40 text-amber-100'
+                                    : 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-100'
+                        }">
+                            <div class="text-[10px] font-bold opacity-75 mb-0.5">
+                                ${isClient ? 'ðŸ‘¤ Cliente (WhatsApp)' : isHuman ? 'ðŸ‘¨â€ðŸ’¼ Humano (Restaurante)' : 'ðŸ¤– Bot WhatsApp'} â€¢ ${m.hora}
+                            </div>
+                            <div class="whitespace-pre-line">${m.contenido}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function closeChatModal() {
+            document.getElementById('chatModal').classList.add('hidden');
+            activeChatPedido = null;
+        }
+
+        async function toggleChatControl(nuevoModo) {
+            if (!activeChatPedido || !activeChatPedido.sesion_chat_id) return;
+            try {
+                await apiFetch(`/api/v1/panel/comercio/chats/${activeChatPedido.sesion_chat_id}/control`, {
+                    method: 'POST',
+                    body: { modo_atencion: nuevoModo }
+                });
+                showToast(
+                    nuevoModo === 'HUMANO_ACTIVO'
+                        ? 'ðŸ›‘ Tomaste el control de este chat. El bot se pausÃ³ Ãºnicamente para este cliente.'
+                        : 'ðŸ¤– Bot reactivado para este cliente.'
+                );
+                await reloadComercioDashboard();
+                const updated = currentComercioData.pedidos.find(x => x.id === activeChatPedido.id);
+                if (updated) {
+                    activeChatPedido = updated;
+                    renderChatModalMessages(updated);
+                }
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function handleSendHumanMessage(e) {
+            e.preventDefault();
+            if (!activeChatPedido || !activeChatPedido.sesion_chat_id) return;
+            const input = document.getElementById('inputHumanMessage');
+            const mensaje = input.value.trim();
+            if (!mensaje) return;
+
+            try {
+                await apiFetch(`/api/v1/panel/comercio/chats/${activeChatPedido.sesion_chat_id}/mensaje-humano`, {
+                    method: 'POST',
+                    body: { mensaje }
+                });
+                input.value = '';
+                showToast('Mensaje enviado al WhatsApp del cliente (Control Humano Activo).');
+                await reloadComercioDashboard();
+                const updated = currentComercioData.pedidos.find(x => x.id === activeChatPedido.id);
+                if (updated) {
+                    activeChatPedido = updated;
+                    renderChatModalMessages(updated);
+                }
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        // =========================================================
+        // MENÃš E INGREDIENTES + EDITAR / ELIMINAR / "AGOTADO HOY"
+        // =========================================================
+        let allPlatosCache = [];
+        let activeCatalogSearch = '';
+        let activeCatalogCategory = '';
+
+        function renderMenuPlatos(platos, moneda) {
+            allPlatosCache = platos || [];
+            
+            // Poblar selector de categorÃ­as
+            const categories = [...new Set(allPlatosCache.map(p => p.categoria || 'General'))].filter(Boolean);
+            const catSelect = document.getElementById('filterCategoryMenuSelect');
+            if (catSelect) {
+                const currentVal = catSelect.value;
+                catSelect.innerHTML = `<option value="">Todas las categorÃ­as (${categories.length})</option>` +
+                    categories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+            }
+
+            // EstadÃ­sticas rÃ¡pidas
+            const total = allPlatosCache.length;
+            const disponibles = allPlatosCache.filter(p => p.disponible_global).length;
+            const agotados = total - disponibles;
+
+            const badgeTotal = document.getElementById('catalogTotalCountBadge');
+            if (badgeTotal) badgeTotal.textContent = `${total} platos`;
+            const elDisp = document.getElementById('statDisponiblesCount');
+            if (elDisp) elDisp.textContent = disponibles;
+            const elAgot = document.getElementById('statAgotadosCount');
+            if (elAgot) elAgot.textContent = agotados;
+            const elCat = document.getElementById('statCategoriasCount');
+            if (elCat) elCat.textContent = categories.length;
+
+            filterCatalogCards(moneda);
+        }
+
+        function filterCatalogCards(moneda = null) {
+            const sym = moneda || (currentComercioData && currentComercioData.comercio ? currentComercioData.comercio.simbolo_moneda : '$');
+            const searchInput = document.getElementById('searchMenuInput');
+            const catSelect = document.getElementById('filterCategoryMenuSelect');
+            
+            const q = (searchInput ? searchInput.value : '').toLowerCase().trim();
+            const cat = catSelect ? catSelect.value : '';
+
+            const filtered = allPlatosCache.filter(pl => {
+                const matchQ = !q || (pl.nombre || '').toLowerCase().includes(q) || (pl.descripcion || '').toLowerCase().includes(q);
+                const matchCat = !cat || (pl.categoria || '') === cat;
+                return matchQ && matchCat;
+            });
+
+            const grid = document.getElementById('menuPlatosGrid');
+            if (!grid) return;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800">
+                        <span class="text-3xl block mb-2">ðŸ”</span>
+                        <p class="text-sm font-semibold text-slate-300">No se encontraron platos</p>
+                        <p class="text-xs text-slate-500 mt-1">Prueba con otro tÃ©rmino de bÃºsqueda o agrega un nuevo plato a la izquierda.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(pl => {
+                const isAgotado = !pl.disponible_global;
+                return `
+                    <div class="p-4 rounded-2xl transition-all duration-200 border ${
+                        isAgotado
+                            ? 'bg-slate-950/70 border-rose-900/40 opacity-80'
+                            : 'bg-slate-900/90 hover:bg-slate-900 border-slate-800 hover:border-slate-700 shadow-md'
+                    }">
+                        <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                            <!-- Datos principales del plato -->
+                            <div class="space-y-2 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                                        ${pl.categoria || 'General'}
+                                    </span>
+                                    <h4 class="font-bold text-base text-white">${pl.nombre}</h4>
+                                    <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${pl.nombre.replace(/'/g, "\\'")}', '${sym}')"
+                                        title="Clic para editar el precio de este plato rÃ¡pidamente"
+                                        class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-0.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1 group cursor-pointer shadow-sm">
+                                        <span>${sym}${pl.precio_base.toFixed(2)}</span>
+                                        <span class="text-[10px] text-emerald-300 opacity-60 group-hover:opacity-100">âœï¸</span>
+                                    </button>
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                        pl.disponible_global
+                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                    }">
+                                        ${pl.disponible_global ? 'â— DISPONIBLE' : 'âœ• AGOTADO HOY'}
+                                    </span>
+                                </div>
+
+                                ${pl.descripcion ? `<p class="text-xs text-slate-400 leading-relaxed">${pl.descripcion}</p>` : ''}
+
+                                <!-- Bloque 1: Ingredientes base removibles (C$ 0) -->
+                                <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
+                                    <div class="flex items-center justify-between text-[11px]">
+                                        <span class="text-emerald-300 font-semibold flex items-center gap-1">
+                                            <span>ðŸ¥—</span> Ingredientes Base Removibles (${sym}0 en WhatsApp):
+                                        </span>
+                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        ${(pl.ingredientes_removibles || []).length > 0 ? (pl.ingredientes_removibles || []).map(ing => `
+                                            <button type="button" onclick="toggleIngredienteDisponibilidad(${ing.id})"
+                                                title="Clic para alternar entre Disponible y Agotado"
+                                                class="text-[11px] px-2.5 py-1 rounded-lg border font-medium transition flex items-center gap-1 ${
+                                                    ing.disponible
+                                                        ? 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700 shadow-sm'
+                                                        : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
+                                                }">
+                                                <span>${ing.disponible ? 'âœ“' : 'âœ•'}</span>
+                                                <span>${ing.nombre}</span>
+                                                ${!ing.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
+                                            </button>
+                                        `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin ingredientes base definidos</span>'}
+                                    </div>
+                                </div>
+
+                                <!-- Bloque 2: Extras y Variantes con precio -->
+                                <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
+                                    <div class="flex items-center justify-between text-[11px]">
+                                        <span class="text-amber-300 font-semibold flex items-center gap-1">
+                                            <span>âž•</span> Extras y Variantes con Costo:
+                                        </span>
+                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar | âœï¸ para cambiar precio</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5">
+                                        ${(pl.extras_y_variantes || []).length > 0 ? (pl.extras_y_variantes || []).map(ex => `
+                                            <div class="inline-flex items-center rounded-lg border transition ${
+                                                ex.disponible
+                                                    ? 'bg-amber-500/10 text-amber-200 border-amber-500/30'
+                                                    : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
+                                            }">
+                                                <button type="button" onclick="toggleIngredienteDisponibilidad(${ex.id})"
+                                                    title="Clic para alternar entre Disponible y Agotado"
+                                                    class="text-[11px] px-2 py-1 font-medium hover:bg-amber-500/20 rounded-l-lg flex items-center gap-1">
+                                                    <span>${ex.disponible ? '+' : 'âœ•'}</span>
+                                                    <span>${ex.nombre}</span>
+                                                    <span class="font-bold text-emerald-400">(+${sym}${ex.precio_adicional.toFixed(2)})</span>
+                                                    ${!ex.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
+                                                </button>
+                                                <button type="button" onclick="editarPrecioRapidoExtra(${ex.id}, ${ex.precio_adicional}, '${ex.nombre.replace(/'/g, "\\'")}', '${sym}')"
+                                                    title="Cambiar precio de este extra"
+                                                    class="px-1.5 py-1 text-[11px] text-amber-300 hover:text-white hover:bg-amber-500/30 border-l border-amber-500/20 rounded-r-lg transition font-bold">
+                                                    âœï¸
+                                                </button>
+                                            </div>
+                                        `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin extras configurados</span>'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botones de AcciÃ³n RÃ¡pida -->
+                            <div class="flex lg:flex-col gap-2 shrink-0 pt-1 lg:pt-0">
+                                <button onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
+                                    class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center justify-center gap-1.5">
+                                    <span>âœï¸</span> <span>Editar</span>
+                                </button>
+                                <button onclick="togglePlatoDisponibilidad(${pl.id})"
+                                    class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                                        pl.disponible_global
+                                            ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                                            : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold shadow-md'
+                                    }">
+                                    <span>${pl.disponible_global ? 'â¸' : 'â–¶'}</span>
+                                    <span>${pl.disponible_global ? 'Agotar Plato' : 'Habilitar'}</span>
+                                </button>
+                                <button onclick="eliminarPlato(${pl.id})"
+                                    class="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center justify-center gap-1">
+                                    <span>ðŸ—‘ï¸</span> <span class="hidden sm:inline">Borrar</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =========================================================
+        // CONSTRUCTOR DINÃMICO DE INGREDIENTES Y EXTRAS
+        // (Adaptado dinÃ¡micamente segÃºn el giro/catÃ¡logo de cada comercio)
+        // =========================================================
+        const FALLBACK_INGREDIENTS = [
+            'Cebolla', 'Tomate', 'Lechuga', 'Mayonesa', 'Pepinillos',
+            'Mostaza', 'Salsa BBQ', 'Picante', 'Queso', 'Aguacate'
+        ];
+        const FALLBACK_EXTRAS = [
+            { nombre: 'Extra Queso', tipo: 'EXTRA', precio: 30.00 },
+            { nombre: 'PorciÃ³n Extra', tipo: 'EXTRA', precio: 40.00 },
+            { nombre: 'TamaÃ±o Grande', tipo: 'VARIANTE', precio: 60.00 }
+        ];
+
+        let formIngredientesBaseList = ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'];
+        let formExtrasList = [
+            { nombre: 'Extra Tocino', tipo: 'EXTRA', precio_adicional: 40.00 },
+            { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 30.00 }
+        ];
+
+        // Obtiene ingredientes base y extras Ãºnicos ya utilizados en el catÃ¡logo del local
+        function getComercioIngredientPresets() {
+            const platos = (currentComercioData && currentComercioData.platos) ? currentComercioData.platos : [];
+            const ingBaseSet = new Set();
+            const extrasMap = new Map();
+
+            platos.forEach(p => {
+                (p.ingredientes_removibles || []).forEach(i => {
+                    if (i.nombre) ingBaseSet.add(i.nombre.trim());
+                });
+                (p.extras_y_variantes || []).forEach(e => {
+                    if (e.nombre && !extrasMap.has(e.nombre.toLowerCase().trim())) {
+                        extrasMap.set(e.nombre.toLowerCase().trim(), {
+                            nombre: e.nombre.trim(),
+                            tipo: e.tipo || 'EXTRA',
+                            precio: Number(e.precio_adicional || 40.00)
+                        });
+                    }
+                });
+            });
+
+            // Si el comercio aÃºn tiene pocos platos, complementamos con presets estÃ¡ndar
+            FALLBACK_INGREDIENTS.forEach(f => ingBaseSet.add(f));
+            FALLBACK_EXTRAS.forEach(fe => {
+                if (!extrasMap.has(fe.nombre.toLowerCase())) {
+                    extrasMap.set(fe.nombre.toLowerCase(), fe);
+                }
+            });
+
+            return {
+                ingredientesBase: Array.from(ingBaseSet).slice(0, 20),
+                extras: Array.from(extrasMap.values()).slice(0, 16)
+            };
+        }
+
+        function renderIngredientBuilderUI() {
+            const presets = getComercioIngredientPresets();
+            const sym = (currentComercioData && currentComercioData.comercio) ? currentComercioData.comercio.simbolo_moneda : 'C$';
+
+            // 1. Barra de botones rÃ¡pidos de ingredientes base propios del comercio
+            const quickBar = document.getElementById('quickIngredientsBar');
+            if (quickBar) {
+                quickBar.innerHTML = presets.ingredientesBase.map(item => {
+                    const isSelected = formIngredientesBaseList.some(
+                        x => x.toLowerCase() === item.toLowerCase()
+                    );
+                    return `
+                        <button type="button" onclick="toggleQuickIngredient('${item}')"
+                            class="px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                                isSelected
+                                    ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
+                                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+                            }">
+                            ${isSelected ? 'âœ“ ' : '+ '}${item}
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            // 2. Chips/etiquetas de los ingredientes base actualmente seleccionados
+            const baseContainer = document.getElementById('selectedIngBaseContainer');
+            const badgeBase = document.getElementById('countIngBaseBadge');
+            if (badgeBase) badgeBase.textContent = `${formIngredientesBaseList.length} seleccionados`;
+            if (baseContainer) {
+                if (formIngredientesBaseList.length === 0) {
+                    baseContainer.innerHTML = `<span class="text-[11px] text-slate-500 italic">NingÃºn ingrediente removible agregado todavÃ­a.</span>`;
+                } else {
+                    baseContainer.innerHTML = formIngredientesBaseList.map((ing, idx) => `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs font-semibold">
+                            <span>${ing}</span>
+                            <button type="button" onclick="removeIngBaseAt(${idx})" class="text-emerald-300 hover:text-white font-bold">âœ•</button>
+                        </span>
+                    `).join('');
+                }
+            }
+
+            // 3. Barra de sugerencias rÃ¡pidas para Extras y Variantes propios de este comercio
+            const quickExtrasBar = document.getElementById('quickExtrasBar');
+            if (quickExtrasBar) {
+                quickExtrasBar.innerHTML = presets.extras.map(item => {
+                    const isSelected = formExtrasList.some(
+                        x => x.nombre.toLowerCase() === item.nombre.toLowerCase()
+                    );
+                    return `
+                        <button type="button" onclick="toggleQuickExtra('${item.nombre}', '${item.tipo}', ${item.precio})"
+                            class="px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                                isSelected
+                                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold'
+                                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700'
+                            }">
+                            ${isSelected ? 'âœ“ ' : '+ '}${item.nombre} (+${sym}${item.precio.toFixed(2)})
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            // 4. Chips/etiquetas de Extras y Variantes seleccionados (estilo badge con botÃ³n de eliminaciÃ³n y ediciÃ³n)
+            const extrasContainer = document.getElementById('selectedExtrasContainer');
+            const badgeExtras = document.getElementById('countExtrasBadge');
+            if (badgeExtras) badgeExtras.textContent = `${formExtrasList.length} agregados`;
+            if (extrasContainer) {
+                if (formExtrasList.length === 0) {
+                    extrasContainer.innerHTML = `<div class="text-[11px] text-slate-500 italic">Sin extras o variantes configuradas.</div>`;
+                } else {
+                    extrasContainer.innerHTML = formExtrasList.map((ex, idx) => `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${
+                            ex.tipo === 'VARIANTE'
+                                ? 'bg-sky-500/15 border-sky-500/40 text-sky-200'
+                                : 'bg-amber-500/15 border-amber-500/40 text-amber-200'
+                        }">
+                            <span class="text-[10px] opacity-75 uppercase font-bold">${ex.tipo === 'VARIANTE' ? 'VAR' : 'EXT'}</span>
+                            <span>${ex.nombre}</span>
+                            <span class="font-extrabold text-emerald-300">+${sym}${Number(ex.precio_adicional).toFixed(2)}</span>
+                            <button type="button" onclick="editFormExtraPrice(${idx})" title="Editar precio" class="text-amber-300 hover:text-white font-bold ml-0.5 text-xs">âœï¸</button>
+                            <button type="button" onclick="removeExtraAt(${idx})" title="Eliminar" class="text-rose-300 hover:text-white font-bold ml-0.5 text-xs">âœ•</button>
+                        </span>
+                    `).join('');
+                }
+            }
+        }
+
+        function toggleQuickExtra(nombre, tipo, precio) {
+            const existingIdx = formExtrasList.findIndex(
+                x => x.nombre.toLowerCase() === nombre.toLowerCase()
+            );
+            if (existingIdx >= 0) {
+                formExtrasList.splice(existingIdx, 1);
+            } else {
+                formExtrasList.push({
+                    nombre,
+                    tipo,
+                    precio_adicional: Number(precio)
+                });
+            }
+            renderIngredientBuilderUI();
+        }
+
+        function toggleQuickIngredient(nombre) {
+            const existingIdx = formIngredientesBaseList.findIndex(
+                x => x.toLowerCase() === nombre.toLowerCase()
+            );
+            if (existingIdx >= 0) {
+                formIngredientesBaseList.splice(existingIdx, 1);
+            } else {
+                formIngredientesBaseList.push(nombre);
+            }
+            renderIngredientBuilderUI();
+        }
+
+        function addCustomIngBase() {
+            const input = document.getElementById('inputNuevoIngBase');
+            const val = (input.value || '').trim();
+            if (!val) return;
+            if (!formIngredientesBaseList.some(x => x.toLowerCase() === val.toLowerCase())) {
+                formIngredientesBaseList.push(val);
+            }
+            input.value = '';
+            renderIngredientBuilderUI();
+        }
+
+        function removeIngBaseAt(index) {
+            formIngredientesBaseList.splice(index, 1);
+            renderIngredientBuilderUI();
+        }
+
+        function addExtraItemFromInputs() {
+            const tipoSelect = document.getElementById('inputExtraTipo');
+            const nameInput = document.getElementById('inputExtraNombre');
+            const priceInput = document.getElementById('inputExtraPrecio');
+            const tipo = tipoSelect ? tipoSelect.value : 'EXTRA';
+            const nombre = (nameInput.value || '').trim();
+            const precio = parseFloat(priceInput.value);
+            if (!nombre) {
+                showToast('Escribe el nombre del extra o variante (ej. Extra Tocino)', true);
+                return;
+            }
+            formExtrasList.push({
+                nombre,
+                tipo,
+                precio_adicional: isNaN(precio) ? 1.50 : precio
+            });
+            nameInput.value = '';
+            priceInput.value = '';
+            renderIngredientBuilderUI();
+        }
+
+        function removeExtraAt(index) {
+            formExtrasList.splice(index, 1);
+            renderIngredientBuilderUI();
+        }
+
+        function cargarPlatoEnFormularioParaEditar(platoId) {
+            const pl = (currentComercioData.platos || []).find(x => x.id === platoId);
+            if (!pl) return;
+
+            document.getElementById('platoEditId').value = pl.id;
+            document.getElementById('platoCategoria').value = pl.categoria || 'General';
+            document.getElementById('platoNombre').value = pl.nombre;
+            document.getElementById('platoPrecio').value = pl.precio_base;
+            document.getElementById('platoDesc').value = pl.descripcion || '';
+
+            formIngredientesBaseList = (pl.ingredientes_removibles || []).map(i => i.nombre);
+            formExtrasList = (pl.extras_y_variantes || []).map(e => ({
+                nombre: e.nombre,
+                tipo: e.tipo || 'EXTRA',
+                precio_adicional: Number(e.precio_adicional || 0)
+            }));
+            renderIngredientBuilderUI();
+
+            document.getElementById('formPlatoIcon').textContent = 'âœï¸';
+            document.getElementById('formPlatoIcon').className = 'w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm';
+            document.getElementById('formPlatoTitle').textContent = `Editando: ${pl.nombre}`;
+            document.getElementById('formPlatoSubtitle').textContent = 'Modifica los ingredientes, precios o extras y guarda los cambios';
+            document.getElementById('btnSubmitPlatoText').textContent = 'Guardar Cambios del Plato';
+            document.getElementById('btnSubmitPlato').className =
+                'w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/20 transition flex items-center justify-center gap-2';
+            document.getElementById('btnCancelarEdicionPlato').classList.remove('hidden');
+            
+            // Scroll suave hacia el formulario en pantallas mÃ³viles
+            document.getElementById('formPlatoTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showToast(`Editando "${pl.nombre}". Modifica los datos y presiona Guardar.`);
+        }
+
+        function resetFormularioPlato() {
+            document.getElementById('platoEditId').value = '';
+            document.getElementById('platoNombre').value = '';
+            document.getElementById('platoPrecio').value = '';
+            document.getElementById('platoDesc').value = '';
+            formIngredientesBaseList = ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'];
+            formExtrasList = [
+                { nombre: 'Extra Tocino', tipo: 'EXTRA', precio_adicional: 40.00 },
+                { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 30.00 }
+            ];
+            renderIngredientBuilderUI();
+            document.getElementById('formPlatoIcon').textContent = 'âž•';
+            document.getElementById('formPlatoIcon').className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm';
+            document.getElementById('formPlatoTitle').textContent = 'Nuevo Plato';
+            document.getElementById('formPlatoSubtitle').textContent = 'Configura nombre, precio, ingredientes removibles y extras';
+            document.getElementById('btnSubmitPlatoText').textContent = 'Guardar Plato en el MenÃº';
+            document.getElementById('btnSubmitPlato').className =
+                'w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2';
+            document.getElementById('btnCancelarEdicionPlato').classList.add('hidden');
+        }
+
+        async function togglePlatoDisponibilidad(platoId) {
+            try {
+                await apiFetch(`/api/v1/panel/comercio/platos/${platoId}/toggle-disponibilidad`, {
+                    method: 'PATCH'
+                });
+                showToast('Disponibilidad del plato actualizada al instante para el Bot.');
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function toggleIngredienteDisponibilidad(ingredienteId) {
+            try {
+                const res = await apiFetch(`/api/v1/panel/comercio/ingredientes/${ingredienteId}/toggle-disponibilidad`, {
+                    method: 'PATCH'
+                });
+                showToast(`Ingrediente "${res.nombre}": ${res.disponible_global ? 'Disponible' : 'Agotado hoy'}`);
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function eliminarPlato(platoId) {
+            try {
+                await apiFetch(`/api/v1/panel/comercio/platos/${platoId}`, {
+                    method: 'DELETE'
+                });
+                showToast('Plato eliminado del menÃº.');
+                resetFormularioPlato();
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function handleGuardarPlato(e) {
+            e.preventDefault();
+            const editId = document.getElementById('platoEditId').value;
+
+            const bodyPayload = {
+                categoria_nombre: document.getElementById('platoCategoria').value,
+                nombre: document.getElementById('platoNombre').value,
+                precio_base: parseFloat(document.getElementById('platoPrecio').value),
+                descripcion: document.getElementById('platoDesc').value,
+                ingredientes_removibles: formIngredientesBaseList,
+                extras_con_costo: formExtrasList
+            };
+
+            try {
+                if (editId) {
+                    await apiFetch(`/api/v1/panel/comercio/platos/${editId}`, {
+                        method: 'PUT',
+                        body: bodyPayload
+                    });
+                    showToast('Â¡Cambios del plato e ingredientes guardados correctamente!');
+                } else {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos`, {
+                        method: 'POST',
+                        body: bodyPayload
+                    });
+                    showToast('Â¡Nuevo plato e ingredientes guardados!');
+                }
+                resetFormularioPlato();
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        // =========================================================
+        // EDICIÃ“N RÃPIDA DE PRECIOS & CONFIGURACIÃ“N DE MONEDA (C$)
+        // =========================================================
+        async function editarPrecioRapidoPlato(platoId, precioActual, nombre, sym) {
+            const nuevoStr = prompt(`Cambiar precio base de "${nombre}" (en ${sym}):`, Number(precioActual).toFixed(2));
+            if (nuevoStr === null) return;
+            const nuevo = parseFloat(nuevoStr);
+            if (isNaN(nuevo) || nuevo < 0) {
+                showToast('Ingresa un precio vÃ¡lido (mayor o igual a 0).', true);
+                return;
+            }
+            try {
+                await apiFetch(`/api/v1/panel/comercio/platos/${platoId}/precio`, {
+                    method: 'PATCH',
+                    body: { precio_base: nuevo }
+                });
+                showToast(`Â¡Precio de "${nombre}" actualizado a ${sym}${nuevo.toFixed(2)}!`);
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function editarPrecioRapidoExtra(extraId, precioActual, nombre, sym) {
+            const nuevoStr = prompt(`Cambiar precio adicional de "${nombre}" (en ${sym}):`, Number(precioActual).toFixed(2));
+            if (nuevoStr === null) return;
+            const nuevo = parseFloat(nuevoStr);
+            if (isNaN(nuevo) || nuevo < 0) {
+                showToast('Ingresa un precio vÃ¡lido.', true);
+                return;
+            }
+            try {
+                await apiFetch(`/api/v1/panel/comercio/ingredientes/${extraId}/precio`, {
+                    method: 'PATCH',
+                    body: { precio_adicional: nuevo }
+                });
+                showToast(`Â¡Precio de "${nombre}" actualizado a +${sym}${nuevo.toFixed(2)}!`);
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        function editFormExtraPrice(index) {
+            const ex = formExtrasList[index];
+            if (!ex) return;
+            const sym = (currentComercioData && currentComercioData.comercio) ? currentComercioData.comercio.simbolo_moneda : 'C$';
+            const nuevoStr = prompt(`Nuevo precio para "${ex.nombre}" (${sym}):`, Number(ex.precio_adicional || 0).toFixed(2));
+            if (nuevoStr === null) return;
+            const nuevo = parseFloat(nuevoStr);
+            if (isNaN(nuevo) || nuevo < 0) {
+                showToast('Precio invÃ¡lido', true);
+                return;
+            }
+            ex.precio_adicional = nuevo;
+            renderIngredientBuilderUI();
+        }
+
+        function openConfigComercioModal() {
+            if (!currentComercioData || !currentComercioData.comercio) {
+                showToast('Cargando informaciÃ³n del restaurante...', true);
+                return;
+            }
+            const c = currentComercioData.comercio;
+            document.getElementById('cfgSimboloMoneda').value = c.simbolo_moneda || 'C$';
+            document.getElementById('cfgMonedaIso').value = c.moneda || 'NIO';
+            document.getElementById('cfgNombreComercial').value = c.nombre_comercial || '';
+            document.getElementById('cfgTelefono').value = c.telefono_propietario || '';
+            document.getElementById('cfgDatosBancarios').value = c.datos_bancarios_texto || '';
+            document.getElementById('cfgAceptaEfectivo').checked = c.acepta_efectivo !== false;
+            document.getElementById('cfgAceptaTransferencia').checked = c.acepta_transferencia !== false;
+
+            document.getElementById('modalConfigComercio').classList.remove('hidden');
+        }
+
+        function closeConfigComercioModal() {
+            document.getElementById('modalConfigComercio').classList.add('hidden');
+        }
+
+        function setMonedaPreset(simbolo, iso) {
+            document.getElementById('cfgSimboloMoneda').value = simbolo;
+            document.getElementById('cfgMonedaIso').value = iso;
+        }
+
+        async function handleGuardarConfigComercio(e) {
+            e.preventDefault();
+            if (!activeTenantId) return;
+
+            const body = {
+                simbolo_moneda: document.getElementById('cfgSimboloMoneda').value.trim(),
+                moneda: document.getElementById('cfgMonedaIso').value.trim().toUpperCase(),
+                nombre_comercial: document.getElementById('cfgNombreComercial').value.trim(),
+                telefono_propietario: document.getElementById('cfgTelefono').value.trim(),
+                datos_bancarios_texto: document.getElementById('cfgDatosBancarios').value.trim(),
+                acepta_efectivo: document.getElementById('cfgAceptaEfectivo').checked,
+                acepta_transferencia: document.getElementById('cfgAceptaTransferencia').checked
+            };
+
+            try {
+                await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/configuracion`, {
+                    method: 'PATCH',
+                    body
+                });
+                closeConfigComercioModal();
+                showToast(`Â¡ConfiguraciÃ³n y moneda (${body.simbolo_moneda}) actualizadas con Ã©xito!`);
+                await reloadComercioDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        // =========================================================
+        // SUCURSALES, QR DE WHATSAPP Y RESERVACIONES DE MESA
+        // =========================================================
+        function renderSucursalesYMesas(sucursales, comercio) {
+            document.getElementById('sucursalesCardsGrid').innerHTML = sucursales.map(s => `
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
+                    <img src="${s.qr_data_uri}" alt="QR WhatsApp ${s.nombre_sucursal}" class="w-28 h-28 rounded-xl bg-white p-1.5 shadow-md">
+                    <div class="space-y-1.5 text-xs flex-1">
+                        <div class="font-bold text-base text-white">${s.nombre_sucursal}</div>
+                        <div class="text-emerald-300 font-semibold">CÃ³digo OpciÃ³n B: [${s.codigo_whatsapp}]</div>
+                        <div class="text-slate-400">ðŸ“ ${s.direccion_fisica || ''}</div>
+                        <div class="text-slate-300">â° Horario: ${s.horario_apertura} a ${s.horario_cierre} â€¢ Entrega: <strong>${s.tiempo_estimado_entrega_min} min</strong></div>
+                        <div class="text-slate-300">ðŸ–¨ï¸ Formato Ticket Configurado: <strong>${s.ancho_ticket_termico}</strong></div>
+                        <div class="pt-1">
+                            <a href="${s.deep_link_whatsapp}" target="_blank"
+                                class="inline-block px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
+                                ðŸ’¬ Probar Link de WhatsApp de esta Sucursal
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const badgeRes = document.getElementById('badgeEstadoReservaciones');
+            if (comercio.reservaciones_habilitadas) {
+                badgeRes.className = 'text-xs px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+                badgeRes.textContent = 'âœ… ACTIVO CON PAGO API (MODO 2)';
+            } else {
+                badgeRes.className = 'text-xs px-3 py-1 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
+                badgeRes.textContent = 'ðŸ”’ EN ESPERA DE INTEGRACIÃ“N DE PAGO (MODO 2)';
+            }
+
+            const todasLasMesas = [];
+            sucursales.forEach(s => {
+                (s.mesas || []).forEach(m => todasLasMesas.push({ ...m, sucursal: s.nombre_sucursal }));
+            });
+            document.getElementById('mesasGridInfo').innerHTML = todasLasMesas.map(m => `
+                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+                    <div class="font-bold text-white">ðŸª‘ ${m.nombre_mesa}</div>
+                    <div class="text-slate-400">${m.sucursal} â€¢ Capacidad: ${m.capacidad_personas} personas</div>
+                    <div class="text-indigo-300 font-semibold mt-1">Pago obligatorio para reservar: ${comercio.simbolo_moneda}${m.monto_anticipo_reserva.toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+
+        // Auto-verificar si ya habÃ­a sesiÃ³n guardada e inicializar constructor visual de ingredientes
+        window.addEventListener('DOMContentLoaded', async () => {
+            renderIngredientBuilderUI();
+            if (authToken) {
+                try {
+                    currentUser = await apiFetch('/api/v1/auth/me');
+                    await renderAppByRole();
+                } catch (e) {
+                    logout();
+                }
+            }
+        });
+

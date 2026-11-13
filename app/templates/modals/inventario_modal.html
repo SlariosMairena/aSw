@@ -1,0 +1,159 @@
+<!-- ========================================================= -->
+<!-- MODAL: CREAR / EDITAR INSUMO DE INVENTARIO                -->
+<!-- ========================================================= -->
+<div id="modalItemInventario" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+                <span id="modalInvIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">📦</span>
+                <div>
+                    <h3 id="modalInvTitle" class="text-base font-bold text-white">Nuevo Insumo de Inventario</h3>
+                    <p class="text-[11px] text-slate-400">Controla tus materias primas, costos y alertas de stock mínimo</p>
+                </div>
+            </div>
+            <button onclick="cerrarModalItemInventario()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+        </div>
+
+        <form onsubmit="handleGuardarItemInventario(event)" class="space-y-3.5 text-xs">
+            <input id="invItemEditId" type="hidden" value="">
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Nombre del Insumo / Materia Prima</label>
+                <input id="invItemNombre" type="text" required placeholder="Ej. Carne Molida Angus, Pan Brioche, Queso Mozzarella"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Categoría</label>
+                    <input id="invItemCategoria" type="text" required placeholder="Carnes, Lácteos, Bebidas..." list="categoriasInventarioList"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
+                    <datalist id="categoriasInventarioList">
+                        <option value="Carnes">
+                        <option value="Panadería">
+                        <option value="Lácteos">
+                        <option value="Salsas & Especias">
+                        <option value="Vegetales & Frutas">
+                        <option value="Bebidas">
+                        <option value="Empaques & Descartables">
+                    </datalist>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Unidad de Medida</label>
+                    <select id="invItemUnidad" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
+                        <option value="kg">kg (Kilogramos)</option>
+                        <option value="lb">lb (Libras)</option>
+                        <option value="unidades">unidades</option>
+                        <option value="latas">latas</option>
+                        <option value="litros">litros</option>
+                        <option value="paquetes">paquetes</option>
+                        <option value="cajas">cajas</option>
+                        <option value="onzas">onzas</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div id="wrapperStockInicial">
+                    <label class="block text-slate-300 font-semibold mb-1">Stock Actual Inicial</label>
+                    <input id="invItemStockActual" type="number" step="0.01" min="0" required placeholder="10.0"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold focus:outline-none focus:border-emerald-500 transition">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Stock Mínimo (Alerta)</label>
+                    <input id="invItemStockMinimo" type="number" step="0.01" min="0" required placeholder="5.0"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-amber-300 font-bold focus:outline-none focus:border-amber-500 transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Costo Unitario (<span class="currencySymbolSpan">C$</span>)</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-2 text-slate-400 font-bold currencySymbolSpan">C$</span>
+                        <input id="invItemCosto" type="number" step="0.25" min="0" required placeholder="120.00"
+                            class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-emerald-400 font-bold focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Proveedor (Opcional)</label>
+                    <input id="invItemProveedor" type="text" placeholder="Ej. Distribuidora del Norte"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Notas u Observaciones (Opcional)</label>
+                <textarea id="invItemNotas" rows="2" placeholder="Marca preferida, caducidad, condiciones de refrigeración..."
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition resize-none"></textarea>
+            </div>
+
+            <button type="submit" id="btnSubmitItemInventario"
+                class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-1.5">
+                <span>💾</span> <span id="btnSubmitItemInventarioText">Guardar Insumo</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- ========================================================= -->
+<!-- MODAL: AJUSTE RÁPIDO DE STOCK (ENTRADA / SALIDA / MERMA)  -->
+<!-- ========================================================= -->
+<div id="modalAjusteStock" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+            <div>
+                <h3 id="ajusteModalTitulo" class="text-base font-bold text-white">Ajustar Stock de Insumo</h3>
+                <p id="ajusteModalSub" class="text-[11px] text-slate-400"></p>
+            </div>
+            <button onclick="cerrarModalAjusteStock()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+        </div>
+
+        <form onsubmit="handleEjecutarAjusteStock(event)" class="space-y-3.5 text-xs">
+            <input id="ajusteItemId" type="hidden" value="">
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1.5">Tipo de Movimiento</label>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ajusteTipoRadio" value="SUMAR" checked class="peer sr-only">
+                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-emerald-500/20 peer-checked:border-emerald-500 peer-checked:text-emerald-300 transition font-bold">
+                            ➕ Compra / Entrada
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ajusteTipoRadio" value="RESTAR" class="peer sr-only">
+                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-amber-500/20 peer-checked:border-amber-500 peer-checked:text-amber-300 transition font-bold">
+                            ➖ Salida / Merma
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ajusteTipoRadio" value="FIJAR" class="peer sr-only">
+                        <div class="p-2 rounded-xl border border-slate-700 bg-slate-900 peer-checked:bg-indigo-500/20 peer-checked:border-indigo-500 peer-checked:text-indigo-300 transition font-bold">
+                            🔢 Conteo Físico
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">
+                    Cantidad (<span id="ajusteUnidadLabel">unidades</span>)
+                </label>
+                <input id="ajusteCantidad" type="number" step="0.01" min="0.01" required placeholder="Ej. 5"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Motivo o Justificación</label>
+                <input id="ajusteMotivo" type="text" placeholder="Ej. Compra semanal a proveedor, Producto vencido, Conteo mensual..."
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
+            </div>
+
+            <button type="submit"
+                class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20">
+                <span>⚡</span> <span>Confirmar Ajuste</span>
+            </button>
+        </form>
+    </div>
+</div>

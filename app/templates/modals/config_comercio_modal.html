@@ -1,0 +1,89 @@
+<!-- ========================================================= -->
+<!-- MODAL: CONFIGURACIÓN DE RESTAURANTE & MONEDA              -->
+<!-- ========================================================= -->
+<div id="modalConfigComercio" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+            <div class="flex items-center gap-2">
+                <span class="text-xl">⚙️</span>
+                <div>
+                    <h3 class="text-base font-bold text-white">Configuración del Negocio & Moneda</h3>
+                    <p class="text-[11px] text-slate-400">Personaliza la moneda de cobro, nombre y formas de pago</p>
+                </div>
+            </div>
+            <button onclick="closeConfigComercioModal()" class="text-slate-400 hover:text-white text-xl font-bold">✕</button>
+        </div>
+        <form onsubmit="handleGuardarConfigComercio(event)" class="space-y-4 text-xs">
+            <!-- Selector rápido de moneda -->
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Preajustes Rápidos de Moneda:</label>
+                <div class="flex flex-wrap gap-1.5">
+                    <button type="button" onclick="setMonedaPreset('C$', 'NIO')" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-[11px]">
+                        🇳🇮 Córdobas (C$ - NIO)
+                    </button>
+                    <button type="button" onclick="setMonedaPreset('$', 'USD')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
+                        🇺🇸 Dólares ($ - USD)
+                    </button>
+                    <button type="button" onclick="setMonedaPreset('$', 'MXN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
+                        🇲🇽 Pesos ($ - MXN)
+                    </button>
+                    <button type="button" onclick="setMonedaPreset('Q', 'GTQ')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
+                        🇬🇹 Quetzales (Q - GTQ)
+                    </button>
+                    <button type="button" onclick="setMonedaPreset('€', 'EUR')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
+                        🇪🇺 Euros (€ - EUR)
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Símbolo de Moneda</label>
+                    <input id="cfgSimboloMoneda" type="text" required placeholder="C$"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-emerald-400 font-bold text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Código ISO Moneda</label>
+                    <input id="cfgMonedaIso" type="text" required placeholder="NIO"
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Nombre Comercial del Restaurante</label>
+                <input id="cfgNombreComercial" type="text" required
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Teléfono del Propietario</label>
+                <input id="cfgTelefono" type="text" placeholder="+50588889999"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+            </div>
+
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Datos Bancarios para Transferencias (Modo 1)</label>
+                <textarea id="cfgDatosBancarios" rows="2"
+                    placeholder="Banco: BAC Credomatic | Cuenta Córdobas: 365-123456-0 | Titular: ..."
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                <span class="text-[10px] text-slate-400">Este texto se lo enviará el bot automáticamente al cliente en WhatsApp cuando elija pagar por transferencia.</span>
+            </div>
+
+            <div class="flex gap-4 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input id="cfgAceptaEfectivo" type="checkbox" class="w-4 h-4 accent-emerald-500 rounded">
+                    <span class="text-slate-200 font-semibold">Acepta Efectivo</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input id="cfgAceptaTransferencia" type="checkbox" class="w-4 h-4 accent-emerald-500 rounded">
+                    <span class="text-slate-200 font-semibold">Acepta Transferencias</span>
+                </label>
+            </div>
+
+            <button type="submit"
+                class="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs transition shadow-lg shadow-indigo-500/20">
+                💾 Guardar Configuración del Restaurante
+            </button>
+        </form>
+    </div>
+</div>

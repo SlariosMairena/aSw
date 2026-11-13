@@ -374,6 +374,65 @@ class StockSucursal(Base):
 
 
 # =====================================================================
+# 4.B CONTROL DE INVENTARIO Y STOCK PARA RESTAURANTES
+# =====================================================================
+class ItemInventario(Base):
+    """
+    Control de inventario de materias primas, insumos y productos del restaurante.
+    """
+
+    __tablename__ = "items_inventario"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    sucursal_id = Column(
+        Integer, ForeignKey("sucursales_comercio.id"), nullable=True, index=True
+    )
+    nombre_insumo = Column(String(120), nullable=False, index=True)
+    categoria = Column(String(60), default="General", nullable=False, index=True)
+    unidad_medida = Column(String(30), default="unidades", nullable=False)
+    stock_actual = Column(Float, default=0.0, nullable=False)
+    stock_minimo = Column(Float, default=5.0, nullable=False)
+    costo_unitario = Column(Float, default=0.0, nullable=False)  # En Córdobas C$
+    proveedor = Column(String(100), nullable=True)
+    notas = Column(Text, nullable=True)
+    activo = Column(Boolean, default=True, nullable=False)
+    actualizado_en = Column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
+    )
+    creado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class MovimientoInventario(Base):
+    """
+    Kardex / Historial de entradas (compras), salidas (ventas) y ajustes de merma o conteo físico.
+    """
+
+    __tablename__ = "movimientos_inventario"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    item_id = Column(
+        Integer, ForeignKey("items_inventario.id"), nullable=False, index=True
+    )
+    tipo_movimiento = Column(
+        String(30), nullable=False
+    )  # ENTRADA | SALIDA | AJUSTE | MERMA
+    cantidad = Column(Float, nullable=False)
+    stock_anterior = Column(Float, nullable=False)
+    stock_nuevo = Column(Float, nullable=False)
+    motivo = Column(String(150), nullable=True)
+    actor_email = Column(String(150), nullable=True)
+    creado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    item = relationship("ItemInventario", backref="movimientos")
+
+
+# =====================================================================
 # 5. CLIENTES FRECUENTES Y SESIONES DE CHAT WHATSAPP (CON CONTROL HUMANO)
 # =====================================================================
 class ClienteFrecuente(Base):
