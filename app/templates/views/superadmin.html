@@ -1,46 +1,171 @@
-<!-- 2. PANEL SUPER_ADMIN (PARA TI, DUEÑO DEL SAAS) -->
-<section id="superAdminSection" class="hidden flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-    <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-            <h2 class="text-2xl font-bold text-white flex items-center">
-                <i class="fa-solid fa-crown text-amber-400 mr-2.5"></i>
-                <span>Panel Maestro del SaaS (SuperAdmin)</span>
-            </h2>
-            <p class="text-sm text-slate-400 mt-1">Administra tus clientes (restaurantes/comercios), planes de suscripción, códigos QR de WhatsApp y seguridad.</p>
-        </div>
-        <button onclick="openModalNuevoComercio()"
-            class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-2">
-            <i class="fa-solid fa-plus"></i> <span>Dar de Alta Nuevo Restaurante</span>
-        </button>
-    </div>
+        <!-- ========================================================= -->
+        <!-- VISTA 2: PANEL SUPER_ADMIN (DUEÑO DE LA PLATAFORMA SAAS)   -->
+        <!-- ========================================================= -->
+        <section id="superAdminSection" class="hidden space-y-6">
+            <!-- Encabezado y Acciones Principales -->
+            <div class="flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-white flex items-center gap-2.5">
+                        <i class="fa-solid fa-crown text-amber-400"></i>
+                        <span>Torre de Control SaaS</span>
+                    </h2>
+                    <p class="text-sm text-slate-400 mt-1">Gestión multi-tenant de comercios, planes, facturación SaaS y auditoría de plataforma</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button type="button" onclick="loadSuperAdminDashboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold px-3.5 py-2.5 rounded-xl text-sm flex items-center gap-2 transition">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Actualizar</span>
+                    </button>
+                    <button type="button" onclick="openModalPlanSaaS()" class="bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/30 font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 transition">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span>Nuevo Plan</span>
+                    </button>
+                    <button type="button" onclick="openModalNuevoComercio()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Nuevo Comercio / Cliente</span>
+                    </button>
+                </div>
+            </div>
 
-    <!-- Métricas Globales del SaaS -->
-    <div id="saMetricsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+            <!-- KPIs Globales del SaaS -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="saMetricsGrid"></div>
 
-    <!-- Lista de Restaurantes Clientes -->
-    <div class="glass rounded-2xl p-5 space-y-4">
-        <h3 class="font-bold text-base text-white flex items-center">
-            <i class="fa-solid fa-store text-emerald-400 mr-2"></i>
-            <span>Restaurantes Registrados en tu SaaS</span>
-        </h3>
-        <div id="saComerciosList" class="space-y-3"></div>
-    </div>
+            <!-- Navegación Agrupada por Secciones (Tabs) -->
+            <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-1.5 flex flex-wrap gap-1.5" role="tablist" aria-label="Secciones SuperAdmin">
+                <button type="button" data-sa-tab="comercios" onclick="switchSuperAdminTab('comercios')" class="sa-tab-btn flex-1 min-w-[180px] px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition bg-indigo-600 text-white shadow-sm">
+                    <i class="fa-solid fa-store pointer-events-none"></i>
+                    <span class="pointer-events-none">Comercios &amp; Clientes</span>
+                    <span id="saTabCountComercios" class="pointer-events-none text-[11px] px-2 py-0.5 rounded-full bg-white/15">0</span>
+                </button>
+                <button type="button" data-sa-tab="facturacion" onclick="switchSuperAdminTab('facturacion')" class="sa-tab-btn flex-1 min-w-[180px] px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition text-slate-300 hover:bg-slate-800/80">
+                    <i class="fa-solid fa-file-invoice-dollar pointer-events-none"></i>
+                    <span class="pointer-events-none">Planes &amp; Facturación SaaS</span>
+                    <span id="saTabCountFacturas" class="pointer-events-none text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">0</span>
+                </button>
+                <button type="button" data-sa-tab="auditoria" onclick="switchSuperAdminTab('auditoria')" class="sa-tab-btn flex-1 min-w-[180px] px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition text-slate-300 hover:bg-slate-800/80">
+                    <i class="fa-solid fa-shield-halved pointer-events-none"></i>
+                    <span class="pointer-events-none">Seguridad &amp; Auditoría ISO 27001</span>
+                    <span id="saTabCountAudit" class="pointer-events-none text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">0</span>
+                </button>
+            </div>
 
-    <!-- Planes y Registro de Seguridad ISO 27001 -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="glass rounded-2xl p-5 space-y-3">
-            <h3 class="font-bold text-base text-white flex items-center">
-                <i class="fa-solid fa-briefcase text-indigo-400 mr-2"></i>
-                <span>Planes de Suscripción Disponibles</span>
-            </h3>
-            <div id="saPlanesList" class="space-y-2.5"></div>
-        </div>
-        <div class="glass rounded-2xl p-5 space-y-3">
-            <h3 class="font-bold text-base text-white flex items-center">
-                <i class="fa-solid fa-shield-halved text-sky-400 mr-2"></i>
-                <span>Registro Inmutable de Auditoría (ISO 27001)</span>
-            </h3>
-            <div id="saAuditLogsList" class="space-y-2 text-xs overflow-y-auto max-h-72"></div>
-        </div>
-    </div>
-</section>
+            <!-- ========================================================= -->
+            <!-- TAB 1: COMERCIOS Y CLIENTES (AGRUPADOS Y FILTRABLES)      -->
+            <!-- ========================================================= -->
+            <div id="saTabComercios" class="space-y-4">
+                <!-- Barra de Búsqueda, Filtros y Agrupación -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="relative flex-1 min-w-[240px]">
+                            <i class="fa-solid fa-magnifying-glass text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 text-xs"></i>
+                            <input id="saComerciosSearch" type="text" oninput="renderSuperAdminComercios()" placeholder="Buscar por comercio, slug, correo, teléfono o código WhatsApp..." class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl pl-9 pr-3 py-2 text-sm text-white outline-none transition">
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="saComerciosPlanFilter" onchange="renderSuperAdminComercios()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none">
+                                <option value="ALL">Todos los planes</option>
+                            </select>
+                            <button type="button" id="saToggleGroupBtn" onclick="toggleSaComerciosGroupMode()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl px-3 py-2 text-xs font-semibold flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-layer-group"></i>
+                                <span id="saToggleGroupLabel">Agrupado por estado</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Chips de Filtro por Estado -->
+                    <div class="flex flex-wrap items-center gap-2" id="saEstadoChips">
+                        <button type="button" data-estado="ALL" onclick="setSaEstadoFilter('ALL')" class="sa-estado-chip px-3 py-1 rounded-full text-xs font-semibold bg-indigo-600 text-white transition">Todos</button>
+                        <button type="button" data-estado="POR_VENCER" onclick="setSaEstadoFilter('POR_VENCER')" class="sa-estado-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-amber-300 hover:bg-slate-700 transition">Por vencer</button>
+                        <button type="button" data-estado="TRIAL" onclick="setSaEstadoFilter('TRIAL')" class="sa-estado-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-sky-300 hover:bg-slate-700 transition">Trial</button>
+                        <button type="button" data-estado="ACTIVO" onclick="setSaEstadoFilter('ACTIVO')" class="sa-estado-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-emerald-300 hover:bg-slate-700 transition">Activos</button>
+                        <button type="button" data-estado="SUSPENDIDO" onclick="setSaEstadoFilter('SUSPENDIDO')" class="sa-estado-chip px-3 py-1 rounded-full text-xs font-semibold bg-slate-800 text-red-300 hover:bg-slate-700 transition">Suspendidos</button>
+                    </div>
+                </div>
+
+                <!-- Lista Agrupada de Comercios -->
+                <div id="saComerciosList" class="space-y-4"></div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- TAB 2: PLANES Y FACTURACIÓN SAAS                          -->
+            <!-- ========================================================= -->
+            <div id="saTabFacturacion" class="hidden space-y-6">
+                <!-- Sección Planes SaaS -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-layer-group text-indigo-400"></i>
+                                <span>Catálogo de Planes SaaS</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Define precios mensuales USD, límites de pedidos, comisiones y módulos habilitados</p>
+                        </div>
+                        <button type="button" onclick="openModalPlanSaaS()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Crear Plan</span>
+                        </button>
+                    </div>
+                    <div id="saPlanesList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+                </div>
+
+                <!-- Sección Facturas SaaS (Agrupadas Pendientes / Pagadas) -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i>
+                                <span>Facturación &amp; Cobros de Suscripción (USD)</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Genera facturas por periodo mensual, registra referencias de pago y reactiva comercios</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <select id="saFacturasEstadoFilter" onchange="renderSuperAdminFacturas()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 outline-none">
+                                <option value="ALL">Todas las facturas</option>
+                                <option value="PENDIENTE">Pendientes / Vencidas</option>
+                                <option value="PAGADO">Pagadas</option>
+                            </select>
+                            <button type="button" onclick="openModalGenerarFacturaSaaS()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-file-circle-plus"></i>
+                                <span>Generar Factura</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id="saFacturasList" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- TAB 3: SEGURIDAD, AUDITORÍA Y CONFIGURACIÓN DEL SISTEMA   -->
+            <!-- ========================================================= -->
+            <div id="saTabAuditoria" class="hidden space-y-6">
+                <!-- Estado de Infraestructura de Plataforma -->
+                <div id="saSystemHealthGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+                <!-- Registro de Auditoría ISO 27001 -->
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-shield-halved text-cyan-400"></i>
+                                <span>Bitácora de Auditoría (ISO 27001)</span>
+                            </h3>
+                            <p class="text-xs text-slate-400 mt-0.5">Eventos críticos de plataforma: cambios de suscripción, bloqueos, usuarios, planes y facturas</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass text-slate-500 absolute left-3 top-1/2 -translate-y-1/2 text-xs"></i>
+                                <input id="saAuditSearch" type="text" oninput="renderSuperAdminAuditLogs()" placeholder="Filtrar acción o correo..." class="bg-slate-950 border border-slate-800 focus:border-cyan-500 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white outline-none">
+                            </div>
+                            <select id="saAuditTipoFilter" onchange="renderSuperAdminAuditLogs()" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 outline-none">
+                                <option value="ALL">Todos los recursos</option>
+                                <option value="TENANT_COMERCIO">Comercios</option>
+                                <option value="USUARIO">Usuarios</option>
+                                <option value="PLAN_SAAS">Planes SaaS</option>
+                                <option value="SUSCRIPCION_FACTURA_SAAS">Facturación</option>
+                                <option value="AUTH">Autenticación</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="saAuditLogsList" class="space-y-2 max-h-[520px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+        </section>

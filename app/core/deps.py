@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import decode_jwt_token
-from app.models.saas_models import Usuario
+from app.models.saas_models import TenantComercio, Usuario
 
 
 def _extract_token(
@@ -51,6 +51,18 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Usuario inexistente o desactivado.",
         )
+
+    if user.rol != "SUPER_ADMIN" and user.tenant_id:
+        comercio = (
+            db.query(TenantComercio)
+            .filter(TenantComercio.id == user.tenant_id)
+            .first()
+        )
+        if not comercio or not comercio.activo or comercio.estado_suscripcion == "SUSPENDIDO":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tu comercio se encuentra suspendido o inactivo. Contacta al administrador del SaaS.",
+            )
     return user
 
 

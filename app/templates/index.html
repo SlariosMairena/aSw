@@ -72,6 +72,7 @@
     <!-- 3. MODALES -->
     {% include 'modals/chat_modal.html' %}
     {% include 'modals/nuevo_comercio_modal.html' %}
+    {% include 'modals/superadmin_modals.html' %}
     {% include 'modals/config_comercio_modal.html' %}
     {% include 'modals/inventario_modal.html' %}
 
@@ -80,6 +81,7 @@
 
     <!-- 5. SCRIPTS MODULARES (app.js principal primero, luego módulos con cache busting) -->
     <script src="/static/js/app.js?v={{ cache_bust | default('20261113_1') }}"></script>
+    <script src="/static/js/superadmin.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/inventario.js?v={{ cache_bust | default('20261113_1') }}"></script>
 </body>
 </html>

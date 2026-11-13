@@ -1,67 +1,112 @@
-<!-- ========================================================= -->
-<!-- MODAL: CREAR NUEVO COMERCIO (SOLO SUPER_ADMIN)            -->
-<!-- ========================================================= -->
-<div id="modalNuevoComercio" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="glass max-w-lg w-full rounded-2xl p-6 shadow-2xl border border-slate-700">
-        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-            <h3 class="text-lg font-bold text-white flex items-center">
-                <i class="fa-solid fa-store text-emerald-400 mr-2"></i>
-                <span>Dar de Alta Nuevo Restaurante / Comercio</span>
-            </h3>
-            <button onclick="closeModalNuevoComercio()" class="text-slate-400 hover:text-white text-base font-bold px-2 py-1 transition">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-        </div>
-        <form onsubmit="handleCrearComercio(event)" class="space-y-3 text-xs">
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Nombre del Restaurante</label>
-                    <input id="ncNombre" type="text" required placeholder="Ej. Tacos El Rey"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-                </div>
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Código / Slug Único</label>
-                    <input id="ncSlug" type="text" required placeholder="tacos-el-rey"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-                </div>
+    <!-- MODAL: CREAR NUEVO COMERCIO (SUPER_ADMIN) -->
+    <div id="modalNuevoComercio" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-store text-indigo-400"></i>
+                    <span>Alta de Nuevo Comercio SaaS</span>
+                </h3>
+                <button type="button" onclick="closeModalNuevoComercio()" class="text-slate-400 hover:text-white transition" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Plan del SaaS</label>
-                    <select id="ncPlan" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-                        <option value="PLAN_BASICO">Plan Básico ($29/mes)</option>
-                        <option value="PLAN_PRO" selected>Plan Restaurante Pro ($59/mes)</option>
-                        <option value="PLAN_HIBRIDO_PLUS">Plan Híbrido Multi-Sucursal ($25 + 2.5%)</option>
-                    </select>
+            <form id="formNuevoComercio" onsubmit="handleCrearComercio(event)" class="space-y-5">
+                <!-- Grupo 1: Datos Comerciales -->
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <p class="text-xs font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-building"></i>
+                        <span>Datos del Comercio y Plan</span>
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Nombre Comercial *</label>
+                            <input id="ncNombre" type="text" required placeholder="Ej: Tacos El Güero" oninput="autoFillComercioSlug()" class="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Slug URL / Identificador *</label>
+                            <input id="ncSlug" type="text" required placeholder="ej: tacos-el-guero" class="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none font-mono">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Giro del Negocio</label>
+                            <select id="ncGiro" class="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                                <option value="RESTAURANTE">Restaurante / Comida Rápida</option>
+                                <option value="CAFETERIA">Cafetería / Repostería</option>
+                                <option value="FARMACIA">Farmacia / Salud</option>
+                                <option value="TIENDA">Tienda / Retail</option>
+                                <option value="SUPERMERCADO">Minisúper / Conveniencia</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Plan SaaS *</label>
+                            <select id="ncPlan" required class="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                                <option value="BASICO">Plan Básico</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Moneda del Comercio</label>
+                            <select id="ncMoneda" class="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                                <option value="NIO|C$">Córdobas Nicaragüenses (C$ NIO)</option>
+                                <option value="USD|$">Dólares Estadounidenses ($ USD)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Teléfono del Propietario</label>
+                            <input id="ncTelefono" type="text" placeholder="Ej: +505 8888 9999" class="w-full bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Sucursal Principal</label>
-                    <input id="ncSucursal" type="text" required value="Sucursal Centro"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-                </div>
-            </div>
-            <div>
-                <label class="block text-slate-300 font-semibold mb-1">Nombre del Dueño</label>
-                <input id="ncDuenoNombre" type="text" required placeholder="Juan Pérez"
-                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Correo del Dueño (Login)</label>
-                    <input id="ncDuenoEmail" type="email" required placeholder="dueno@tacoselrey.com"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-                </div>
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Contraseña Inicial</label>
-                    <input id="ncDuenoPass" type="text" required value="Tacos#2026!"
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white">
-                </div>
-            </div>
-            <button type="submit"
-                class="w-full py-2.5 mt-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition">
-                Crear Comercio y Generar su QR de WhatsApp
-            </button>
-        </form>
-    </div>
-</div>
 
+                <!-- Grupo 2: Sucursal Matriz -->
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <p class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>Sucursal Matriz y Delivery</span>
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Nombre Sucursal *</label>
+                            <input id="ncSucursal" type="text" required value="Sucursal Matriz" class="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Dirección Física</label>
+                            <input id="ncDireccion" type="text" placeholder="Ej: Av. Central #12" class="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Costo Envío Base</label>
+                            <input id="ncCostoEnvio" type="number" step="0.01" min="0" value="35" class="w-full bg-slate-900 border border-slate-800 focus:border-emerald-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grupo 3: Acceso del Dueño -->
+                <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <p class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-shield"></i>
+                        <span>Credenciales del Dueño del Comercio</span>
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Nombre del Dueño *</label>
+                            <input id="ncDuenoNombre" type="text" required placeholder="Nombre completo" class="w-full bg-slate-900 border border-slate-800 focus:border-amber-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Correo de Acceso *</label>
+                            <input id="ncDuenoEmail" type="email" required placeholder="dueno@negocio.com" class="w-full bg-slate-900 border border-slate-800 focus:border-amber-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">Contraseña Temporal *</label>
+                            <input id="ncDuenoPass" type="text" required value="Demo#2026!" class="w-full bg-slate-900 border border-slate-800 focus:border-amber-500 rounded-lg px-3 py-2 text-sm text-white outline-none font-mono">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-1">
+                    <button type="button" onclick="closeModalNuevoComercio()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition">Cancelar</button>
+                    <button id="btnSubmitNuevoComercio" type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center gap-2 transition">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Crear Comercio y Generar QR</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>

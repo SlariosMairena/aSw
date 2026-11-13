@@ -48,6 +48,7 @@ from app.models.saas_models import (
     ReservacionMesa,
     SesionChatWhatsApp,
     SucursalComercio,
+    SuscripcionFacturaSaaS,
     TenantComercio,
     Usuario,
     ZonaEnvioSucursal,
@@ -66,6 +67,7 @@ class CrearComercioRequest(BaseModel):
     plan_codigo: str = "PLAN_PRO"
     moneda: str = "NIO"
     simbolo_moneda: str = "C$"
+    telefono_propietario: Optional[str] = None
     email_dueno: EmailStr
     nombre_dueno: str
     password_dueno: str
@@ -113,6 +115,63 @@ class AjustarStockRequest(BaseModel):
 class CambiarEstadoSuscripcionRequest(BaseModel):
     estado_suscripcion: str  # ACTIVO | TRIAL | POR_VENCER | SUSPENDIDO
     plan_id: Optional[int] = None
+
+
+class EditarComercioAdminRequest(BaseModel):
+    nombre_comercial: Optional[str] = None
+    giro: Optional[str] = None
+    email_contacto: Optional[EmailStr] = None
+    telefono_propietario: Optional[str] = None
+    moneda: Optional[str] = None
+    simbolo_moneda: Optional[str] = None
+    plan_id: Optional[int] = None
+    estado_suscripcion: Optional[str] = None
+    extender_dias: Optional[int] = None
+    modo_pago_api_activo: Optional[bool] = None
+    reservaciones_habilitadas: Optional[bool] = None
+    activo: Optional[bool] = None
+
+
+class PlanSaaSInput(BaseModel):
+    codigo: str
+    nombre: str
+    descripcion: str = ""
+    precio_mensual_usd: float = 29.0
+    limite_pedidos_mes: int = 200
+    porcentaje_comision_pedido: float = 0.0
+    tarifa_fija_pedido_extra_usd: float = 0.20
+    max_sucursales: int = 1
+    incluye_intervencion_humana: bool = True
+    incluye_impresion_termica: bool = True
+    incluye_reservacion_mesas: bool = True
+    activo: bool = True
+
+
+class CrearUsuarioComercioAdminRequest(BaseModel):
+    nombre_completo: str
+    email: EmailStr
+    password: str
+    rol: str = "SUCURSAL_STAFF"  # COMERCIO_ADMIN | SUCURSAL_STAFF
+    sucursal_id: Optional[int] = None
+
+
+class ActualizarUsuarioAdminRequest(BaseModel):
+    activo: Optional[bool] = None
+    nueva_password: Optional[str] = None
+    rol: Optional[str] = None
+    sucursal_id: Optional[int] = None
+
+
+class GenerarFacturaSaaSRequest(BaseModel):
+    periodo_mes: Optional[str] = None
+    estado_pago: str = "PENDIENTE"  # PENDIENTE | PAGADO | VENCIDO
+    referencia_pago: Optional[str] = None
+
+
+class ActualizarFacturaSaaSRequest(BaseModel):
+    estado_pago: str  # PENDIENTE | PAGADO | VENCIDO
+    referencia_pago: Optional[str] = None
+    reactivar_comercio: bool = True
 
 
 class CambiarEstadoPedidoRequest(BaseModel):
@@ -171,17 +230,31 @@ def superadmin_overview(
     current_user: Usuario = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """Devuelve toda la información global del SaaS para tu Panel de Dueño."""
+    """Devuelve toda la información global del SaaS agrupada para el Panel Maestro."""
     planes = db.query(PlanSaaS).order_by(PlanSaaS.precio_mensual_usd).all()
     comercios = db.query(TenantComercio).order_by(TenantComercio.id.desc()).all()
     total_pedidos = db.query(Pedido).count()
-    logs = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(20).all()
+    total_usuarios = db.query(Usuario).count()
+    facturas = (
+        db.query(SuscripcionFacturaSaaS)
+        .order_by(SuscripcionFacturaSaaS.id.desc())
+        .limit(100)
+        .all()
+    )
+    logs = db.query(AuditLog).order_by(AuditLog.id.desc()).limit(60).all()
 
     ingresos_mensuales_estimados = sum(
         c.plan.precio_mensual_usd
         for c in comercios
-        if c.estado_suscripcion == "ACTIVO" and c.plan
+        if c.estado_suscripcion == "ACTIVO" and c.activo and c.plan
     )
+    facturas_pendientes_list = [f for f in facturas if f.estado_pago in ("PENDIENTE", "VENCIDO")]
+    facturas_pagadas_list = [f for f in facturas if f.estado_pago == "PAGADO"]
+
+    comercios_por_plan = {}
+    for c in comercios:
+        if c.plan_id:
+            comercios_por_plan[c.plan_id] = comercios_por_plan.get(c.plan_id, 0) + 1
 
     comercios_data = []
     for c in comercios:
@@ -204,6 +277,11 @@ def superadmin_overview(
                     "qr_data_uri": generate_qr_base64_data_uri(deep_link),
                 }
             )
+        pend_count = sum(
+            1
+            for f in c.facturas_saas
+            if f.estado_pago in ("PENDIENTE", "VENCIDO")
+        )
         comercios_data.append(
             {
                 "id": c.id,
@@ -211,10 +289,22 @@ def superadmin_overview(
                 "slug": c.slug,
                 "giro": c.giro,
                 "email_contacto": c.email_contacto,
+                "telefono_propietario": c.telefono_propietario,
+                "moneda": c.moneda,
+                "simbolo_moneda": c.simbolo_moneda,
                 "estado_suscripcion": c.estado_suscripcion,
+                "activo": c.activo,
+                "fecha_vencimiento": c.fecha_vencimiento_suscripcion.strftime("%Y-%m-%d")
+                if c.fecha_vencimiento_suscripcion
+                else None,
                 "pedidos_mes_actual": c.pedidos_mes_actual,
+                "modo_pago_api_activo": c.modo_pago_api_activo,
+                "reservaciones_habilitadas": c.reservaciones_habilitadas,
+                "usuarios_count": len(c.usuarios),
+                "facturas_pendientes": pend_count,
                 "plan": {
                     "id": c.plan.id if c.plan else None,
+                    "codigo": c.plan.codigo if c.plan else None,
                     "nombre": c.plan.nombre if c.plan else "Sin Plan",
                     "precio_mensual_usd": c.plan.precio_mensual_usd if c.plan else 0,
                     "limite_pedidos_mes": c.plan.limite_pedidos_mes if c.plan else 0,
@@ -224,14 +314,58 @@ def superadmin_overview(
             }
         )
 
+    facturas_data = [
+        {
+            "id": f.id,
+            "tenant_id": f.tenant_id,
+            "comercio_nombre": f.comercio.nombre_comercial if f.comercio else f"Comercio #{f.tenant_id}",
+            "periodo_mes": f.periodo_mes,
+            "pedidos_contabilizados": f.pedidos_contabilizados,
+            "monto_mensualidad_fija": f.monto_mensualidad_fija,
+            "monto_comision_pedidos": f.monto_comision_pedidos,
+            "total_a_pagar": f.total_a_pagar,
+            "estado_pago": f.estado_pago,
+            "referencia_pago": f.referencia_pago,
+            "creado_en": f.creado_en.strftime("%Y-%m-%d %H:%M") if f.creado_en else "",
+        }
+        for f in facturas
+    ]
+
+    logs_data = []
+    for l in logs:
+        try:
+            det_parsed = json.loads(l.detalles_json or "{}")
+        except Exception:
+            det_parsed = {}
+        logs_data.append(
+            {
+                "id": l.id,
+                "accion": l.accion,
+                "actor_email": l.actor_email,
+                "recurso_tipo": l.recurso_tipo,
+                "recurso_id": l.recurso_id,
+                "tenant_id": l.tenant_id,
+                "ip_origen": l.ip_origen,
+                "detalles": det_parsed,
+                "creado_en": l.creado_en.strftime("%Y-%m-%d %H:%M:%S")
+                if l.creado_en
+                else "",
+            }
+        )
+
     return {
         "metricas_saas": {
             "total_comercios": len(comercios),
-            "comercios_activos": sum(
-                1 for c in comercios if c.estado_suscripcion == "ACTIVO"
-            ),
+            "comercios_activos": sum(1 for c in comercios if c.estado_suscripcion == "ACTIVO"),
+            "comercios_trial": sum(1 for c in comercios if c.estado_suscripcion == "TRIAL"),
+            "comercios_por_vencer": sum(1 for c in comercios if c.estado_suscripcion == "POR_VENCER"),
+            "comercios_suspendidos": sum(1 for c in comercios if c.estado_suscripcion == "SUSPENDIDO"),
             "ingresos_fijos_mensuales_usd": round(ingresos_mensuales_estimados, 2),
+            "facturas_pendientes_count": len(facturas_pendientes_list),
+            "facturas_pendientes_usd": round(sum(f.total_a_pagar for f in facturas_pendientes_list), 2),
+            "facturas_pagadas_usd": round(sum(f.total_a_pagar for f in facturas_pagadas_list), 2),
             "total_pedidos_procesados": total_pedidos,
+            "total_usuarios": total_usuarios,
             "whatsapp_bot_number": settings.WHATSAPP_BOT_PUBLIC_NUMBER,
             "whatsapp_provider": settings.WHATSAPP_PROVIDER,
             "payment_mode": settings.PAYMENT_OPERATION_MODE,
@@ -247,25 +381,19 @@ def superadmin_overview(
                 "precio_mensual_usd": p.precio_mensual_usd,
                 "limite_pedidos_mes": p.limite_pedidos_mes,
                 "porcentaje_comision_pedido": p.porcentaje_comision_pedido,
+                "tarifa_fija_pedido_extra_usd": p.tarifa_fija_pedido_extra_usd,
                 "max_sucursales": p.max_sucursales,
+                "incluye_intervencion_humana": p.incluye_intervencion_humana,
+                "incluye_impresion_termica": p.incluye_impresion_termica,
+                "incluye_reservacion_mesas": p.incluye_reservacion_mesas,
+                "activo": p.activo,
+                "comercios_suscritos": comercios_por_plan.get(p.id, 0),
             }
             for p in planes
         ],
         "comercios": comercios_data,
-        "audit_logs": [
-            {
-                "id": l.id,
-                "accion": l.accion,
-                "actor_email": l.actor_email,
-                "recurso_tipo": l.recurso_tipo,
-                "recurso_id": l.recurso_id,
-                "ip_origen": l.ip_origen,
-                "creado_en": l.creado_en.strftime("%Y-%m-%d %H:%M:%S")
-                if l.creado_en
-                else "",
-            }
-            for l in logs
-        ],
+        "facturas": facturas_data,
+        "audit_logs": logs_data,
     }
 
 
@@ -300,6 +428,7 @@ def crear_nuevo_comercio(
         nombre_comercial=payload.nombre_comercial.strip(),
         slug=slug_clean,
         giro=payload.giro,
+        telefono_propietario=payload.telefono_propietario,
         email_contacto=payload.email_dueno.lower().strip(),
         plan_id=plan.id,
         estado_suscripcion="ACTIVO",
@@ -345,12 +474,79 @@ def crear_nuevo_comercio(
         recurso_tipo="TENANT_COMERCIO",
         recurso_id=str(nuevo_comercio.id),
         usuario_id=current_user.id,
+        tenant_id=nuevo_comercio.id,
         actor_email=current_user.email,
         ip_origen=request.client.host if request.client else "127.0.0.1",
-        detalles={"nombre": nuevo_comercio.nombre_comercial, "slug": slug_clean},
+        detalles={"nombre": nuevo_comercio.nombre_comercial, "slug": slug_clean, "plan": plan.codigo},
     )
 
     return {"status": "ok", "comercio_id": nuevo_comercio.id, "codigo_whatsapp": codigo_wa}
+
+
+@router.put("/superadmin/comercios/{tenant_id}")
+def editar_comercio_admin(
+    tenant_id: int,
+    payload: EditarComercioAdminRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Edita datos generales, plan, estado de suscripción, vencimiento y módulos de un comercio."""
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    if payload.nombre_comercial is not None:
+        comercio.nombre_comercial = payload.nombre_comercial.strip()
+    if payload.giro is not None:
+        comercio.giro = payload.giro.strip()
+    if payload.email_contacto is not None:
+        comercio.email_contacto = payload.email_contacto.lower().strip()
+    if payload.telefono_propietario is not None:
+        comercio.telefono_propietario = payload.telefono_propietario.strip()
+    if payload.moneda is not None:
+        comercio.moneda = payload.moneda.strip().upper()
+    if payload.simbolo_moneda is not None:
+        comercio.simbolo_moneda = payload.simbolo_moneda.strip()
+    if payload.plan_id is not None:
+        plan = db.query(PlanSaaS).filter(PlanSaaS.id == payload.plan_id).first()
+        if not plan:
+            raise HTTPException(status_code=404, detail="Plan seleccionado no existe.")
+        comercio.plan_id = plan.id
+    if payload.estado_suscripcion is not None:
+        comercio.estado_suscripcion = payload.estado_suscripcion
+        comercio.activo = payload.estado_suscripcion != "SUSPENDIDO"
+    if payload.extender_dias and payload.extender_dias > 0:
+        base_dt = comercio.fecha_vencimiento_suscripcion or datetime.now(timezone.utc)
+        if base_dt.tzinfo is None:
+            base_dt = base_dt.replace(tzinfo=timezone.utc)
+        now_dt = datetime.now(timezone.utc)
+        comercio.fecha_vencimiento_suscripcion = max(base_dt, now_dt) + timedelta(days=payload.extender_dias)
+    if payload.modo_pago_api_activo is not None:
+        comercio.modo_pago_api_activo = payload.modo_pago_api_activo
+    if payload.reservaciones_habilitadas is not None:
+        comercio.reservaciones_habilitadas = payload.reservaciones_habilitadas
+    if payload.activo is not None:
+        comercio.activo = payload.activo
+
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="EDITAR_COMERCIO_ADMIN",
+        recurso_tipo="TENANT_COMERCIO",
+        recurso_id=str(comercio.id),
+        usuario_id=current_user.id,
+        tenant_id=comercio.id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={
+            "estado_suscripcion": comercio.estado_suscripcion,
+            "plan_id": comercio.plan_id,
+            "modo_pago_api_activo": comercio.modo_pago_api_activo,
+        },
+    )
+    return {"status": "ok", "comercio_id": comercio.id}
 
 
 @router.patch("/superadmin/comercios/{tenant_id}/suscripcion")
@@ -361,7 +557,7 @@ def cambiar_estado_suscripcion_comercio(
     current_user: Usuario = Depends(require_super_admin),
     db: Session = Depends(get_db),
 ):
-    """Permite activar o suspender un comercio (corte automático si no paga su mensualidad)."""
+    """Permite activar o suspender un comercio (corte automático aislado por tenant_id)."""
     comercio = (
         db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
     )
@@ -369,6 +565,7 @@ def cambiar_estado_suscripcion_comercio(
         raise HTTPException(status_code=404, detail="Comercio no encontrado.")
 
     comercio.estado_suscripcion = payload.estado_suscripcion
+    comercio.activo = payload.estado_suscripcion != "SUSPENDIDO"
     if payload.plan_id:
         comercio.plan_id = payload.plan_id
     db.commit()
@@ -385,6 +582,312 @@ def cambiar_estado_suscripcion_comercio(
         detalles={"nuevo_estado": payload.estado_suscripcion},
     )
     return {"status": "ok", "estado_suscripcion": comercio.estado_suscripcion}
+
+
+@router.get("/superadmin/comercios/{tenant_id}/usuarios")
+def listar_usuarios_comercio_admin(
+    tenant_id: int,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Lista los usuarios registrados de un restaurante y sus sucursales para soporte técnico."""
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    usuarios = db.query(Usuario).filter(Usuario.tenant_id == tenant_id).order_by(Usuario.id).all()
+    sucursales = db.query(SucursalComercio).filter(SucursalComercio.tenant_id == tenant_id).all()
+    suc_map = {s.id: s.nombre_sucursal for s in sucursales}
+
+    return {
+        "comercio_id": tenant_id,
+        "comercio_nombre": comercio.nombre_comercial,
+        "sucursales": [{"id": s.id, "nombre_sucursal": s.nombre_sucursal} for s in sucursales],
+        "usuarios": [
+            {
+                "id": u.id,
+                "nombre_completo": u.nombre_completo,
+                "email": u.email,
+                "rol": u.rol,
+                "sucursal_id": u.sucursal_id,
+                "sucursal_nombre": suc_map.get(u.sucursal_id, "Todas las sucursales"),
+                "activo": u.activo,
+                "is_2fa_enabled": u.is_2fa_enabled,
+            }
+            for u in usuarios
+        ],
+    }
+
+
+@router.post("/superadmin/comercios/{tenant_id}/usuarios")
+def crear_usuario_comercio_admin(
+    tenant_id: int,
+    payload: CrearUsuarioComercioAdminRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Permite al SuperAdmin crear cuentas adicionales (Dueño o Cocina/Sucursal) para un comercio."""
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    email_clean = payload.email.lower().strip()
+    if db.query(Usuario).filter(Usuario.email == email_clean).first():
+        raise HTTPException(status_code=400, detail="Ese correo ya está registrado.")
+
+    rol_validado = payload.rol if payload.rol in ("COMERCIO_ADMIN", "SUCURSAL_STAFF") else "SUCURSAL_STAFF"
+    nuevo_u = Usuario(
+        tenant_id=tenant_id,
+        sucursal_id=payload.sucursal_id if rol_validado == "SUCURSAL_STAFF" else None,
+        nombre_completo=payload.nombre_completo.strip(),
+        email=email_clean,
+        password_hash=hash_password(payload.password),
+        rol=rol_validado,
+        activo=True,
+    )
+    db.add(nuevo_u)
+    db.commit()
+    db.refresh(nuevo_u)
+
+    record_audit_log(
+        db=db,
+        accion="CREAR_USUARIO_COMERCIO",
+        recurso_tipo="USUARIO",
+        recurso_id=str(nuevo_u.id),
+        usuario_id=current_user.id,
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"email": email_clean, "rol": rol_validado},
+    )
+    return {"status": "ok", "usuario_id": nuevo_u.id}
+
+
+@router.patch("/superadmin/usuarios/{usuario_id}")
+def actualizar_usuario_admin(
+    usuario_id: int,
+    payload: ActualizarUsuarioAdminRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Permite activar/bloquear o restablecer la contraseña de un usuario del comercio."""
+    u = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if not u or u.rol == "SUPER_ADMIN":
+        raise HTTPException(status_code=404, detail="Usuario de comercio no encontrado.")
+
+    if payload.activo is not None:
+        u.activo = payload.activo
+    if payload.nueva_password:
+        u.password_hash = hash_password(payload.nueva_password)
+    if payload.rol and payload.rol in ("COMERCIO_ADMIN", "SUCURSAL_STAFF"):
+        u.rol = payload.rol
+    if payload.sucursal_id is not None:
+        u.sucursal_id = payload.sucursal_id or None
+
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="ACTUALIZAR_USUARIO_ADMIN",
+        recurso_tipo="USUARIO",
+        recurso_id=str(u.id),
+        usuario_id=current_user.id,
+        tenant_id=u.tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"activo": u.activo, "password_reset": bool(payload.nueva_password)},
+    )
+    return {"status": "ok", "usuario_id": u.id, "activo": u.activo}
+
+
+@router.post("/superadmin/planes")
+def crear_plan_saas(
+    payload: PlanSaaSInput,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Crea un nuevo Plan SaaS en la base de datos."""
+    cod = payload.codigo.upper().strip().replace(" ", "_")
+    if db.query(PlanSaaS).filter(PlanSaaS.codigo == cod).first():
+        raise HTTPException(status_code=400, detail="Ya existe un plan con ese código.")
+
+    plan = PlanSaaS(
+        codigo=cod,
+        nombre=payload.nombre.strip(),
+        descripcion=(payload.descripcion or "").strip(),
+        precio_mensual_usd=max(0.0, float(payload.precio_mensual_usd)),
+        limite_pedidos_mes=max(0, int(payload.limite_pedidos_mes)),
+        porcentaje_comision_pedido=max(0.0, float(payload.porcentaje_comision_pedido)),
+        tarifa_fija_pedido_extra_usd=max(0.0, float(payload.tarifa_fija_pedido_extra_usd)),
+        max_sucursales=max(1, int(payload.max_sucursales)),
+        incluye_intervencion_humana=payload.incluye_intervencion_humana,
+        incluye_impresion_termica=payload.incluye_impresion_termica,
+        incluye_reservacion_mesas=payload.incluye_reservacion_mesas,
+        activo=payload.activo,
+    )
+    db.add(plan)
+    db.commit()
+    db.refresh(plan)
+
+    record_audit_log(
+        db=db,
+        accion="CREAR_PLAN_SAAS",
+        recurso_tipo="PLAN_SAAS",
+        recurso_id=str(plan.id),
+        usuario_id=current_user.id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"codigo": plan.codigo, "precio_usd": plan.precio_mensual_usd},
+    )
+    return {"status": "ok", "plan_id": plan.id}
+
+
+@router.put("/superadmin/planes/{plan_id}")
+def editar_plan_saas(
+    plan_id: int,
+    payload: PlanSaaSInput,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Actualiza tarifas, límites y capacidades de un Plan SaaS existente."""
+    plan = db.query(PlanSaaS).filter(PlanSaaS.id == plan_id).first()
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan SaaS no encontrado.")
+
+    plan.nombre = payload.nombre.strip()
+    plan.descripcion = (payload.descripcion or "").strip()
+    plan.precio_mensual_usd = max(0.0, float(payload.precio_mensual_usd))
+    plan.limite_pedidos_mes = max(0, int(payload.limite_pedidos_mes))
+    plan.porcentaje_comision_pedido = max(0.0, float(payload.porcentaje_comision_pedido))
+    plan.tarifa_fija_pedido_extra_usd = max(0.0, float(payload.tarifa_fija_pedido_extra_usd))
+    plan.max_sucursales = max(1, int(payload.max_sucursales))
+    plan.incluye_intervencion_humana = payload.incluye_intervencion_humana
+    plan.incluye_impresion_termica = payload.incluye_impresion_termica
+    plan.incluye_reservacion_mesas = payload.incluye_reservacion_mesas
+    plan.activo = payload.activo
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="EDITAR_PLAN_SAAS",
+        recurso_tipo="PLAN_SAAS",
+        recurso_id=str(plan.id),
+        usuario_id=current_user.id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"codigo": plan.codigo, "precio_usd": plan.precio_mensual_usd},
+    )
+    return {"status": "ok", "plan_id": plan.id}
+
+
+@router.post("/superadmin/comercios/{tenant_id}/facturas")
+def generar_factura_saas(
+    tenant_id: int,
+    payload: GenerarFacturaSaaSRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Genera una factura mensual de cobro SaaS en suscripciones_facturas_saas."""
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    periodo = payload.periodo_mes or datetime.now(timezone.utc).strftime("%Y-%m")
+    plan = comercio.plan
+    fijo = round(plan.precio_mensual_usd if plan else 0.0, 2)
+    pedidos_cnt = int(comercio.pedidos_mes_actual or 0)
+
+    comision = 0.0
+    if plan:
+        if plan.porcentaje_comision_pedido > 0:
+            # Estimación de comisión sobre pedidos contabilizados del mes
+            comision = round(pedidos_cnt * 0.50 * (plan.porcentaje_comision_pedido / 100.0), 2)
+        elif plan.limite_pedidos_mes > 0 and pedidos_cnt > plan.limite_pedidos_mes:
+            excedente = pedidos_cnt - plan.limite_pedidos_mes
+            comision = round(excedente * plan.tarifa_fija_pedido_extra_usd, 2)
+
+    total = round(fijo + comision, 2)
+    estado = payload.estado_pago if payload.estado_pago in ("PENDIENTE", "PAGADO", "VENCIDO") else "PENDIENTE"
+
+    factura = SuscripcionFacturaSaaS(
+        tenant_id=comercio.id,
+        periodo_mes=periodo,
+        pedidos_contabilizados=pedidos_cnt,
+        monto_mensualidad_fija=fijo,
+        monto_comision_pedidos=comision,
+        total_a_pagar=total,
+        estado_pago=estado,
+        referencia_pago=payload.referencia_pago,
+    )
+    db.add(factura)
+    db.commit()
+    db.refresh(factura)
+
+    record_audit_log(
+        db=db,
+        accion="GENERAR_FACTURA_SAAS",
+        recurso_tipo="SUSCRIPCION_FACTURA_SAAS",
+        recurso_id=str(factura.id),
+        usuario_id=current_user.id,
+        tenant_id=comercio.id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"periodo": periodo, "total_usd": total, "estado": estado},
+    )
+    return {"status": "ok", "factura_id": factura.id, "total_a_pagar": total}
+
+
+@router.patch("/superadmin/facturas/{factura_id}")
+def actualizar_factura_saas(
+    factura_id: int,
+    payload: ActualizarFacturaSaaSRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Marca una factura SaaS como PAGADO / PENDIENTE / VENCIDO y opcionalmente reactiva +30 días al comercio."""
+    factura = (
+        db.query(SuscripcionFacturaSaaS)
+        .filter(SuscripcionFacturaSaaS.id == factura_id)
+        .first()
+    )
+    if not factura:
+        raise HTTPException(status_code=404, detail="Factura no encontrada.")
+
+    estado = payload.estado_pago if payload.estado_pago in ("PENDIENTE", "PAGADO", "VENCIDO") else "PENDIENTE"
+    factura.estado_pago = estado
+    if payload.referencia_pago is not None:
+        factura.referencia_pago = payload.referencia_pago.strip()
+
+    if estado == "PAGADO" and payload.reactivar_comercio and factura.comercio:
+        comercio = factura.comercio
+        comercio.estado_suscripcion = "ACTIVO"
+        comercio.activo = True
+        now_dt = datetime.now(timezone.utc)
+        base_dt = comercio.fecha_vencimiento_suscripcion or now_dt
+        if base_dt.tzinfo is None:
+            base_dt = base_dt.replace(tzinfo=timezone.utc)
+        comercio.fecha_vencimiento_suscripcion = max(base_dt, now_dt) + timedelta(days=30)
+
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="ACTUALIZAR_FACTURA_SAAS",
+        recurso_tipo="SUSCRIPCION_FACTURA_SAAS",
+        recurso_id=str(factura.id),
+        usuario_id=current_user.id,
+        tenant_id=factura.tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"estado_pago": estado, "referencia": factura.referencia_pago},
+    )
+    return {"status": "ok", "factura_id": factura.id, "estado_pago": factura.estado_pago}
 
 
 # =====================================================================

@@ -25,7 +25,7 @@ from app.core.security import (
     verify_password,
     verify_totp_code,
 )
-from app.models.saas_models import Usuario
+from app.models.saas_models import TenantComercio, Usuario
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Autenticación y Seguridad ISO/OWASP"])
 
@@ -74,6 +74,28 @@ def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Esta cuenta se encuentra suspendida.",
         )
+
+    if user.rol != "SUPER_ADMIN" and user.tenant_id:
+        comercio = (
+            db.query(TenantComercio)
+            .filter(TenantComercio.id == user.tenant_id)
+            .first()
+        )
+        if not comercio or not comercio.activo or comercio.estado_suscripcion == "SUSPENDIDO":
+            record_audit_log(
+                db=db,
+                accion="LOGIN_COMERCIO_SUSPENDIDO",
+                recurso_tipo="TENANT_COMERCIO",
+                recurso_id=str(user.tenant_id),
+                usuario_id=user.id,
+                tenant_id=user.tenant_id,
+                actor_email=user.email,
+                ip_origen=client_ip,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="La suscripción de este restaurante está suspendida. Contacta al administrador del SaaS.",
+            )
 
     # Si tiene 2FA activado, exigir y validar el código TOTP
     if user.is_2fa_enabled and user.totp_secret_encrypted:

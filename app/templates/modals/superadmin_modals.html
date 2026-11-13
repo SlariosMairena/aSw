@@ -1,0 +1,267 @@
+    <!-- MODAL: EDITAR COMERCIO Y SUSCRIPCIÓN (SUPER_ADMIN) -->
+    <div id="modalEditarComercioAdmin" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-indigo-400"></i>
+                        <span>Editar Comercio: <span id="ecTituloNombre" class="text-indigo-300"></span></span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Actualiza plan, estado de suscripción, vigencia y módulos habilitados</p>
+                </div>
+                <button type="button" onclick="closeModalEditarComercioAdmin()" class="text-slate-400 hover:text-white transition" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="formEditarComercioAdmin" onsubmit="handleEditarComercioAdmin(event)" class="space-y-4">
+                <input id="ecTenantId" type="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Nombre Comercial *</label>
+                        <input id="ecNombre" type="text" required class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Giro</label>
+                        <select id="ecGiro" class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            <option value="RESTAURANTE">Restaurante / Comida Rápida</option>
+                            <option value="CAFETERIA">Cafetería / Repostería</option>
+                            <option value="FARMACIA">Farmacia / Salud</option>
+                            <option value="TIENDA">Tienda / Retail</option>
+                            <option value="SUPERMERCADO">Minisúper / Conveniencia</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Correo de Contacto</label>
+                        <input id="ecEmail" type="email" class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Teléfono del Propietario</label>
+                        <input id="ecTelefono" type="text" placeholder="+505 ..." class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Moneda</label>
+                        <select id="ecMoneda" class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            <option value="NIO|C$">Córdobas (C$ NIO)</option>
+                            <option value="USD|$">Dólares ($ USD)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Plan SaaS</label>
+                        <select id="ecPlanId" class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Estado Suscripción</label>
+                        <select id="ecEstado" class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            <option value="ACTIVO">ACTIVO</option>
+                            <option value="TRIAL">TRIAL</option>
+                            <option value="POR_VENCER">POR_VENCER</option>
+                            <option value="SUSPENDIDO">SUSPENDIDO (Bloquea acceso del comercio)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Extender Vigencia (días adicionales)</label>
+                        <input id="ecExtenderDias" type="number" min="0" max="365" value="0" class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                </div>
+
+                <!-- Módulos / Flags del Comercio -->
+                <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-2.5">
+                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Módulos y Capacidades del Tenant</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <label class="flex items-center gap-2 text-slate-200 cursor-pointer">
+                            <input id="ecActivo" type="checkbox" class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                            <span>Comercio Activo (Login permitido)</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-200 cursor-pointer">
+                            <input id="ecModoPagoApi" type="checkbox" class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                            <span>Modo 2 (Pagos API/Link)</span>
+                        </label>
+                        <label class="flex items-center gap-2 text-slate-200 cursor-pointer">
+                            <input id="ecReservaciones" type="checkbox" class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                            <span>Módulo Mesas &amp; Reservas</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closeModalEditarComercioAdmin()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition">Cancelar</button>
+                    <button id="btnSubmitEditarComercioAdmin" type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center gap-2 transition">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Guardar Cambios</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: GESTIÓN DE USUARIOS POR COMERCIO (SUPER_ADMIN) -->
+    <div id="modalUsuariosComercioAdmin" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-users-gear text-sky-400"></i>
+                        <span>Usuarios del Comercio: <span id="ucComercioNombre" class="text-sky-300"></span></span>
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">Crea cuentas de administrador/personal, resetea contraseñas o suspende usuarios individuales</p>
+                </div>
+                <button type="button" onclick="closeModalUsuariosComercioAdmin()" class="text-slate-400 hover:text-white transition" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Formulario inline para agregar usuario -->
+            <form id="formCrearUsuarioComercioAdmin" onsubmit="handleCrearUsuarioComercioAdmin(event)" class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+                <input id="ucTenantId" type="hidden">
+                <p class="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>Nuevo Usuario para este Comercio</span>
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                    <input id="ucNuevoNombre" type="text" required placeholder="Nombre completo *" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                    <input id="ucNuevoEmail" type="email" required placeholder="correo@comercio.com *" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                    <input id="ucNuevoPass" type="text" required value="Personal#2026!" placeholder="Contraseña *" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none font-mono">
+                    <select id="ucNuevoRol" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                        <option value="COMERCIO_ADMIN">COMERCIO_ADMIN (Dueño / Admin)</option>
+                        <option value="SUCURSAL_STAFF">SUCURSAL_STAFF (Cocina / Tienda)</option>
+                    </select>
+                    <select id="ucNuevaSucursal" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                        <option value="">Todas las sucursales</option>
+                    </select>
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Agregar Usuario</span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Tabla / Lista de usuarios existentes -->
+            <div id="ucUsuariosList" class="space-y-2.5"></div>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR / EDITAR PLAN SAAS -->
+    <div id="modalPlanSaaS" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <h3 id="modalPlanSaaSTitle" class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-indigo-400"></i>
+                    <span>Configurar Plan SaaS</span>
+                </h3>
+                <button type="button" onclick="closeModalPlanSaaS()" class="text-slate-400 hover:text-white transition" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="formPlanSaaS" onsubmit="handleGuardarPlanSaaS(event)" class="space-y-4">
+                <input id="plId" type="hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Código Interno *</label>
+                        <input id="plCodigo" type="text" required placeholder="Ej: PRO_ANUAL" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none uppercase font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Nombre del Plan *</label>
+                        <input id="plNombre" type="text" required placeholder="Ej: Plan Pro" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Mensualidad (USD) *</label>
+                        <input id="plPrecio" type="number" step="0.01" min="0" required value="29" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Límite Pedidos/Mes *</label>
+                        <input id="plLimitePedidos" type="number" min="1" required value="500" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Comisión por Pedido (%)</label>
+                        <input id="plComision" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Tarifa Extra/Pedido (USD)</label>
+                        <input id="plTarifaExtra" type="number" step="0.01" min="0" value="0" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Máx. Sucursales *</label>
+                        <input id="plMaxSucursales" type="number" min="1" required value="2" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                    </div>
+                    <div class="flex items-end pb-2">
+                        <label class="flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                            <input id="plActivo" type="checkbox" checked class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                            <span>Plan disponible para nuevos comercios</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Descripción</label>
+                    <input id="plDescripcion" type="text" placeholder="Resumen comercial del plan" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                </div>
+                <div class="bg-slate-950/70 border border-slate-800 rounded-xl p-3.5 grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                    <label class="flex items-center gap-2 text-slate-200 cursor-pointer">
+                        <input id="plIntervencion" type="checkbox" checked class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                        <span>Chat Humano</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-slate-200 cursor-pointer">
+                        <input id="plImpresion" type="checkbox" checked class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                        <span>Impresión Térmica</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-slate-200 cursor-pointer">
+                        <input id="plReservaciones" type="checkbox" class="rounded border-slate-700 bg-slate-900 text-indigo-600">
+                        <span>Reservación Mesas</span>
+                    </label>
+                </div>
+                <div class="flex justify-end gap-3 pt-1">
+                    <button type="button" onclick="closeModalPlanSaaS()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm flex items-center gap-2 transition">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Guardar Plan</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: GENERAR FACTURA SAAS -->
+    <div id="modalFacturaSaaS" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-invoice-dollar text-emerald-400"></i>
+                    <span>Generar Factura SaaS</span>
+                </h3>
+                <button type="button" onclick="closeModalGenerarFacturaSaaS()" class="text-slate-400 hover:text-white transition" aria-label="Cerrar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="formFacturaSaaS" onsubmit="handleGenerarFacturaSaaS(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Comercio *</label>
+                    <select id="faTenantId" required class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Periodo (YYYY-MM)</label>
+                        <input id="faPeriodo" type="text" placeholder="2026-11" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Estado Inicial</label>
+                        <select id="faEstado" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            <option value="PENDIENTE">PENDIENTE</option>
+                            <option value="PAGADO">PAGADO</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">Referencia de Pago (opcional)</label>
+                    <input id="faReferencia" type="text" placeholder="Ej: TRANSF-8842 / STRIPE-..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                </div>
+                <div class="flex justify-end gap-3 pt-1">
+                    <button type="button" onclick="closeModalGenerarFacturaSaaS()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm flex items-center gap-2 transition">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Emitir Factura</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
