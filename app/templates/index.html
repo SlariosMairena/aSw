@@ -711,12 +711,19 @@
         function fillDemoLogin(email, pass) {
             document.getElementById('loginEmail').value = email;
             document.getElementById('loginPassword').value = pass;
-            document.querySelector('#loginSection form').requestSubmit();
+            const form = document.querySelector('#loginSection form');
+            if (form) {
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    handleLogin({ preventDefault: () => {} });
+                }
+            }
         }
 
         async function apiFetch(url, options = {}) {
             const headers = options.headers || {};
-            if (authToken) {
+            if (authToken && !url.includes('/auth/login')) {
                 headers['Authorization'] = `Bearer ${authToken}`;
             }
             if (options.body && typeof options.body === 'object') {
@@ -724,7 +731,7 @@
                 options.body = JSON.stringify(options.body);
             }
             const res = await fetch(url, { ...options, headers });
-            if (res.status === 401) {
+            if (res.status === 401 && !url.includes('/auth/login')) {
                 logout();
                 throw new Error('Sesión expirada. Inicia sesión nuevamente.');
             }
@@ -736,9 +743,15 @@
         }
 
         async function handleLogin(e) {
-            e.preventDefault();
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
+            if (e && typeof e.preventDefault === 'function') e.preventDefault();
+            const email = (document.getElementById('loginEmail').value || '').trim();
+            const password = document.getElementById('loginPassword').value || '';
+            const btnSubmit = document.querySelector('#loginSection form button[type="submit"]');
+            const originalBtnText = btnSubmit ? btnSubmit.textContent : '';
+            if (btnSubmit) {
+                btnSubmit.disabled = true;
+                btnSubmit.textContent = 'Ingresando...';
+            }
             try {
                 const data = await apiFetch('/api/v1/auth/login', {
                     method: 'POST',
@@ -748,9 +761,14 @@
                 localStorage.setItem('saas_jwt_token', authToken);
                 currentUser = data.user;
                 showToast(`¡Bienvenido ${currentUser.nombre_completo}!`);
-                renderAppByRole();
+                await renderAppByRole();
             } catch (err) {
-                showToast(err.message, true);
+                showToast(err.message || 'Error al iniciar sesión', true);
+            } finally {
+                if (btnSubmit) {
+                    btnSubmit.disabled = false;
+                    btnSubmit.textContent = originalBtnText;
+                }
             }
         }
 
@@ -1535,7 +1553,6 @@
                     `).join('');
                 }
             }
-        }
         }
 
         function toggleQuickExtra(nombre, tipo, precio) {
