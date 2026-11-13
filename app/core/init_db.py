@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import Base, SessionLocal, engine
+from app.core.demo_seeds import seed_all_demo_giros
 from app.core.security import hash_password
 from app.models.saas_models import (
     CategoriaMenu,
@@ -47,6 +48,7 @@ def init_database() -> None:
     try:
         _seed_initial_data(db)
         _migrate_existing_data_to_nio(db)
+        seed_all_demo_giros(db)
     finally:
         db.close()
 

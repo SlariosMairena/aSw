@@ -10,7 +10,7 @@
                 </span>
                 <div>
                     <h3 id="modalInvTitle" class="text-base font-bold text-white">Nuevo Insumo de Inventario</h3>
-                    <p class="text-[11px] text-slate-400">Controla tus materias primas, costos y alertas de stock mínimo</p>
+                    <p id="modalInvSubtitle" class="text-[11px] text-slate-400">Controla existencias, costos y alertas de stock mínimo</p>
                 </div>
             </div>
             <button onclick="cerrarModalItemInventario()" class="text-slate-400 hover:text-white text-base font-bold px-2 py-1 transition">
@@ -22,8 +22,8 @@
             <input id="invItemEditId" type="hidden" value="">
 
             <div>
-                <label class="block text-slate-300 font-semibold mb-1">Nombre del Insumo / Materia Prima</label>
-                <input id="invItemNombre" type="text" required placeholder="Ej. Carne Molida Angus, Pan Brioche, Queso Mozzarella"
+                <label id="lblInvItemName" class="block text-slate-300 font-semibold mb-1">Nombre del Insumo / Materia Prima</label>
+                <input id="invItemNombre" type="text" required placeholder="Ej. Producto, presentación o insumo principal"
                     class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
             </div>
 

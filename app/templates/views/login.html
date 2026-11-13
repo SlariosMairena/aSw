@@ -1,35 +1,86 @@
 <!-- 1. PANTALLA DE LOGIN (CON ACCESOS RÁPIDOS DE PRUEBA) -->
 <main id="loginSection" class="flex-1 flex items-center justify-center p-6">
-    <div class="glass max-w-md w-full rounded-2xl p-8 shadow-2xl">
-        <div class="text-center mb-6">
+    <div class="glass max-w-lg w-full rounded-2xl p-7 shadow-2xl">
+        <div class="text-center mb-5">
             <div class="w-12 h-12 mx-auto mb-3 rounded-2xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center text-xl border border-emerald-500/30">
                 <i class="fa-brands fa-whatsapp text-2xl"></i>
             </div>
             <h2 class="text-2xl font-bold text-white">Iniciar Sesión</h2>
-            <p class="text-sm text-slate-400 mt-1">Accede como Dueño del SaaS o al Panel de un Restaurante</p>
+            <p class="text-sm text-slate-400 mt-1">Accede como Dueño del SaaS o prueba cualquiera de los 5 giros</p>
         </div>
 
-        <!-- Botones rápidos para probar sin teclear -->
-        <div class="mb-6 p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/70">
-            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-                <i class="fa-solid fa-bolt text-amber-400"></i> <span>Accesos Rápidos de Demostración:</span>
+        <!-- Botones rápidos para probar sin teclear (SuperAdmin + los 5 Giros de Negocio) -->
+        <div class="mb-5 p-3.5 rounded-xl bg-slate-900/90 border border-slate-700/70 space-y-2">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-bolt text-amber-400"></i> <span>Accesos Rápidos por Tipo de Negocio:</span>
             </p>
-            <div class="grid grid-cols-1 gap-2">
-                <button type="button" onclick="fillDemoLogin('admin@tusaas.com', 'AdminSaaS#2026!Seguro')"
-                    class="w-full text-left px-3 py-2 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs text-indigo-200 flex items-center justify-between transition">
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-crown text-indigo-400"></i> <strong>Tu Panel Dueño del SaaS</strong> (SUPER_ADMIN)</span>
-                    <span class="underline">Entrar</span>
-                </button>
-                <button type="button" onclick="fillDemoLogin('dueno@napoli.com', 'Napoli#2026!')"
-                    class="w-full text-left px-3 py-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-xs text-emerald-200 flex items-center justify-between transition">
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-utensils text-emerald-400"></i> <strong>Panel Restaurante Napoli</strong> (Dueño Multi-Sucursal)</span>
-                    <span class="underline">Entrar</span>
-                </button>
-                <button type="button" onclick="fillDemoLogin('cocina.centro@napoli.com', 'Cocina#2026!')"
-                    class="w-full text-left px-3 py-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-xs text-amber-200 flex items-center justify-between transition">
-                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-kitchen-set text-amber-400"></i> <strong>Pantalla Cocina</strong> (Solo Sucursal Centro)</span>
-                    <span class="underline">Entrar</span>
-                </button>
+
+            <button type="button" onclick="fillDemoLogin('admin@tusaas.com', 'AdminSaaS#2026!Seguro')"
+                class="w-full text-left px-3 py-2 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-xs text-indigo-200 flex items-center justify-between transition">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-crown text-indigo-400"></i> <strong>SuperAdmin SaaS</strong> (Todos los comercios)</span>
+                <span class="underline">Entrar</span>
+            </button>
+
+            <div class="grid grid-cols-1 gap-1.5 text-[11px]">
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+                    <span class="text-emerald-200 font-semibold flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-utensils text-emerald-400 w-3.5"></i> Restaurante Napoli
+                    </span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="fillDemoLogin('dueno@napoli.com', 'Napoli#2026!')"
+                            class="px-2 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100 font-bold transition">Dueño</button>
+                        <button type="button" onclick="fillDemoLogin('cocina.centro@napoli.com', 'Cocina#2026!')"
+                            class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 font-bold transition">Staff</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
+                    <span class="text-amber-200 font-semibold flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-mug-hot text-amber-400 w-3.5"></i> Cafetería Altura
+                    </span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="fillDemoLogin('dueno@altura.com', 'Altura#2026!')"
+                            class="px-2 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100 font-bold transition">Dueño</button>
+                        <button type="button" onclick="fillDemoLogin('barra.galerias@altura.com', 'Barra#2026!')"
+                            class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 font-bold transition">Staff</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-sky-500/10 border border-sky-500/25">
+                    <span class="text-sky-200 font-semibold flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-pills text-sky-400 w-3.5"></i> Farmacia Salud Total
+                    </span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="fillDemoLogin('dueno@saludtotal.com', 'Farmacia#2026!')"
+                            class="px-2 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100 font-bold transition">Dueño</button>
+                        <button type="button" onclick="fillDemoLogin('despacho.metro@saludtotal.com', 'Despacho#2026!')"
+                            class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 font-bold transition">Staff</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/25">
+                    <span class="text-purple-200 font-semibold flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-bag-shopping text-purple-400 w-3.5"></i> Tienda Urban Style
+                    </span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="fillDemoLogin('dueno@urbanstyle.com', 'Tienda#2026!')"
+                            class="px-2 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100 font-bold transition">Dueño</button>
+                        <button type="button" onclick="fillDemoLogin('ventas.tienda@urbanstyle.com', 'Ventas#2026!')"
+                            class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 font-bold transition">Staff</button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-teal-500/10 border border-teal-500/25">
+                    <span class="text-teal-200 font-semibold flex items-center gap-1.5 truncate">
+                        <i class="fa-solid fa-basket-shopping text-teal-400 w-3.5"></i> Minisúper La Esquina
+                    </span>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="fillDemoLogin('dueno@laesquina.com', 'Super#2026!')"
+                            class="px-2 py-0.5 rounded bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-100 font-bold transition">Dueño</button>
+                        <button type="button" onclick="fillDemoLogin('caja.norte@laesquina.com', 'Caja#2026!')"
+                            class="px-2 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/35 text-amber-200 font-bold transition">Staff</button>
+                    </div>
+                </div>
             </div>
         </div>
 

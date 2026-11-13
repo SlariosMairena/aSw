@@ -155,18 +155,37 @@ function escapeHtml(str) {
                     code: 'CAFETERIA',
                     label: 'Cafetería / Repostería',
                     icon: 'fa-mug-hot',
+                    col2Icon: 'fa-mug-hot',
+                    col2Label: '2. EN PROCESO (Barra / Preparando)',
+                    col2ActionBtn: 'En Barra',
+                    chatHumanLabel: 'Cafetería',
+                    hintBanner: 'Perfil Cafetería activo: barra de bebidas, repostería, personalización de leche/extras y mesas en local.',
                     tabMenuLabel: 'Menú de Bebidas y Repostería',
                     catalogTitle: 'Catálogo de Bebidas y Repostería',
                     itemSingular: 'Producto',
                     itemPlural: 'productos',
+                    menuFormSubtitle: 'Configura bebida o postre, tamaño, leches y extras de barra',
+                    categoryDefault: 'Cafés Calientes',
+                    categoryPlaceholder: 'Ej. Cafés Calientes, Frappés, Repostería',
+                    itemPlaceholder: 'Ej. Cappuccino Clásico, Croissant de Almendras',
+                    descPlaceholder: 'Notas de sabor, tipo de grano o porción...',
+                    extrasTitle: 'Tamaños, Leches y Extras de Barra',
+                    extrasSubtitle: 'Agrega variantes de tamaño (Grande/Mediano) o extras como shot espresso o leche vegetal:',
                     tabSucLabel: 'WhatsApp por Sucursal & Mesas',
                     soundLabel: 'Probar Aviso de Barra',
-                    enProcesoLabel: '2. Preparando',
+                    enProcesoLabel: '2. En Barra',
+                    invMetric1Label: 'Insumos de Barra',
+                    invNewBtnLabel: 'Nuevo Insumo',
+                    invThItemLabel: 'Insumo / Grano / Lácteo',
+                    invSearchPlaceholder: 'Buscar grano, leche, jarabe o empaque...',
+                    invModalNewTitle: 'Nuevo Insumo de Cafetería',
+                    invNameLabel: 'Nombre del Insumo / Grano / Empaque',
+                    invNamePlaceholder: 'Ej. Café Arábigo en Grano, Leche de Almendra',
                     usesRemovableIngredients: true,
                     usesTables: true,
-                    defaultCategories: ['Café', 'Leche Deslactosada', 'Leche de Almendra', 'Hielo', 'Canela'],
+                    defaultCategories: ['Leche Entera', 'Azúcar', 'Canela', 'Crema Batida', 'Hielo'],
                     defaultExtras: [
-                        { nombre: 'Tamaño Grande', tipo: 'VARIANTE', precio: 25.00 },
+                        { nombre: 'Tamaño Grande 16oz', tipo: 'VARIANTE', precio: 25.00 },
                         { nombre: 'Shot Extra Espresso', tipo: 'EXTRA', precio: 20.00 },
                         { nombre: 'Leche de Almendra', tipo: 'EXTRA', precio: 25.00 }
                     ]
@@ -177,13 +196,32 @@ function escapeHtml(str) {
                     code: 'FARMACIA',
                     label: 'Farmacia / Salud',
                     icon: 'fa-pills',
+                    col2Icon: 'fa-pills',
+                    col2Label: '2. ALISTANDO (Despacho Farmacéutico)',
+                    col2ActionBtn: 'Alistando',
+                    chatHumanLabel: 'Farmacia',
+                    hintBanner: 'Perfil Farmacéutico activo: catálogo por presentaciones y dosis, despacho sin mesas ni ingredientes removibles.',
                     tabMenuLabel: 'Catálogo de Medicamentos',
                     catalogTitle: 'Catálogo Farmacéutico',
                     itemSingular: 'Medicamento',
-                    itemPlural: 'productos',
+                    itemPlural: 'medicamentos',
+                    menuFormSubtitle: 'Configura fármaco, dosis, precio y presentaciones (Caja / Blíster)',
+                    categoryDefault: 'Analgésicos y Fiebre',
+                    categoryPlaceholder: 'Ej. Analgésicos, Antigripales, Vitaminas',
+                    itemPlaceholder: 'Ej. Acetaminofén 500mg, Vitamina C + Zinc',
+                    descPlaceholder: 'Indicación terapéutica, dosis o requerimientos...',
+                    extrasTitle: 'Presentaciones y Variantes (Caja / Blíster / Dosis)',
+                    extrasSubtitle: 'Configura presentaciones disponibles del mismo producto con ajuste de precio:',
                     tabSucLabel: 'WhatsApp por Sucursal & Retiros',
                     soundLabel: 'Probar Aviso Despacho',
                     enProcesoLabel: '2. Alistando',
+                    invMetric1Label: 'Medicamentos en Stock',
+                    invNewBtnLabel: 'Nuevo Medicamento',
+                    invThItemLabel: 'Medicamento / Presentación / Botiquín',
+                    invSearchPlaceholder: 'Buscar medicamento, vitamina o laboratorio...',
+                    invModalNewTitle: 'Nuevo Medicamento en Inventario',
+                    invNameLabel: 'Nombre del Medicamento / Insumo Médico',
+                    invNamePlaceholder: 'Ej. Ibuprofeno 400mg Blíster x10, Suero Oral',
                     usesRemovableIngredients: false,
                     usesTables: false,
                     defaultCategories: [],
@@ -198,19 +236,38 @@ function escapeHtml(str) {
                     code: 'TIENDA',
                     label: 'Tienda / Retail',
                     icon: 'fa-bag-shopping',
-                    tabMenuLabel: 'Catálogo de Productos',
+                    col2Icon: 'fa-box-open',
+                    col2Label: '2. EMPACANDO (Preparando Envío)',
+                    col2ActionBtn: 'Empacando',
+                    chatHumanLabel: 'Tienda',
+                    hintBanner: 'Perfil Retail / Tienda activo: artículos por tallas, variantes y empaque para envío (sin mesas ni cocina).',
+                    tabMenuLabel: 'Catálogo de Artículos',
                     catalogTitle: 'Catálogo de Tienda',
                     itemSingular: 'Artículo',
                     itemPlural: 'artículos',
+                    menuFormSubtitle: 'Configura prenda o artículo, tallas, colores y opciones de empaque',
+                    categoryDefault: 'Camisetas & Tops',
+                    categoryPlaceholder: 'Ej. Camisetas, Calzado, Accesorios',
+                    itemPlaceholder: 'Ej. Camiseta Oversize, Mochila Antirrobo',
+                    descPlaceholder: 'Material, corte, medidas o detalles del artículo...',
+                    extrasTitle: 'Tallas, Colores o Empaque Especial',
+                    extrasSubtitle: 'Configura tallas o servicios adicionales (ej. empaque para regalo):',
                     tabSucLabel: 'WhatsApp por Sucursal & Tiendas',
                     soundLabel: 'Probar Aviso Pedido',
                     enProcesoLabel: '2. Empacando',
+                    invMetric1Label: 'Artículos Registrados',
+                    invNewBtnLabel: 'Nuevo Artículo',
+                    invThItemLabel: 'Artículo / Talla / Accesorio',
+                    invSearchPlaceholder: 'Buscar artículo, talla o proveedor...',
+                    invModalNewTitle: 'Nuevo Artículo de Tienda',
+                    invNameLabel: 'Nombre del Artículo / SKU',
+                    invNamePlaceholder: 'Ej. Jean Slim Ínidigo T32, Sneakers Blancos T41',
                     usesRemovableIngredients: false,
                     usesTables: false,
                     defaultCategories: [],
                     defaultExtras: [
                         { nombre: 'Talla L / Grande', tipo: 'VARIANTE', precio: 0.00 },
-                        { nombre: 'Empaque para Regalo', tipo: 'EXTRA', precio: 35.00 }
+                        { nombre: 'Empaque para Regalo', tipo: 'EXTRA', precio: 45.00 }
                     ]
                 };
             }
@@ -219,13 +276,32 @@ function escapeHtml(str) {
                     code: 'SUPERMERCADO',
                     label: 'Minisúper / Conveniencia',
                     icon: 'fa-basket-shopping',
+                    col2Icon: 'fa-basket-shopping',
+                    col2Label: '2. SURTIENDO (Canasta / Despacho)',
+                    col2ActionBtn: 'Surtiendo',
+                    chatHumanLabel: 'Minisúper',
+                    hintBanner: 'Perfil Minisúper activo: abarrotes, lácteos, packs familiares y surtido rápido por sucursal (sin mesas).',
                     tabMenuLabel: 'Catálogo de Abarrotes',
                     catalogTitle: 'Catálogo del Minisúper',
                     itemSingular: 'Producto',
                     itemPlural: 'productos',
+                    menuFormSubtitle: 'Configura producto de despensa, presentación o pack familiar',
+                    categoryDefault: 'Canasta Básica',
+                    categoryPlaceholder: 'Ej. Canasta Básica, Lácteos, Bebidas',
+                    itemPlaceholder: 'Ej. Arroz Premium 5 Lb, Cajilla Huevos x30',
+                    descPlaceholder: 'Marca, contenido neto o unidad de venta...',
+                    extrasTitle: 'Presentaciones y Packs Familiares',
+                    extrasSubtitle: 'Agrega formatos alternos como Six-Pack, Galón o Saco Familiar:',
                     tabSucLabel: 'WhatsApp por Sucursal & Zonas',
                     soundLabel: 'Probar Aviso Surtido',
                     enProcesoLabel: '2. Surtiendo',
+                    invMetric1Label: 'Productos en Existencia',
+                    invNewBtnLabel: 'Nuevo Producto',
+                    invThItemLabel: 'Producto / Abarrote / Despensa',
+                    invSearchPlaceholder: 'Buscar arroz, lácteos, bebidas o proveedor...',
+                    invModalNewTitle: 'Nuevo Producto de Inventario',
+                    invNameLabel: 'Nombre del Producto / Abarrote',
+                    invNamePlaceholder: 'Ej. Leche UHT 1L, Aceite Vegetal 900ml',
                     usesRemovableIngredients: false,
                     usesTables: false,
                     defaultCategories: [],
@@ -239,13 +315,32 @@ function escapeHtml(str) {
                 code: 'RESTAURANTE',
                 label: 'Restaurante / Comida Rápida',
                 icon: 'fa-utensils',
+                col2Icon: 'fa-fire-burner',
+                col2Label: '2. EN PROCESO (En Cocina)',
+                col2ActionBtn: 'En Cocina',
+                chatHumanLabel: 'Restaurante',
+                hintBanner: 'Perfil Restaurante activo: cocina multi-sucursal, platos con ingredientes removibles, extras y reservación de mesas.',
                 tabMenuLabel: 'Menú, Precios y Extras',
                 catalogTitle: 'Catálogo del Menú',
                 itemSingular: 'Plato',
                 itemPlural: 'platos',
+                menuFormSubtitle: 'Configura nombre, precio, ingredientes removibles y extras',
+                categoryDefault: 'Hamburguesas Artesanales',
+                categoryPlaceholder: 'Ej. Hamburguesas, Pizzas, Bebidas',
+                itemPlaceholder: 'Ej. Hamburguesa Clásica Doble',
+                descPlaceholder: 'Detalles de cocción, guarnición o descripción breve...',
+                extrasTitle: 'Extras o Variantes con Costo',
+                extrasSubtitle: 'Toca los botones sugeridos para agregar extras o variantes típicos con su precio, o escribe uno personalizado abajo:',
                 tabSucLabel: 'WhatsApp por Sucursal & Mesas',
                 soundLabel: 'Probar Sonido Cocina',
                 enProcesoLabel: '2. En Cocina',
+                invMetric1Label: 'Insumos Registrados',
+                invNewBtnLabel: 'Nuevo Insumo',
+                invThItemLabel: 'Insumo / Materia Prima',
+                invSearchPlaceholder: 'Buscar insumo o proveedor...',
+                invModalNewTitle: 'Nuevo Insumo de Inventario',
+                invNameLabel: 'Nombre del Insumo / Materia Prima',
+                invNamePlaceholder: 'Ej. Carne Molida Res, Queso Mozzarella',
                 usesRemovableIngredients: true,
                 usesTables: true,
                 defaultCategories: ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa', 'Pepinillos', 'Mostaza', 'Salsa BBQ', 'Picante', 'Queso', 'Aguacate'],
@@ -256,6 +351,7 @@ function escapeHtml(str) {
                 ]
             };
         }
+        window.getGiroProfile = getGiroProfile;
 
         function applyComercioRoleVisibility() {
             const isAdmin = isComercioAdminOrSuper();
@@ -279,6 +375,17 @@ function escapeHtml(str) {
             const profile = getGiroProfile(comercio?.giro);
             const giroBadge = document.getElementById('comercioGiroBadge');
             if (giroBadge) giroBadge.innerHTML = `<i class="fa-solid ${profile.icon} mr-1"></i>${profile.label}`;
+            const giroHint = document.getElementById('giroOperationalHint');
+            if (giroHint) {
+                giroHint.innerHTML = `<i class="fa-solid fa-sliders text-indigo-400"></i> <span>${profile.hintBanner}</span>`;
+                giroHint.classList.remove('hidden');
+            }
+
+            // Kanban columna 2 segun giro
+            const col2Icon = document.getElementById('kanbanCol2Icon');
+            if (col2Icon) col2Icon.className = `fa-solid ${profile.col2Icon} text-amber-400 mr-2`;
+            const col2Label = document.getElementById('kanbanCol2Label');
+            if (col2Label) col2Label.textContent = profile.col2Label;
 
             const tabMenuLbl = document.getElementById('tabLabel_menu');
             if (tabMenuLbl) tabMenuLbl.textContent = profile.tabMenuLabel;
@@ -297,12 +404,45 @@ function escapeHtml(str) {
 
             const lblProd = document.getElementById('lblNombreProductoMenu');
             if (lblProd) lblProd.textContent = `Nombre del ${profile.itemSingular}`;
+            const catInput = document.getElementById('platoCategoria');
+            if (catInput) {
+                catInput.placeholder = profile.categoryPlaceholder;
+                const knownDefaults = ['Hamburguesas Artesanales', 'Cafés Calientes', 'Analgésicos y Fiebre', 'Camisetas & Tops', 'Canasta Básica'];
+                if (!catInput.value || knownDefaults.includes(catInput.value)) {
+                    catInput.value = profile.categoryDefault;
+                }
+            }
+            const platoNom = document.getElementById('platoNombre');
+            if (platoNom) platoNom.placeholder = profile.itemPlaceholder;
+            const platoDesc = document.getElementById('platoDesc');
+            if (platoDesc) platoDesc.placeholder = profile.descPlaceholder;
+            const lblExtrasTitle = document.getElementById('lblExtrasTitle');
+            if (lblExtrasTitle) lblExtrasTitle.textContent = profile.extrasTitle;
+            const lblExtrasSubtitle = document.getElementById('lblExtrasSubtitle');
+            if (lblExtrasSubtitle) lblExtrasSubtitle.textContent = profile.extrasSubtitle;
+
             if (!document.getElementById('platoEditId')?.value) {
                 const formTitle = document.getElementById('formPlatoTitle');
                 if (formTitle) formTitle.textContent = `Nuevo ${profile.itemSingular}`;
+                const formSub = document.getElementById('formPlatoSubtitle');
+                if (formSub) formSub.textContent = profile.menuFormSubtitle;
                 const btnSub = document.getElementById('btnSubmitPlatoText');
                 if (btnSub) btnSub.textContent = `Guardar ${profile.itemSingular} en Catálogo`;
             }
+
+            // Inventario adaptado al giro
+            const invM1 = document.getElementById('invMetric1Label');
+            if (invM1) invM1.textContent = profile.invMetric1Label;
+            const invBtn = document.getElementById('btnNuevoInsumoText');
+            if (invBtn) invBtn.textContent = profile.invNewBtnLabel;
+            const invTh = document.getElementById('invThItemLabel');
+            if (invTh) invTh.textContent = profile.invThItemLabel;
+            const invSearch = document.getElementById('invSearchInput');
+            if (invSearch) invSearch.placeholder = profile.invSearchPlaceholder;
+            const invNameLbl = document.getElementById('lblInvItemName');
+            if (invNameLbl) invNameLbl.textContent = profile.invNameLabel;
+            const invNameInput = document.getElementById('invItemNombre');
+            if (invNameInput) invNameInput.placeholder = profile.invNamePlaceholder;
 
             const bloqueIng = document.getElementById('bloqueIngBaseForm');
             if (bloqueIng) bloqueIng.classList.toggle('hidden', !profile.usesRemovableIngredients);
@@ -463,6 +603,7 @@ function escapeHtml(str) {
         }
 
         function buildPedidoCardHTML(p, moneda) {
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
             const itemsHTML = p.items.map(it => `
                 <div class="p-2 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
                     <div class="flex justify-between font-bold text-white">
@@ -540,7 +681,7 @@ function escapeHtml(str) {
                         </button>
                         <button onclick="cambiarEstadoPedido(${p.id}, 'EN_PROCESO')"
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'EN_PROCESO' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
-                            <i class="fa-solid fa-fire-burner mr-1"></i> En Proceso
+                            <i class="fa-solid ${profile.col2Icon} mr-1"></i> ${profile.col2ActionBtn}
                         </button>
                         <button onclick="cambiarEstadoPedido(${p.id}, 'LISTO')"
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'LISTO' ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
@@ -589,6 +730,7 @@ function escapeHtml(str) {
         }
 
         async function cambiarEstadoPedido(pedidoId, nuevoEstado) {
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
             const card = document.getElementById(`cardPedido_${pedidoId}`);
             let overlay = null;
             if (card) {
@@ -600,7 +742,7 @@ function escapeHtml(str) {
                 let stateLabel = '1. Recibido';
                 if (nuevoEstado === 'EN_PROCESO') {
                     iconColor = 'text-amber-400';
-                    stateLabel = '2. En Cocina';
+                    stateLabel = profile.enProcesoLabel;
                 } else if (nuevoEstado === 'LISTO') {
                     iconColor = 'text-emerald-400';
                     stateLabel = '3. Listo';
@@ -654,6 +796,7 @@ function escapeHtml(str) {
                 modeBadge.innerHTML = `<span class="text-emerald-400"><i class="fa-solid fa-robot mr-1"></i> BOT ACTIVO (Respondiendo automáticamente en WhatsApp)</span>`;
             }
 
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
             const list = document.getElementById('modalMessagesList');
             list.innerHTML = (p.mensajes_chat || []).map(m => {
                 const isClient = m.remitente === 'CLIENTE';
@@ -668,7 +811,7 @@ function escapeHtml(str) {
                                     : 'bg-emerald-500/20 border border-emerald-500/30 text-emerald-100'
                         }">
                             <div class="text-[10px] font-bold opacity-75 mb-0.5">
-                                ${isClient ? '<i class="fa-solid fa-user mr-1"></i> Cliente' : isHuman ? '<i class="fa-solid fa-user-tie mr-1"></i> Restaurante' : '<i class="fa-solid fa-robot mr-1"></i> Bot WhatsApp'} • ${m.hora}
+                                ${isClient ? '<i class="fa-solid fa-user mr-1"></i> Cliente' : isHuman ? `<i class="fa-solid fa-user-tie mr-1"></i> ${profile.chatHumanLabel}` : '<i class="fa-solid fa-robot mr-1"></i> Bot WhatsApp'} • ${m.hora}
                             </div>
                             <div class="whitespace-pre-line">${m.contenido}</div>
                         </div>

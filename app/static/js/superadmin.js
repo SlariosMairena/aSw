@@ -303,6 +303,10 @@
                             <i class="fa-solid fa-file-invoice-dollar"></i>
                             <span>Facturar</span>
                         </button>
+                        <button type="button" onclick="poblarDemoComercio(this, ${c.id})" title="Cargar productos, inventario y pedidos de prueba según su giro" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Poblar Datos Demo</span>
+                        </button>
                         ${isSuspended
                             ? `<button type="button" onclick="toggleEstadoSuscripcion(this, ${c.id}, 'ACTIVO')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"><i class="fa-solid fa-circle-check"></i><span>Reactivar</span></button>`
                             : `<button type="button" onclick="toggleEstadoSuscripcion(this, ${c.id}, 'SUSPENDIDO')" class="bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"><i class="fa-solid fa-ban"></i><span>Suspender</span></button>`
@@ -621,11 +625,12 @@
                         costo_envio_base: Number(document.getElementById('ncCostoEnvio')?.value || 35),
                         nombre_dueno: document.getElementById('ncDuenoNombre').value.trim(),
                         email_dueno: document.getElementById('ncDuenoEmail').value.trim(),
-                        password_dueno: document.getElementById('ncDuenoPass').value
+                        password_dueno: document.getElementById('ncDuenoPass').value,
+                        poblar_datos_demo: Boolean(document.getElementById('ncPoblarDemo')?.checked)
                     }
                 });
                 closeModalNuevoComercio();
-                showToast('Nuevo comercio creado con su código QR de WhatsApp.');
+                showToast('Nuevo comercio creado correctamente.');
                 await loadSuperAdminDashboard();
             } catch (err) {
                 showToast(err.message, true);
@@ -637,13 +642,36 @@
             }
         }
 
+        async function poblarDemoComercio(btn, tenantId) {
+            const origHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Cargando...</span>`;
+            }
+            try {
+                const res = await apiFetch(`/api/v1/panel/superadmin/comercios/${tenantId}/poblar-demo`, {
+                    method: 'POST'
+                });
+                showToast(`Datos demo cargados (${res.giro}): +${res.productos_creados} productos, +${res.insumos_creados} inventario, +${res.pedidos_creados} pedidos.`);
+                await loadSuperAdminDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                }
+            }
+        }
+        window.poblarDemoComercio = poblarDemoComercio;
+
         function openModalEditarComercioAdmin(tenantId) {
             const c = (saOverviewData?.comercios || []).find(item => item.id === tenantId);
             if (!c) return;
             document.getElementById('ecTenantId').value = c.id;
             document.getElementById('ecTituloNombre').textContent = c.nombre_comercial;
             document.getElementById('ecNombre').value = c.nombre_comercial || '';
-            document.getElementById('ecGiro').value = c.giro || 'RESTAURANTE';
+            document.getElementById('ecGiro').value = typeof getGiroProfile === 'function' ? getGiroProfile(c.giro).code : (c.giro || 'RESTAURANTE');
             document.getElementById('ecEmail').value = c.email_contacto || '';
             document.getElementById('ecTelefono').value = c.telefono_propietario || '';
             document.getElementById('ecMoneda').value = `${c.moneda || 'NIO'}|${c.simbolo_moneda || 'C$'}`;

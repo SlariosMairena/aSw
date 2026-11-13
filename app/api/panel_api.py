@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import record_audit_log
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.demo_seeds import normalize_giro_code, populate_tenant_demo_data
 from app.core.deps import (
     get_current_user,
     require_comercio_admin,
@@ -75,6 +76,7 @@ class CrearComercioRequest(BaseModel):
     nombre_sucursal_principal: str = "Sucursal Principal"
     direccion_sucursal: str = "Dirección por definir"
     costo_envio_base: float = 50.00
+    poblar_datos_demo: bool = False
 
 
 class ConfigurarComercioRequest(BaseModel):
@@ -439,10 +441,13 @@ def crear_nuevo_comercio(
         or db.query(PlanSaaS).first()
     )
 
+    giro_norm = normalize_giro_code(payload.giro)
+    usa_mesas = giro_norm in ("RESTAURANTE", "CAFETERIA")
+
     nuevo_comercio = TenantComercio(
         nombre_comercial=payload.nombre_comercial.strip(),
         slug=slug_clean,
-        giro=payload.giro,
+        giro=giro_norm,
         telefono_propietario=payload.telefono_propietario,
         email_contacto=payload.email_dueno.lower().strip(),
         plan_id=plan.id,
@@ -450,6 +455,7 @@ def crear_nuevo_comercio(
         fecha_vencimiento_suscripcion=datetime.now(timezone.utc) + timedelta(days=30),
         moneda=payload.moneda,
         simbolo_moneda=payload.simbolo_moneda,
+        tiene_mesas_fisicas=usa_mesas,
     )
     db.add(nuevo_comercio)
     db.commit()
@@ -476,12 +482,26 @@ def crear_nuevo_comercio(
         activo=True,
     )
     db.add(dueno)
-
-    cat_inicial = CategoriaMenu(
-        tenant_id=nuevo_comercio.id, nombre="Menú Principal", orden=1
-    )
-    db.add(cat_inicial)
     db.commit()
+
+    demo_stats = {"productos_creados": 0, "insumos_creados": 0, "pedidos_creados": 0}
+    if payload.poblar_datos_demo:
+        demo_stats = populate_tenant_demo_data(db, nuevo_comercio, giro_norm)
+    else:
+        cat_inicial_map = {
+            "FARMACIA": "Analgésicos y Salud",
+            "TIENDA": "Catálogo Principal",
+            "SUPERMERCADO": "Abarrotes y Canasta Básica",
+            "CAFETERIA": "Cafés y Repostería",
+            "RESTAURANTE": "Menú Principal",
+        }
+        cat_inicial = CategoriaMenu(
+            tenant_id=nuevo_comercio.id,
+            nombre=cat_inicial_map.get(giro_norm, "Catálogo Principal"),
+            orden=1,
+        )
+        db.add(cat_inicial)
+        db.commit()
 
     record_audit_log(
         db=db,
@@ -495,7 +515,40 @@ def crear_nuevo_comercio(
         detalles={"nombre": nuevo_comercio.nombre_comercial, "slug": slug_clean, "plan": plan.codigo},
     )
 
-    return {"status": "ok", "comercio_id": nuevo_comercio.id, "codigo_whatsapp": codigo_wa}
+    return {
+        "status": "ok",
+        "comercio_id": nuevo_comercio.id,
+        "codigo_whatsapp": codigo_wa,
+        "demo_stats": demo_stats,
+    }
+
+
+@router.post("/superadmin/comercios/{tenant_id}/poblar-demo")
+def poblar_demo_comercio_admin(
+    tenant_id: int,
+    request: Request,
+    current_user: Usuario = Depends(require_super_admin),
+    db: Session = Depends(get_db),
+):
+    """Puebla un comercio existente con catalogo, inventario y pedidos de muestra segun su giro."""
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+    giro_norm = normalize_giro_code(comercio.giro)
+    comercio.giro = giro_norm
+    stats = populate_tenant_demo_data(db, comercio, giro_norm)
+    record_audit_log(
+        db=db,
+        accion="POBLAR_DEMO_COMERCIO",
+        recurso_tipo="TENANT_COMERCIO",
+        recurso_id=str(comercio.id),
+        usuario_id=current_user.id,
+        tenant_id=comercio.id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"giro": giro_norm, **stats},
+    )
+    return {"status": "ok", "giro": giro_norm, **stats}
 
 
 @router.put("/superadmin/comercios/{tenant_id}")

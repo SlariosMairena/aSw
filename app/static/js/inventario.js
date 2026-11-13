@@ -518,9 +518,10 @@ function abrirModalNuevoInsumo() {
     document.getElementById('invItemProveedor').value = '';
     document.getElementById('invItemNotas').value = '';
 
-    document.getElementById('modalInvIcon').innerHTML = '<i class="fa-solid fa-boxes-stacked"></i>';
-    document.getElementById('modalInvTitle').textContent = 'Nuevo Insumo de Inventario';
-    document.getElementById('btnSubmitItemInventarioText').textContent = 'Guardar Insumo';
+    const profile = typeof getGiroProfile === 'function' ? getGiroProfile(currentComercioData?.comercio?.giro) : null;
+    document.getElementById('modalInvIcon').innerHTML = `<i class="fa-solid ${profile ? profile.icon : 'fa-boxes-stacked'}"></i>`;
+    document.getElementById('modalInvTitle').textContent = profile ? profile.invModalNewTitle : 'Nuevo Insumo de Inventario';
+    document.getElementById('btnSubmitItemInventarioText').textContent = profile ? `Guardar ${profile.itemSingular}` : 'Guardar Insumo';
     document.getElementById('wrapperStockInicial').classList.remove('hidden');
 
     document.getElementById('modalItemInventario').classList.remove('hidden');
