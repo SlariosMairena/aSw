@@ -294,7 +294,8 @@ function renderizarVistaAgrupada(items) {
         grupos[c].push(it);
     });
 
-    const curSymbol = currentComercioData?.simbolo_moneda || 'C$';
+    const curSymbol = currentComercioData?.comercio?.simbolo_moneda || currentComercioData?.simbolo_moneda || 'C$';
+    const esAdmin = (typeof isComercioAdminOrSuper === 'function') ? isComercioAdminOrSuper() : true;
 
     let html = '';
     Object.keys(grupos).sort().forEach(cat => {
@@ -333,9 +334,9 @@ function renderizarVistaAgrupada(items) {
                                     ${catItems.length} insumos
                                 </span>
                             </div>
-                            <span class="text-[11px] text-slate-400">
+                            ${esAdmin ? `<span class="text-[11px] text-slate-400">
                                 Valor estimado: <strong class="text-emerald-400">${curSymbol} ${valorCat.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
-                            </span>
+                            </span>` : `<span class="text-[11px] text-slate-400">Existencias operativas de sucursal</span>`}
                         </div>
                     </div>
 
@@ -365,8 +366,8 @@ function renderizarVistaAgrupada(items) {
                                 <th class="px-3 py-2.5 text-center">Stock Actual</th>
                                 <th class="px-3 py-2.5 text-center">Mínimo</th>
                                 <th class="px-3 py-2.5 text-center">Estado</th>
-                                <th class="px-3 py-2.5 text-right">Costo Unit.</th>
-                                <th class="px-3 py-2.5 text-right">Valor Total</th>
+                                ${esAdmin ? `<th class="px-3 py-2.5 text-right">Costo Unit.</th>
+                                <th class="px-3 py-2.5 text-right">Valor Total</th>` : ''}
                                 <th class="px-4 py-2.5 text-center">Ajuste Rápido / Acciones</th>
                             </tr>
                         </thead>
@@ -409,6 +410,7 @@ function buildFilaItemInventarioHTML(item, curSymbol, showCategoryColumn = true)
     const min = Number(item.stock_minimo || 0);
     const costo = Number(item.costo_unitario || 0);
     const valorTotal = stock * costo;
+    const esAdmin = (typeof isComercioAdminOrSuper === 'function') ? isComercioAdminOrSuper() : true;
 
     let badgeHtml = '';
     if (stock <= 0) {
@@ -446,12 +448,14 @@ function buildFilaItemInventarioHTML(item, curSymbol, showCategoryColumn = true)
         <td class="px-3 py-3 text-center whitespace-nowrap">
             ${badgeHtml}
         </td>
-        <td class="px-3 py-3 text-right">
-            <span class="text-slate-300 font-semibold">${curSymbol} ${costo.toFixed(2)}</span>
-        </td>
-        <td class="px-3 py-3 text-right">
-            <span class="text-emerald-400 font-bold">${curSymbol} ${valorTotal.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        </td>
+        ${esAdmin ? `
+            <td class="px-3 py-3 text-right">
+                <span class="text-slate-300 font-semibold">${curSymbol} ${costo.toFixed(2)}</span>
+            </td>
+            <td class="px-3 py-3 text-right">
+                <span class="text-emerald-400 font-bold">${curSymbol} ${valorTotal.toLocaleString('es-NI', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </td>
+        ` : ''}
         <td class="px-4 py-3 text-center whitespace-nowrap">
             <div class="flex items-center justify-center gap-1">
                 <button type="button" title="Registrar Entrada / Compra (+)" 
@@ -464,16 +468,18 @@ function buildFilaItemInventarioHTML(item, curSymbol, showCategoryColumn = true)
                     class="w-7 h-7 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 flex items-center justify-center font-bold text-xs transition">
                     <i class="fa-solid fa-minus text-[10px]"></i>
                 </button>
-                <button type="button" title="Editar Insumo" 
-                    onclick="abrirModalEditarInsumoJson('${safeItemJson}')"
-                    class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center text-xs transition">
-                    <i class="fa-solid fa-pen-to-square text-[10px]"></i>
-                </button>
-                <button type="button" title="Eliminar Insumo" 
-                    onclick="eliminarItemInventario('${item.id}', '${escapeJsStr(item.nombre_insumo)}')"
-                    class="w-7 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 flex items-center justify-center text-xs transition">
-                    <i class="fa-solid fa-trash text-[10px]"></i>
-                </button>
+                ${esAdmin ? `
+                    <button type="button" title="Editar Insumo" 
+                        onclick="abrirModalEditarInsumoJson('${safeItemJson}')"
+                        class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 flex items-center justify-center text-xs transition">
+                        <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                    </button>
+                    <button type="button" title="Eliminar Insumo" 
+                        onclick="eliminarItemInventario('${item.id}', '${escapeJsStr(item.nombre_insumo)}')"
+                        class="w-7 h-7 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 flex items-center justify-center text-xs transition">
+                        <i class="fa-solid fa-trash text-[10px]"></i>
+                    </button>
+                ` : ''}
             </div>
         </td>
     </tr>`;
@@ -493,7 +499,8 @@ function renderizarTablaInventario(items) {
         return;
     }
 
-    const curSymbol = currentComercioData?.simbolo_moneda || 'C$';
+    const curSymbol = currentComercioData?.comercio?.simbolo_moneda || currentComercioData?.simbolo_moneda || 'C$';
+    const esAdmin = (typeof isComercioAdminOrSuper === 'function') ? isComercioAdminOrSuper() : true;
     tbody.innerHTML = items.map(item => buildFilaItemInventarioHTML(item, curSymbol, true)).join('');
 }
 

@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import (
     get_current_user,
+    require_comercio_admin,
     require_super_admin,
     verify_tenant_isolation,
 )
@@ -80,10 +81,24 @@ class ConfigurarComercioRequest(BaseModel):
     moneda: Optional[str] = None
     simbolo_moneda: Optional[str] = None
     nombre_comercial: Optional[str] = None
+    giro: Optional[str] = None
     telefono_propietario: Optional[str] = None
     datos_bancarios_texto: Optional[str] = None
     acepta_efectivo: Optional[bool] = None
     acepta_transferencia: Optional[bool] = None
+
+
+class CrearStaffComercioRequest(BaseModel):
+    nombre_completo: str
+    email: EmailStr
+    password: str
+    sucursal_id: Optional[int] = None
+
+
+class ActualizarStaffComercioRequest(BaseModel):
+    activo: Optional[bool] = None
+    nueva_password: Optional[str] = None
+    sucursal_id: Optional[int] = None
 
 
 class ActualizarPrecioPlatoRequest(BaseModel):
@@ -893,6 +908,20 @@ def actualizar_factura_saas(
 # =====================================================================
 # 2. ENDPOINTS PARA EL PANEL DEL RESTAURANTE / COMERCIO
 # =====================================================================
+def _verify_staff_branch_scope(current_user: Usuario, target_sucursal_id: Optional[int]) -> None:
+    """Si el usuario es SUCURSAL_STAFF asignado a una sucursal fija, impide operar sobre otra sucursal."""
+    if (
+        current_user.rol == "SUCURSAL_STAFF"
+        and current_user.sucursal_id
+        and target_sucursal_id is not None
+        and target_sucursal_id != current_user.sucursal_id
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Aislamiento por sucursal: Tu usuario solo tiene acceso a su sucursal asignada.",
+        )
+
+
 @router.get("/comercio/{tenant_id}/dashboard")
 def comercio_dashboard(
     tenant_id: int,
@@ -1037,8 +1066,12 @@ def comercio_dashboard(
         )
 
     # Sucursales con sus links y códigos QR para WhatsApp (Opción B)
+    sucursales_visibles = comercio.sucursales
+    if current_user.rol == "SUCURSAL_STAFF" and current_user.sucursal_id:
+        sucursales_visibles = [s for s in comercio.sucursales if s.id == current_user.sucursal_id]
+
     sucursales_data = []
-    for s in comercio.sucursales:
+    for s in sucursales_visibles:
         deep_link = build_whatsapp_branch_deep_link(
             settings.WHATSAPP_BOT_PUBLIC_NUMBER,
             s.codigo_whatsapp,
@@ -1131,6 +1164,7 @@ def actualizar_estado_pedido(
         raise HTTPException(status_code=404, detail="Pedido no encontrado.")
 
     verify_tenant_isolation(current_user, pedido.tenant_id)
+    _verify_staff_branch_scope(current_user, pedido.sucursal_id)
 
     estados_validos = {"RECIBIDO", "EN_PROCESO", "LISTO", "ENTREGADO", "CANCELADO"}
     nuevo = payload.nuevo_estado.upper().strip()
@@ -1205,6 +1239,7 @@ def cambiar_control_conversacion(
         raise HTTPException(status_code=404, detail="Sesión de chat no encontrada.")
 
     verify_tenant_isolation(current_user, sesion.tenant_id)
+    _verify_staff_branch_scope(current_user, sesion.sucursal_id)
 
     modo = payload.modo_atencion.upper().strip()
     if modo not in ("BOT_ACTIVO", "HUMANO_ACTIVO"):
@@ -1265,6 +1300,7 @@ def enviar_mensaje_humano_al_chat(
         raise HTTPException(status_code=404, detail="Sesión de chat no encontrada.")
 
     verify_tenant_isolation(current_user, sesion.tenant_id)
+    _verify_staff_branch_scope(current_user, sesion.sucursal_id)
 
     texto = payload.mensaje.strip()
     if not texto:
@@ -1302,7 +1338,7 @@ def crear_plato_con_ingredientes(
     tenant_id: int,
     payload: CrearPlatoRequest,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Permite al restaurante registrar un plato con su lista de ingredientes removibles ($0) y extras."""
@@ -1406,7 +1442,7 @@ def editar_plato_existente(
     plato_id: int,
     payload: CrearPlatoRequest,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Actualiza el nombre, precio base, descripción, ingredientes removibles ($0) y extras de un plato existente."""
@@ -1492,7 +1528,7 @@ def editar_plato_existente(
 def eliminar_plato_existente(
     plato_id: int,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Elimina un plato y sus ingredientes del catálogo del restaurante."""
@@ -1552,7 +1588,7 @@ def actualizar_precio_plato(
     plato_id: int,
     payload: ActualizarPrecioPlatoRequest,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Permite editar rápidamente el precio base de un plato existente."""
@@ -1588,7 +1624,7 @@ def actualizar_precio_ingrediente(
     ingrediente_id: int,
     payload: ActualizarPrecioIngredienteRequest,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Permite editar rápidamente el precio adicional de un extra o variante."""
@@ -1628,10 +1664,10 @@ def actualizar_configuracion_comercio(
     tenant_id: int,
     payload: ConfigurarComercioRequest,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
-    """Permite editar la moneda (C$, $, etc.), nombre comercial, datos bancarios y formas de pago del restaurante."""
+    """Permite editar la moneda (C$, $, etc.), nombre comercial, giro, datos bancarios y formas de pago del comercio."""
     verify_tenant_isolation(current_user, tenant_id)
 
     comercio = (
@@ -1650,6 +1686,9 @@ def actualizar_configuracion_comercio(
     if payload.nombre_comercial is not None and payload.nombre_comercial.strip():
         cambios["nombre_comercial"] = f"{comercio.nombre_comercial} -> {payload.nombre_comercial.strip()}"
         comercio.nombre_comercial = payload.nombre_comercial.strip()
+    if payload.giro is not None and payload.giro.strip():
+        cambios["giro"] = f"{comercio.giro} -> {payload.giro.strip()}"
+        comercio.giro = payload.giro.strip()
     if payload.telefono_propietario is not None:
         comercio.telefono_propietario = payload.telefono_propietario.strip()
     if payload.datos_bancarios_texto is not None:
@@ -1681,6 +1720,7 @@ def actualizar_configuracion_comercio(
             "moneda": comercio.moneda,
             "simbolo_moneda": comercio.simbolo_moneda,
             "nombre_comercial": comercio.nombre_comercial,
+            "giro": comercio.giro,
             "datos_bancarios_texto": comercio.datos_bancarios_texto,
             "acepta_efectivo": comercio.acepta_efectivo,
             "acepta_transferencia": comercio.acepta_transferencia,
@@ -1692,7 +1732,7 @@ def actualizar_configuracion_comercio(
 def crear_sucursal_comercio(
     tenant_id: int,
     payload: CrearSucursalRequest,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Agrega una nueva sucursal al restaurante con su propio código y QR para WhatsApp."""
@@ -1749,6 +1789,7 @@ def actualizar_operacion_sucursal(
         raise HTTPException(status_code=404, detail="Sucursal no encontrada.")
 
     verify_tenant_isolation(current_user, suc.tenant_id)
+    _verify_staff_branch_scope(current_user, suc.id)
     suc.abierto_ahora = payload.abierto_ahora
     suc.tiempo_estimado_entrega_min = payload.tiempo_estimado_entrega_min
     suc.ancho_ticket_termico = payload.ancho_ticket_termico
@@ -1768,6 +1809,10 @@ def listar_inventario_comercio(
 ):
     """Consulta el inventario completo, alertas de bajo stock y valorización en Córdobas."""
     verify_tenant_isolation(current_user, tenant_id)
+    if current_user.rol == "SUCURSAL_STAFF" and current_user.sucursal_id:
+        sucursal_id = current_user.sucursal_id
+
+    es_staff = current_user.rol == "SUCURSAL_STAFF"
 
     query = db.query(ItemInventario).filter(
         ItemInventario.tenant_id == tenant_id,
@@ -1810,8 +1855,8 @@ def listar_inventario_comercio(
                 "unidad_medida": it.unidad_medida,
                 "stock_actual": it.stock_actual,
                 "stock_minimo": it.stock_minimo,
-                "costo_unitario": it.costo_unitario,
-                "valor_total": valor_item,
+                "costo_unitario": None if es_staff else it.costo_unitario,
+                "valor_total": None if es_staff else valor_item,
                 "estado": estado,
                 "proveedor": it.proveedor or "No especificado",
                 "notas": it.notas or "",
@@ -1830,7 +1875,7 @@ def listar_inventario_comercio(
             "items_bajo_stock": items_bajo_stock,
             "items_agotados": items_agotados,
             "items_optimos": total_items - (items_bajo_stock + items_agotados),
-            "valor_total_inventario": round(valor_total_inventario, 2),
+            "valor_total_inventario": None if es_staff else round(valor_total_inventario, 2),
             "categorias_contabilizadas": len(categorias_set),
         },
         "categorias": sorted(list(categorias_set)),
@@ -1842,7 +1887,7 @@ def crear_item_inventario(
     tenant_id: int,
     payload: CrearItemInventarioRequest,
     request: Request,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Registra una nueva materia prima o insumo en el inventario del restaurante."""
@@ -1908,6 +1953,7 @@ def ajustar_stock_item(
         raise HTTPException(status_code=404, detail="Insumo no encontrado.")
 
     verify_tenant_isolation(current_user, item.tenant_id)
+    _verify_staff_branch_scope(current_user, item.sucursal_id)
 
     tipo = payload.tipo.upper().strip()
     cant = abs(float(payload.cantidad))
@@ -1974,7 +2020,7 @@ def ajustar_stock_item(
 def actualizar_item_inventario(
     item_id: int,
     payload: CrearItemInventarioRequest,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Edita los datos maestros de un insumo."""
@@ -2000,7 +2046,7 @@ def actualizar_item_inventario(
 @router.delete("/comercio/inventario/{item_id}")
 def eliminar_item_inventario(
     item_id: int,
-    current_user: Usuario = Depends(get_current_user),
+    current_user: Usuario = Depends(require_comercio_admin),
     db: Session = Depends(get_db),
 ):
     """Desactiva un insumo del inventario."""
@@ -2013,4 +2059,312 @@ def eliminar_item_inventario(
     db.commit()
 
     return {"status": "ok", "deleted_id": item_id}
+
+
+# =====================================================================
+# 6. GESTIÓN DE EQUIPO STAFF POR EL DUEÑO (COMERCIO_ADMIN)
+# =====================================================================
+@router.get("/comercio/{tenant_id}/usuarios")
+def listar_equipo_comercio(
+    tenant_id: int,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    """Lista los usuarios (COMERCIO_ADMIN y SUCURSAL_STAFF) del comercio actual."""
+    verify_tenant_isolation(current_user, tenant_id)
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    usuarios = db.query(Usuario).filter(Usuario.tenant_id == tenant_id).order_by(Usuario.id).all()
+    sucursales = db.query(SucursalComercio).filter(SucursalComercio.tenant_id == tenant_id).all()
+    suc_map = {s.id: s.nombre_sucursal for s in sucursales}
+
+    return {
+        "comercio_id": tenant_id,
+        "sucursales": [{"id": s.id, "nombre_sucursal": s.nombre_sucursal} for s in sucursales],
+        "usuarios": [
+            {
+                "id": u.id,
+                "nombre_completo": u.nombre_completo,
+                "email": u.email,
+                "rol": u.rol,
+                "sucursal_id": u.sucursal_id,
+                "sucursal_nombre": suc_map.get(u.sucursal_id, "Todas las sucursales"),
+                "activo": u.activo,
+            }
+            for u in usuarios
+            if u.rol in ("COMERCIO_ADMIN", "SUCURSAL_STAFF")
+        ],
+    }
+
+
+@router.post("/comercio/{tenant_id}/usuarios")
+def crear_staff_comercio(
+    tenant_id: int,
+    payload: CrearStaffComercioRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    """Permite al Dueño (COMERCIO_ADMIN) crear cuentas de personal operativo (SUCURSAL_STAFF)."""
+    verify_tenant_isolation(current_user, tenant_id)
+
+    email_clean = payload.email.lower().strip()
+    if db.query(Usuario).filter(Usuario.email == email_clean).first():
+        raise HTTPException(status_code=400, detail="Ese correo ya está registrado.")
+
+    if payload.sucursal_id:
+        suc = (
+            db.query(SucursalComercio)
+            .filter(SucursalComercio.id == payload.sucursal_id, SucursalComercio.tenant_id == tenant_id)
+            .first()
+        )
+        if not suc:
+            raise HTTPException(status_code=404, detail="La sucursal seleccionada no pertenece a este comercio.")
+
+    nuevo_staff = Usuario(
+        tenant_id=tenant_id,
+        sucursal_id=payload.sucursal_id or None,
+        nombre_completo=payload.nombre_completo.strip(),
+        email=email_clean,
+        password_hash=hash_password(payload.password),
+        rol="SUCURSAL_STAFF",
+        activo=True,
+    )
+    db.add(nuevo_staff)
+    db.commit()
+    db.refresh(nuevo_staff)
+
+    record_audit_log(
+        db=db,
+        accion="CREAR_STAFF_COMERCIO",
+        recurso_tipo="USUARIO",
+        recurso_id=str(nuevo_staff.id),
+        usuario_id=current_user.id,
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"email": email_clean, "sucursal_id": nuevo_staff.sucursal_id},
+    )
+    return {"status": "ok", "usuario_id": nuevo_staff.id}
+
+
+@router.patch("/comercio/{tenant_id}/usuarios/{usuario_id}")
+def actualizar_staff_comercio(
+    tenant_id: int,
+    usuario_id: int,
+    payload: ActualizarStaffComercioRequest,
+    request: Request,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    """Permite al Dueño activar/pausar, cambiar sucursal o restablecer contraseña de su personal SUCURSAL_STAFF."""
+    verify_tenant_isolation(current_user, tenant_id)
+
+    staff = (
+        db.query(Usuario)
+        .filter(Usuario.id == usuario_id, Usuario.tenant_id == tenant_id)
+        .first()
+    )
+    if not staff:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado en este comercio.")
+    if staff.rol != "SUCURSAL_STAFF":
+        raise HTTPException(status_code=403, detail="Solo puedes gestionar cuentas operativas de tipo SUCURSAL_STAFF.")
+
+    if payload.activo is not None:
+        staff.activo = payload.activo
+    if payload.nueva_password:
+        staff.password_hash = hash_password(payload.nueva_password)
+    if payload.sucursal_id is not None:
+        if payload.sucursal_id > 0:
+            suc = (
+                db.query(SucursalComercio)
+                .filter(SucursalComercio.id == payload.sucursal_id, SucursalComercio.tenant_id == tenant_id)
+                .first()
+            )
+            if not suc:
+                raise HTTPException(status_code=404, detail="Sucursal inválida para este comercio.")
+            staff.sucursal_id = suc.id
+        else:
+            staff.sucursal_id = None
+
+    db.commit()
+
+    record_audit_log(
+        db=db,
+        accion="ACTUALIZAR_STAFF_COMERCIO",
+        recurso_tipo="USUARIO",
+        recurso_id=str(staff.id),
+        usuario_id=current_user.id,
+        tenant_id=tenant_id,
+        actor_email=current_user.email,
+        ip_origen=request.client.host if request.client else "127.0.0.1",
+        detalles={"activo": staff.activo, "password_reset": bool(payload.nueva_password)},
+    )
+    return {"status": "ok", "usuario_id": staff.id, "activo": staff.activo}
+
+
+# =====================================================================
+# 7. ESTADÍSTICAS DE VENTAS POR NEGOCIO (COMERCIO_ADMIN / SUPER_ADMIN)
+# =====================================================================
+@router.get("/comercio/{tenant_id}/estadisticas")
+def estadisticas_ventas_comercio(
+    tenant_id: int,
+    periodo: str = "30d",
+    sucursal_id: Optional[int] = None,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    """Recopila estadísticas agrupadas de ventas, métodos de pago, entrega, sucursales y top productos."""
+    verify_tenant_isolation(current_user, tenant_id)
+
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    ahora = datetime.now(timezone.utc)
+    per = (periodo or "30d").lower().strip()
+    desde_dt = None
+    etiqueta_periodo = "Últimos 30 días"
+    if per == "hoy":
+        desde_dt = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+        etiqueta_periodo = "Hoy"
+    elif per == "7d":
+        desde_dt = ahora - timedelta(days=7)
+        etiqueta_periodo = "Últimos 7 días"
+    elif per == "mes":
+        desde_dt = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        etiqueta_periodo = "Mes actual"
+    elif per == "todo":
+        desde_dt = None
+        etiqueta_periodo = "Histórico completo"
+    else:
+        per = "30d"
+        desde_dt = ahora - timedelta(days=30)
+        etiqueta_periodo = "Últimos 30 días"
+
+    query = db.query(Pedido).filter(Pedido.tenant_id == tenant_id)
+    if sucursal_id:
+        query = query.filter(Pedido.sucursal_id == sucursal_id)
+    if desde_dt is not None:
+        query = query.filter(Pedido.creado_en >= desde_dt)
+
+    pedidos = query.order_by(Pedido.creado_en.asc()).all()
+    suc_map = {s.id: s.nombre_sucursal for s in comercio.sucursales}
+
+    ventas_totales = 0.0
+    subtotal_productos = 0.0
+    ingresos_envio = 0.0
+    pedidos_validos = 0
+    pedidos_cancelados = 0
+    pedidos_pagados = 0
+    ventas_cobradas = 0.0
+    ventas_por_cobrar = 0.0
+
+    metodos_map = {}
+    entregas_map = {}
+    estados_map = {}
+    sucursales_map = {}
+    productos_map = {}
+    dias_map = {}
+
+    for ped in pedidos:
+        est = ped.estado_pedido or "RECIBIDO"
+        estados_map.setdefault(est, {"estado": est, "pedidos": 0, "total": 0.0})
+        estados_map[est]["pedidos"] += 1
+        estados_map[est]["total"] = round(estados_map[est]["total"] + float(ped.total or 0), 2)
+
+        if est == "CANCELADO":
+            pedidos_cancelados += 1
+            continue
+
+        pedidos_validos += 1
+        tot = float(ped.total or 0.0)
+        sub = float(ped.subtotal or 0.0)
+        env = float(ped.costo_envio or 0.0)
+
+        ventas_totales += tot
+        subtotal_productos += sub
+        ingresos_envio += env
+
+        if ped.estado_pago == "PAGADO":
+            pedidos_pagados += 1
+            ventas_cobradas += tot
+        else:
+            ventas_por_cobrar += tot
+
+        met = ped.metodo_pago or "EFECTIVO"
+        metodos_map.setdefault(met, {"metodo": met, "pedidos": 0, "total": 0.0})
+        metodos_map[met]["pedidos"] += 1
+        metodos_map[met]["total"] = round(metodos_map[met]["total"] + tot, 2)
+
+        ent = ped.tipo_entrega or "DOMICILIO"
+        entregas_map.setdefault(ent, {"tipo": ent, "pedidos": 0, "total": 0.0})
+        entregas_map[ent]["pedidos"] += 1
+        entregas_map[ent]["total"] = round(entregas_map[ent]["total"] + tot, 2)
+
+        sname = suc_map.get(ped.sucursal_id, f"Sucursal #{ped.sucursal_id}")
+        sucursales_map.setdefault(
+            ped.sucursal_id,
+            {"sucursal_id": ped.sucursal_id, "sucursal_nombre": sname, "pedidos": 0, "total": 0.0},
+        )
+        sucursales_map[ped.sucursal_id]["pedidos"] += 1
+        sucursales_map[ped.sucursal_id]["total"] = round(sucursales_map[ped.sucursal_id]["total"] + tot, 2)
+
+        if ped.creado_en:
+            fecha_key = ped.creado_en.strftime("%Y-%m-%d")
+            fecha_lbl = ped.creado_en.strftime("%d/%m")
+        else:
+            fecha_key = "0000-00-00"
+            fecha_lbl = "N/A"
+        dias_map.setdefault(fecha_key, {"fecha": fecha_key, "etiqueta": fecha_lbl, "pedidos": 0, "total": 0.0})
+        dias_map[fecha_key]["pedidos"] += 1
+        dias_map[fecha_key]["total"] = round(dias_map[fecha_key]["total"] + tot, 2)
+
+        for det in ped.detalles:
+            pnombre = det.nombre_plato or "Producto"
+            productos_map.setdefault(pnombre, {"nombre": pnombre, "cantidad": 0, "ingresos": 0.0})
+            productos_map[pnombre]["cantidad"] += int(det.cantidad or 1)
+            productos_map[pnombre]["ingresos"] = round(
+                productos_map[pnombre]["ingresos"] + float(det.subtotal_linea or 0.0), 2
+            )
+
+    ticket_promedio = round(ventas_totales / pedidos_validos, 2) if pedidos_validos > 0 else 0.0
+    top_productos = sorted(productos_map.values(), key=lambda x: (-x["cantidad"], -x["ingresos"]))[:10]
+    tendencia_diaria = [dias_map[k] for k in sorted(dias_map.keys())][-14:]
+
+    return {
+        "comercio": {
+            "id": comercio.id,
+            "nombre_comercial": comercio.nombre_comercial,
+            "giro": comercio.giro,
+            "moneda": comercio.moneda,
+            "simbolo_moneda": comercio.simbolo_moneda,
+        },
+        "periodo": {
+            "codigo": per,
+            "etiqueta": etiqueta_periodo,
+            "desde": desde_dt.isoformat() if desde_dt else None,
+        },
+        "resumen": {
+            "ventas_totales": round(ventas_totales, 2),
+            "subtotal_productos": round(subtotal_productos, 2),
+            "ingresos_envio": round(ingresos_envio, 2),
+            "pedidos_validos": pedidos_validos,
+            "pedidos_cancelados": pedidos_cancelados,
+            "total_pedidos": len(pedidos),
+            "ticket_promedio": ticket_promedio,
+            "pedidos_pagados": pedidos_pagados,
+            "ventas_cobradas": round(ventas_cobradas, 2),
+            "ventas_por_cobrar": round(ventas_por_cobrar, 2),
+        },
+        "por_metodo_pago": sorted(metodos_map.values(), key=lambda x: -x["total"]),
+        "por_tipo_entrega": sorted(entregas_map.values(), key=lambda x: -x["total"]),
+        "por_estado": list(estados_map.values()),
+        "por_sucursal": sorted(sucursales_map.values(), key=lambda x: -x["total"]),
+        "top_productos": top_productos,
+        "tendencia_diaria": tendencia_diaria,
+    }
+
 

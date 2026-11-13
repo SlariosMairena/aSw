@@ -17,8 +17,8 @@
             <p class="text-[11px] text-slate-400 mt-1">Materias primas y bebidas</p>
         </div>
 
-        <!-- 2. Valor Total Inventario -->
-        <div class="glass rounded-2xl p-4 border border-slate-800">
+        <!-- 2. Valor Total Inventario (SOLO COMERCIO_ADMIN) -->
+        <div class="comercio-admin-only glass rounded-2xl p-4 border border-slate-800">
             <div class="flex items-center justify-between">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Valor Estimado</span>
                 <span class="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-sm font-black border border-emerald-500/20">
@@ -121,7 +121,7 @@
                     <i class="fa-solid fa-rotate"></i> <span>Refrescar</span>
                 </button>
                 <button type="button" onclick="abrirModalNuevoInsumo()"
-                    class="px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5">
+                    class="comercio-admin-only px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5">
                     <i class="fa-solid fa-plus"></i> <span>Nuevo Insumo</span>
                 </button>
             </div>
@@ -147,8 +147,8 @@
                         <th class="px-3 py-3 text-center">Stock Actual</th>
                         <th class="px-3 py-3 text-center">Mínimo</th>
                         <th class="px-3 py-3 text-center">Estado</th>
-                        <th class="px-3 py-3 text-right">Costo Unit. (<span class="currencySymbolSpan">C$</span>)</th>
-                        <th class="px-3 py-3 text-right">Valor Total (<span class="currencySymbolSpan">C$</span>)</th>
+                        <th class="comercio-admin-only px-3 py-3 text-right">Costo Unit. (<span class="currencySymbolSpan">C$</span>)</th>
+                        <th class="comercio-admin-only px-3 py-3 text-right">Valor Total (<span class="currencySymbolSpan">C$</span>)</th>
                         <th class="px-4 py-3 text-center">Ajuste Rápido / Acciones</th>
                     </tr>
                 </thead>

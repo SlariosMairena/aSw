@@ -1,9 +1,10 @@
-<!-- Encabezado del Restaurante y Filtro Multi-Sucursal -->
+<!-- Encabezado del Comercio y Filtro Multi-Sucursal -->
 <div class="glass rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
     <div>
-        <div class="flex items-center gap-2.5">
-            <h2 id="comercioTitle" class="text-2xl font-bold text-white">Cargando Restaurante...</h2>
+        <div class="flex items-center gap-2.5 flex-wrap">
+            <h2 id="comercioTitle" class="text-2xl font-bold text-white">Cargando Comercio...</h2>
             <span id="comercioPlanBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold"></span>
+            <span id="comercioGiroBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold"></span>
         </div>
         <p id="comercioSubInfo" class="text-xs text-slate-400 mt-1"></p>
     </div>
@@ -16,22 +17,26 @@
                 <option value="">Todas las sucursales</option>
             </select>
         </div>
-        <button onclick="openConfigComercioModal()" title="Configuración de Moneda (C$), Nombre y Formas de Pago"
-            class="px-3.5 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 text-xs font-semibold transition flex items-center gap-1.5">
-            <i class="fa-solid fa-gear"></i> <span>Moneda & Negocio</span> (<span id="headerMonedaBadge" class="font-extrabold text-emerald-400">C$</span>)
+        <button type="button" onclick="openModalEquipoComercio()" title="Administrar personal Staff operativo"
+            class="comercio-admin-only px-3.5 py-2 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-300 text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-users-gear"></i> <span>Equipo Staff</span>
         </button>
-        <button onclick="playKitchenBell()" title="Probar campana sonora de cocina"
+        <button type="button" onclick="openConfigComercioModal()" title="Configuración de Moneda (C$), Giro, Nombre y Formas de Pago"
+            class="comercio-admin-only px-3.5 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-300 text-xs font-semibold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-gear"></i> <span>Moneda &amp; Negocio</span> (<span id="headerMonedaBadge" class="font-extrabold text-emerald-400">C$</span>)
+        </button>
+        <button type="button" onclick="playKitchenBell()" title="Probar campana sonora de aviso"
             class="px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold transition flex items-center gap-1.5">
-            <i class="fa-solid fa-bell"></i> <span>Probar Sonido Cocina</span>
+            <i class="fa-solid fa-bell"></i> <span id="btnSoundLabel">Probar Sonido Cocina</span>
         </button>
-        <button onclick="reloadComercioDashboard()"
+        <button type="button" onclick="reloadComercioDashboard()"
             class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5">
             <i class="fa-solid fa-rotate"></i> <span>Actualizar Tablero</span>
         </button>
     </div>
 </div>
 
-<!-- Navegación por Pestañas del Restaurante -->
+<!-- Navegación por Pestañas del Comercio -->
 <div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3" id="comercioTabsNavigation">
     <button type="button" id="tabBtn_pedidos" data-comercio-tab="pedidos"
         class="px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 cursor-pointer">
@@ -39,7 +44,7 @@
     </button>
     <button type="button" id="tabBtn_menu" data-comercio-tab="menu"
         class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
-        <i class="fa-solid fa-utensils pointer-events-none"></i> <span class="pointer-events-none">Menú, Precios y Extras</span>
+        <i id="tabIcon_menu" class="fa-solid fa-utensils pointer-events-none"></i> <span id="tabLabel_menu" class="pointer-events-none">Menú, Precios y Extras</span>
     </button>
     <button type="button" id="tabBtn_inventario" data-comercio-tab="inventario"
         class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
@@ -48,6 +53,10 @@
     </button>
     <button type="button" id="tabBtn_sucursales" data-comercio-tab="sucursales"
         class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
-        <i class="fa-solid fa-qrcode pointer-events-none"></i> <span class="pointer-events-none">WhatsApp por Sucursal & Mesas</span>
+        <i class="fa-solid fa-qrcode pointer-events-none"></i> <span id="tabLabel_sucursales" class="pointer-events-none">WhatsApp por Sucursal &amp; Mesas</span>
+    </button>
+    <button type="button" id="tabBtn_estadisticas" data-comercio-tab="estadisticas"
+        class="comercio-admin-only px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-chart-line pointer-events-none"></i> <span class="pointer-events-none">Estadísticas de Ventas</span>
     </button>
 </div>

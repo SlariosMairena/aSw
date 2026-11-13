@@ -76,6 +76,16 @@ def require_super_admin(current_user: Usuario = Depends(get_current_user)) -> Us
     return current_user
 
 
+def require_comercio_admin(current_user: Usuario = Depends(get_current_user)) -> Usuario:
+    """Garantiza que solo el Dueño/Admin del comercio (COMERCIO_ADMIN) o SUPER_ADMIN ejecute acciones administrativas."""
+    if current_user.rol not in ("COMERCIO_ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acceso denegado: Acción exclusiva para el Administrador/Dueño del comercio.",
+        )
+    return current_user
+
+
 def verify_tenant_isolation(current_user: Usuario, target_tenant_id: int) -> None:
     """
     Control estricto OWASP A01 / ISO 27001:

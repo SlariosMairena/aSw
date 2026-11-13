@@ -67,6 +67,9 @@
 
         <!-- Pestaña D: WhatsApp por Sucursal y Reservaciones -->
         {% include 'views/sucursales.html' %}
+
+        <!-- Pestaña E: Estadísticas de Ventas (COMERCIO_ADMIN / SUPER_ADMIN) -->
+        {% include 'views/estadisticas.html' %}
     </section>
 
     <!-- 3. MODALES -->
@@ -74,6 +77,7 @@
     {% include 'modals/nuevo_comercio_modal.html' %}
     {% include 'modals/superadmin_modals.html' %}
     {% include 'modals/config_comercio_modal.html' %}
+    {% include 'modals/equipo_modal.html' %}
     {% include 'modals/inventario_modal.html' %}
 
     <!-- 4. NOTIFICACIONES TOAST -->
@@ -83,5 +87,6 @@
     <script src="/static/js/app.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/superadmin.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/inventario.js?v={{ cache_bust | default('20261113_1') }}"></script>
+    <script src="/static/js/estadisticas.js?v={{ cache_bust | default('20261113_1') }}"></script>
 </body>
 </html>

@@ -1,0 +1,43 @@
+<!-- MODAL: GESTIÓN DE EQUIPO STAFF DEL COMERCIO (SOLO COMERCIO_ADMIN / SUPER_ADMIN) -->
+<div id="modalEquipoComercio" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-sky-400"></i>
+                    <span>Mi Equipo Operativo (Staff)</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Solo existen 2 niveles en tu comercio: <strong>Admin (Dueño)</strong> y <strong>Staff (Sucursal/Despacho)</strong>. El Staff opera pedidos, chat, tickets y disponibilidad sin ver finanzas ni editar precios.</p>
+            </div>
+            <button type="button" onclick="closeModalEquipoComercio()" class="text-slate-400 hover:text-white transition" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Formulario crear nuevo Staff -->
+        <form id="formCrearStaffComercio" onsubmit="handleCrearStaffComercio(event)" class="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+            <p class="text-xs font-bold uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Agregar Nuevo Personal (SUCURSAL_STAFF)</span>
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                <input id="eqNuevoNombre" type="text" required placeholder="Nombre completo *" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                <input id="eqNuevoEmail" type="email" required placeholder="correo@tunegocio.com *" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                <input id="eqNuevoPass" type="text" required value="Staff#2026!" placeholder="Contraseña *" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none font-mono">
+                <select id="eqNuevaSucursal" class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none">
+                    <option value="">Todas las sucursales</option>
+                </select>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Crear Usuario Staff</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Lista de usuarios del comercio -->
+        <div id="eqUsuariosList" class="space-y-2.5"></div>
+    </div>
+</div>
+

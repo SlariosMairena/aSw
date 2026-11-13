@@ -1,0 +1,80 @@
+<!-- PESTAÑA E: ESTADÍSTICAS DE VENTAS DEL NEGOCIO (SOLO COMERCIO_ADMIN / SUPER_ADMIN) -->
+<div id="tabContent_estadisticas" class="hidden space-y-6">
+    <!-- Barra de Filtros por Período -->
+    <div class="glass rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-chart-line text-emerald-400"></i>
+                <span>Estadísticas de Ventas</span>
+                <span id="estPeriodoBadge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">Últimos 30 días</span>
+            </h3>
+            <p class="text-xs text-slate-400 mt-0.5">Resumen financiero y operativo basado en los pedidos del comercio (excluye pedidos cancelados del ingreso neto)</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
+            <button type="button" data-est-periodo="hoy" onclick="setEstPeriodo('hoy')" class="est-periodo-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition">Hoy</button>
+            <button type="button" data-est-periodo="7d" onclick="setEstPeriodo('7d')" class="est-periodo-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition">7 días</button>
+            <button type="button" data-est-periodo="30d" onclick="setEstPeriodo('30d')" class="est-periodo-btn px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold transition">30 días</button>
+            <button type="button" data-est-periodo="mes" onclick="setEstPeriodo('mes')" class="est-periodo-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition">Mes actual</button>
+            <button type="button" data-est-periodo="todo" onclick="setEstPeriodo('todo')" class="est-periodo-btn px-3 py-1.5 rounded-lg text-slate-300 hover:text-white transition">Todo</button>
+        </div>
+    </div>
+
+    <!-- KPIs de Ventas -->
+    <div id="estKpiGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+    <!-- Gráfica de Tendencia Diaria y Desglose de Cobros -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div class="xl:col-span-7 glass rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between">
+                <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-chart-column text-indigo-400"></i>
+                    <span>Tendencia Diaria de Ventas</span>
+                </h4>
+                <span class="text-[11px] text-slate-400">Últimos días con actividad</span>
+            </div>
+            <div id="estTendenciaChart" class="space-y-2"></div>
+        </div>
+
+        <div class="xl:col-span-5 space-y-4">
+            <div class="glass rounded-2xl p-5 space-y-3">
+                <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-wallet text-emerald-400"></i>
+                    <span>Ventas por Método de Pago</span>
+                </h4>
+                <div id="estMetodosPagoList" class="space-y-2"></div>
+            </div>
+
+            <div class="glass rounded-2xl p-5 space-y-3">
+                <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-truck-fast text-sky-400"></i>
+                    <span>Modalidad de Entrega</span>
+                </h4>
+                <div id="estTipoEntregaList" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Productos y Ventas por Sucursal -->
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        <div class="xl:col-span-7 glass rounded-2xl p-5 space-y-3">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-trophy text-amber-400"></i>
+                <span>Top 10 Productos Más Vendidos</span>
+            </h4>
+            <div id="estTopProductosList" class="space-y-2"></div>
+        </div>
+
+        <div class="xl:col-span-5 glass rounded-2xl p-5 space-y-3">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-shop text-indigo-400"></i>
+                <span>Desempeño por Sucursal y Estado</span>
+            </h4>
+            <div id="estSucursalesList" class="space-y-2"></div>
+            <div class="pt-2 border-t border-slate-800">
+                <p class="text-[11px] text-slate-400 font-semibold uppercase mb-2">Estados de Pedidos</p>
+                <div id="estEstadosList" class="flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+

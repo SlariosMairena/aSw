@@ -1,8 +1,8 @@
 <!-- PESTAÑA B: MENÚ CON INGREDIENTES REMOVIBLES Y EXTRAS -->
 <div id="tabContent_menu" class="hidden space-y-6">
     <div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-        <!-- FORMULARIO CREAR / EDITAR PLATO -->
-        <div class="xl:col-span-5 glass rounded-2xl p-5 space-y-4 shadow-xl border border-slate-700/70 sticky top-20">
+        <!-- FORMULARIO CREAR / EDITAR PRODUCTO (SOLO COMERCIO_ADMIN) -->
+        <div id="menuFormCol" class="comercio-admin-only xl:col-span-5 glass rounded-2xl p-5 space-y-4 shadow-xl border border-slate-700/70 sticky top-20">
             <div class="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div class="flex items-center gap-2">
                     <span id="formPlatoIcon" class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
@@ -39,19 +39,19 @@
                 </div>
 
                 <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Nombre del Plato</label>
-                    <input id="platoNombre" type="text" required placeholder="Ej. Hamburguesa Doble Queso"
+                    <label id="lblNombreProductoMenu" class="block text-slate-300 font-semibold mb-1">Nombre del Plato</label>
+                    <input id="platoNombre" type="text" required placeholder="Ej. Producto principal"
                         class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
                 </div>
 
                 <div>
                     <label class="block text-slate-300 font-semibold mb-1">Descripción corta (opcional)</label>
-                    <textarea id="platoDesc" rows="2" placeholder="Carne angus, queso americano, salsa especial..."
+                    <textarea id="platoDesc" rows="2" placeholder="Detalles, presentación o descripción breve..."
                         class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition resize-none"></textarea>
                 </div>
 
                 <!-- 1. SECCIÓN INGREDIENTES BASE REMOVIBLES ($0) -->
-                <div class="p-3.5 rounded-xl bg-slate-950/90 border border-emerald-500/30 space-y-2.5">
+                <div id="bloqueIngBaseForm" class="p-3.5 rounded-xl bg-slate-950/90 border border-emerald-500/30 space-y-2.5">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-1.5">
                             <i class="fa-solid fa-leaf text-emerald-400"></i>
@@ -146,13 +146,13 @@
         </div>
 
         <!-- CATÁLOGO ACTUAL CON VISTA MEJORADA, FILTROS Y ESTADÍSTICAS -->
-        <div class="xl:col-span-7 glass rounded-2xl p-5 space-y-4">
+        <div id="menuCatalogoCol" class="xl:col-span-7 glass rounded-2xl p-5 space-y-4">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
                 <div>
                     <h3 class="text-base font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-utensils text-indigo-400"></i>
-                        <span>Catálogo del Menú</span>
-                        <span id="catalogTotalCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">0 platos</span>
+                        <i id="catalogTitleIcon" class="fa-solid fa-utensils text-indigo-400"></i>
+                        <span id="catalogTitleText">Catálogo del Menú</span>
+                        <span id="catalogTotalCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">0 productos</span>
                     </h3>
                     <p class="text-xs text-slate-400">Administra disponibilidad general o apaga ingredientes específicos que se hayan terminado hoy.</p>
                 </div>

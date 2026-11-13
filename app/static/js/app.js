@@ -129,10 +129,185 @@ function escapeHtml(str) {
         function logout() {
             setLocalToken('');
             currentUser = null;
+            currentComercioData = null;
+            activeTenantId = null;
+            if (typeof saOverviewData !== 'undefined') saOverviewData = null;
+            const sucSel = document.getElementById('filtroSucursalSelect');
+            if (sucSel) {
+                sucSel.disabled = false;
+                sucSel.innerHTML = '<option value="">Todas las sucursales</option>';
+            }
             document.getElementById('userHeaderBox').classList.add('hidden');
             document.getElementById('superAdminSection').classList.add('hidden');
             document.getElementById('comercioSection').classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        function isComercioAdminOrSuper() {
+            return Boolean(currentUser && (currentUser.rol === 'COMERCIO_ADMIN' || currentUser.rol === 'SUPER_ADMIN'));
+        }
+        window.isComercioAdminOrSuper = isComercioAdminOrSuper;
+
+        function getGiroProfile(giroRaw) {
+            const g = String(giroRaw || 'RESTAURANTE').toUpperCase().trim();
+            if (g.includes('CAFETER') || g === 'CAFETERIA') {
+                return {
+                    code: 'CAFETERIA',
+                    label: 'Cafetería / Repostería',
+                    icon: 'fa-mug-hot',
+                    tabMenuLabel: 'Menú de Bebidas y Repostería',
+                    catalogTitle: 'Catálogo de Bebidas y Repostería',
+                    itemSingular: 'Producto',
+                    itemPlural: 'productos',
+                    tabSucLabel: 'WhatsApp por Sucursal & Mesas',
+                    soundLabel: 'Probar Aviso de Barra',
+                    enProcesoLabel: '2. Preparando',
+                    usesRemovableIngredients: true,
+                    usesTables: true,
+                    defaultCategories: ['Café', 'Leche Deslactosada', 'Leche de Almendra', 'Hielo', 'Canela'],
+                    defaultExtras: [
+                        { nombre: 'Tamaño Grande', tipo: 'VARIANTE', precio: 25.00 },
+                        { nombre: 'Shot Extra Espresso', tipo: 'EXTRA', precio: 20.00 },
+                        { nombre: 'Leche de Almendra', tipo: 'EXTRA', precio: 25.00 }
+                    ]
+                };
+            }
+            if (g.includes('FARMAC') || g === 'FARMACIA') {
+                return {
+                    code: 'FARMACIA',
+                    label: 'Farmacia / Salud',
+                    icon: 'fa-pills',
+                    tabMenuLabel: 'Catálogo de Medicamentos',
+                    catalogTitle: 'Catálogo Farmacéutico',
+                    itemSingular: 'Medicamento',
+                    itemPlural: 'productos',
+                    tabSucLabel: 'WhatsApp por Sucursal & Retiros',
+                    soundLabel: 'Probar Aviso Despacho',
+                    enProcesoLabel: '2. Alistando',
+                    usesRemovableIngredients: false,
+                    usesTables: false,
+                    defaultCategories: [],
+                    defaultExtras: [
+                        { nombre: 'Caja Completa', tipo: 'VARIANTE', precio: 120.00 },
+                        { nombre: 'Blíster x10', tipo: 'VARIANTE', precio: 0.00 }
+                    ]
+                };
+            }
+            if (g.includes('TIENDA') || g.includes('RETAIL')) {
+                return {
+                    code: 'TIENDA',
+                    label: 'Tienda / Retail',
+                    icon: 'fa-bag-shopping',
+                    tabMenuLabel: 'Catálogo de Productos',
+                    catalogTitle: 'Catálogo de Tienda',
+                    itemSingular: 'Artículo',
+                    itemPlural: 'artículos',
+                    tabSucLabel: 'WhatsApp por Sucursal & Tiendas',
+                    soundLabel: 'Probar Aviso Pedido',
+                    enProcesoLabel: '2. Empacando',
+                    usesRemovableIngredients: false,
+                    usesTables: false,
+                    defaultCategories: [],
+                    defaultExtras: [
+                        { nombre: 'Talla L / Grande', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Empaque para Regalo', tipo: 'EXTRA', precio: 35.00 }
+                    ]
+                };
+            }
+            if (g.includes('SUPER') || g.includes('MINI')) {
+                return {
+                    code: 'SUPERMERCADO',
+                    label: 'Minisúper / Conveniencia',
+                    icon: 'fa-basket-shopping',
+                    tabMenuLabel: 'Catálogo de Abarrotes',
+                    catalogTitle: 'Catálogo del Minisúper',
+                    itemSingular: 'Producto',
+                    itemPlural: 'productos',
+                    tabSucLabel: 'WhatsApp por Sucursal & Zonas',
+                    soundLabel: 'Probar Aviso Surtido',
+                    enProcesoLabel: '2. Surtiendo',
+                    usesRemovableIngredients: false,
+                    usesTables: false,
+                    defaultCategories: [],
+                    defaultExtras: [
+                        { nombre: 'Presentación Familiar / Six-Pack', tipo: 'VARIANTE', precio: 80.00 },
+                        { nombre: 'Bolsa Térmica / Hielo', tipo: 'EXTRA', precio: 25.00 }
+                    ]
+                };
+            }
+            return {
+                code: 'RESTAURANTE',
+                label: 'Restaurante / Comida Rápida',
+                icon: 'fa-utensils',
+                tabMenuLabel: 'Menú, Precios y Extras',
+                catalogTitle: 'Catálogo del Menú',
+                itemSingular: 'Plato',
+                itemPlural: 'platos',
+                tabSucLabel: 'WhatsApp por Sucursal & Mesas',
+                soundLabel: 'Probar Sonido Cocina',
+                enProcesoLabel: '2. En Cocina',
+                usesRemovableIngredients: true,
+                usesTables: true,
+                defaultCategories: ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa', 'Pepinillos', 'Mostaza', 'Salsa BBQ', 'Picante', 'Queso', 'Aguacate'],
+                defaultExtras: [
+                    { nombre: 'Extra Queso', tipo: 'EXTRA', precio: 30.00 },
+                    { nombre: 'Porción Extra', tipo: 'EXTRA', precio: 40.00 },
+                    { nombre: 'Tamaño Grande', tipo: 'VARIANTE', precio: 60.00 }
+                ]
+            };
+        }
+
+        function applyComercioRoleVisibility() {
+            const isAdmin = isComercioAdminOrSuper();
+            document.querySelectorAll('.comercio-admin-only').forEach(el => {
+                el.classList.toggle('hidden', !isAdmin);
+            });
+            const menuCatCol = document.getElementById('menuCatalogoCol');
+            if (menuCatCol) {
+                menuCatCol.classList.toggle('xl:col-span-7', isAdmin);
+                menuCatCol.classList.toggle('xl:col-span-12', !isAdmin);
+            }
+            const badgeRole = document.getElementById('userBadgeRole');
+            if (badgeRole && currentUser) {
+                if (currentUser.rol === 'COMERCIO_ADMIN') badgeRole.textContent = 'ADMIN (DUEÑO)';
+                else if (currentUser.rol === 'SUCURSAL_STAFF') badgeRole.textContent = 'STAFF (OPERATIVO)';
+                else badgeRole.textContent = currentUser.rol;
+            }
+        }
+
+        function applyGiroAdaptation(comercio) {
+            const profile = getGiroProfile(comercio?.giro);
+            const giroBadge = document.getElementById('comercioGiroBadge');
+            if (giroBadge) giroBadge.innerHTML = `<i class="fa-solid ${profile.icon} mr-1"></i>${profile.label}`;
+
+            const tabMenuLbl = document.getElementById('tabLabel_menu');
+            if (tabMenuLbl) tabMenuLbl.textContent = profile.tabMenuLabel;
+            const tabMenuIcon = document.getElementById('tabIcon_menu');
+            if (tabMenuIcon) tabMenuIcon.className = `fa-solid ${profile.icon} pointer-events-none`;
+
+            const tabSucLbl = document.getElementById('tabLabel_sucursales');
+            if (tabSucLbl) tabSucLbl.textContent = profile.tabSucLabel;
+            const soundLbl = document.getElementById('btnSoundLabel');
+            if (soundLbl) soundLbl.textContent = profile.soundLabel;
+
+            const catTitle = document.getElementById('catalogTitleText');
+            if (catTitle) catTitle.textContent = profile.catalogTitle;
+            const catIcon = document.getElementById('catalogTitleIcon');
+            if (catIcon) catIcon.className = `fa-solid ${profile.icon} text-indigo-400`;
+
+            const lblProd = document.getElementById('lblNombreProductoMenu');
+            if (lblProd) lblProd.textContent = `Nombre del ${profile.itemSingular}`;
+            if (!document.getElementById('platoEditId')?.value) {
+                const formTitle = document.getElementById('formPlatoTitle');
+                if (formTitle) formTitle.textContent = `Nuevo ${profile.itemSingular}`;
+                const btnSub = document.getElementById('btnSubmitPlatoText');
+                if (btnSub) btnSub.textContent = `Guardar ${profile.itemSingular} en Catálogo`;
+            }
+
+            const bloqueIng = document.getElementById('bloqueIngBaseForm');
+            if (bloqueIng) bloqueIng.classList.toggle('hidden', !profile.usesRemovableIngredients);
+            const bloqueMesas = document.getElementById('bloqueReservacionMesas');
+            if (bloqueMesas) bloqueMesas.classList.toggle('hidden', !profile.usesTables);
         }
 
         async function renderAppByRole() {
@@ -140,8 +315,8 @@ function escapeHtml(str) {
             const headerBox = document.getElementById('userHeaderBox');
             headerBox.classList.remove('hidden');
             headerBox.classList.add('flex');
-            document.getElementById('userBadgeRole').textContent = currentUser.rol;
             document.getElementById('userBadgeName').textContent = currentUser.nombre_completo;
+            applyComercioRoleVisibility();
 
             if (currentUser.rol === 'SUPER_ADMIN') {
                 document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
@@ -162,6 +337,7 @@ function escapeHtml(str) {
             document.getElementById('superAdminSection').classList.add('hidden');
             document.getElementById('comercioSection').classList.remove('hidden');
             document.getElementById('btnVolverSuperAdmin').classList.remove('hidden');
+            applyComercioRoleVisibility();
             switchComercioTab('pedidos');
             await reloadComercioDashboard(true);
         }
@@ -181,8 +357,11 @@ function escapeHtml(str) {
         // CARGA DEL PANEL DEL RESTAURANTE / COCINA
         // =========================================================
         function switchComercioTab(tabName) {
+            if (tabName === 'estadisticas' && !isComercioAdminOrSuper()) {
+                tabName = 'pedidos';
+            }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
-            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales'];
+            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'estadisticas'];
             
             tabs.forEach(t => {
                 const el = document.getElementById(`tabContent_${t}`);
@@ -195,13 +374,15 @@ function escapeHtml(str) {
                 }
                 const btn = document.getElementById(`tabBtn_${t}`);
                 if (btn) {
+                    const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
                     if (t === tabName) {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer';
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer' + adminOnlyCls;
                     } else {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer';
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer' + adminOnlyCls;
                     }
                 }
             });
+            applyComercioRoleVisibility();
 
             if (tabName === 'inventario') {
                 if (typeof cargarInventario === 'function') {
@@ -210,8 +391,10 @@ function escapeHtml(str) {
                     } catch (err) {
                         console.error('[switchComercioTab] Error ejecutando cargarInventario:', err);
                     }
-                } else {
-                    console.warn('[switchComercioTab] cargarInventario no está disponible aún');
+                }
+            } else if (tabName === 'estadisticas') {
+                if (typeof cargarEstadisticasComercio === 'function') {
+                    cargarEstadisticasComercio();
                 }
             }
         }
@@ -225,11 +408,16 @@ function escapeHtml(str) {
                 currentComercioData = data;
                 const c = data.comercio;
                 const sym = c.simbolo_moneda || 'C$';
+                const profile = getGiroProfile(c.giro);
 
-                document.getElementById('comercioTitle').innerHTML = `<i class="fa-solid fa-utensils text-emerald-400 mr-2"></i>${escapeHtml(c.nombre_comercial)}`;
+                document.getElementById('comercioTitle').innerHTML = `<i class="fa-solid ${profile.icon} text-emerald-400 mr-2"></i>${escapeHtml(c.nombre_comercial)}`;
                 document.getElementById('comercioPlanBadge').textContent = `${c.plan_nombre} • ${c.estado_suscripcion}`;
-                document.getElementById('comercioSubInfo').textContent =
-                    `Pedidos del mes: ${c.pedidos_mes_actual} • Datos transferencia Modo 1: ${c.datos_bancarios_texto}`;
+                document.getElementById('comercioSubInfo').textContent = isComercioAdminOrSuper()
+                    ? `Pedidos del mes: ${c.pedidos_mes_actual} • Datos transferencia Modo 1: ${c.datos_bancarios_texto}`
+                    : `Vista operativa de sucursal • Pedidos activos y control de disponibilidad`;
+
+                applyGiroAdaptation(c);
+                applyComercioRoleVisibility();
 
                 const badge = document.getElementById('headerMonedaBadge');
                 if (badge) badge.textContent = `${sym} (${c.moneda || 'NIO'})`;
@@ -237,13 +425,21 @@ function escapeHtml(str) {
 
                 if (populateFilter) {
                     const sel = document.getElementById('filtroSucursalSelect');
-                    sel.innerHTML = `<option value="">Todas las sucursales (${data.sucursales.length})</option>` +
-                        data.sucursales.map(s => `<option value="${s.id}">${s.nombre_sucursal} [${s.codigo_whatsapp}]</option>`).join('');
+                    if (currentUser && currentUser.rol === 'SUCURSAL_STAFF' && currentUser.sucursal_id) {
+                        sel.innerHTML = data.sucursales.map(s => `<option value="${s.id}">${escapeHtml(s.nombre_sucursal)} [${escapeHtml(s.codigo_whatsapp)}]</option>`).join('');
+                        sel.value = String(currentUser.sucursal_id);
+                        sel.disabled = true;
+                    } else {
+                        sel.disabled = false;
+                        sel.innerHTML = `<option value="">Todas las sucursales (${data.sucursales.length})</option>` +
+                            data.sucursales.map(s => `<option value="${s.id}">${escapeHtml(s.nombre_sucursal)} [${escapeHtml(s.codigo_whatsapp)}]</option>`).join('');
+                    }
                 }
 
                 renderKanbanPedidos(data.pedidos, sym);
                 renderMenuPlatos(data.platos, sym);
                 renderSucursalesYMesas(data.sucursales, c);
+                renderIngredientBuilderUI();
             } catch (err) {
                 showToast(err.message, true);
             }
@@ -560,7 +756,8 @@ function escapeHtml(str) {
             const agotados = total - disponibles;
 
             const badgeTotal = document.getElementById('catalogTotalCountBadge');
-            if (badgeTotal) badgeTotal.textContent = `${total} platos`;
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
+            if (badgeTotal) badgeTotal.textContent = `${total} ${profile.itemPlural}`;
             const elDisp = document.getElementById('statDisponiblesCount');
             if (elDisp) elDisp.textContent = disponibles;
             const elAgot = document.getElementById('statAgotadosCount');
@@ -599,6 +796,9 @@ function escapeHtml(str) {
                 return;
             }
 
+            const esAdmin = isComercioAdminOrSuper();
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
+
             grid.innerHTML = filtered.map(pl => {
                 const isAgotado = !pl.disponible_global;
                 return `
@@ -608,19 +808,25 @@ function escapeHtml(str) {
                             : 'bg-slate-900/90 hover:bg-slate-900 border-slate-800 hover:border-slate-700 shadow-md'
                     }">
                         <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                            <!-- Datos principales del plato -->
+                            <!-- Datos principales del producto -->
                             <div class="space-y-2 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                                        ${pl.categoria || 'General'}
+                                        ${escapeHtml(pl.categoria || 'General')}
                                     </span>
-                                    <h4 class="font-bold text-base text-white">${pl.nombre}</h4>
-                                    <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${pl.nombre.replace(/'/g, "\\'")}', '${sym}')"
-                                        title="Clic para editar el precio de este plato rápidamente"
-                                        class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-0.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1 group cursor-pointer shadow-sm">
-                                        <span>${sym}${pl.precio_base.toFixed(2)}</span>
-                                        <span class="text-[10px] text-emerald-300 opacity-60 group-hover:opacity-100"><i class="fa-solid fa-pen-to-square"></i></span>
-                                    </button>
+                                    <h4 class="font-bold text-base text-white">${escapeHtml(pl.nombre)}</h4>
+                                    ${esAdmin ? `
+                                        <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${pl.nombre.replace(/'/g, "\\'")}', '${sym}')"
+                                            title="Clic para editar el precio rápidamente"
+                                            class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-0.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1 group cursor-pointer shadow-sm">
+                                            <span>${sym}${pl.precio_base.toFixed(2)}</span>
+                                            <span class="text-[10px] text-emerald-300 opacity-60 group-hover:opacity-100"><i class="fa-solid fa-pen-to-square"></i></span>
+                                        </button>
+                                    ` : `
+                                        <span class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
+                                            ${sym}${pl.precio_base.toFixed(2)}
+                                        </span>
+                                    `}
                                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                         pl.disponible_global
                                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
@@ -630,8 +836,9 @@ function escapeHtml(str) {
                                     </span>
                                 </div>
 
-                                ${pl.descripcion ? `<p class="text-xs text-slate-400 leading-relaxed">${pl.descripcion}</p>` : ''}
+                                ${pl.descripcion ? `<p class="text-xs text-slate-400 leading-relaxed">${escapeHtml(pl.descripcion)}</p>` : ''}
 
+                                ${profile.usesRemovableIngredients ? `
                                 <!-- Bloque 1: Ingredientes base removibles (C$ 0) -->
                                 <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
                                     <div class="flex items-center justify-between text-[11px]">
@@ -650,20 +857,21 @@ function escapeHtml(str) {
                                                         : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
                                                 }">
                                                 <span>${ing.disponible ? '<i class="fa-solid fa-check text-[9px] text-emerald-400"></i>' : '<i class="fa-solid fa-xmark text-[9px] text-rose-400"></i>'}</span>
-                                                <span>${ing.nombre}</span>
+                                                <span>${escapeHtml(ing.nombre)}</span>
                                                 ${!ing.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
                                             </button>
                                         `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin ingredientes base definidos</span>'}
                                     </div>
                                 </div>
+                                ` : ''}
 
                                 <!-- Bloque 2: Extras y Variantes con precio -->
                                 <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
                                     <div class="flex items-center justify-between text-[11px]">
                                         <span class="text-amber-300 font-semibold flex items-center gap-1">
-                                            <span><i class="fa-solid fa-circle-plus text-amber-400 mr-1"></i></span> Extras y Variantes con Costo:
+                                            <span><i class="fa-solid fa-circle-plus text-amber-400 mr-1"></i></span> ${profile.usesRemovableIngredients ? 'Extras y Variantes con Costo:' : 'Presentaciones, Tallas o Variantes:'}
                                         </span>
-                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar | <i class="fa-solid fa-pen-to-square text-[9px]"></i> para cambiar precio</span>
+                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar</span>
                                     </div>
                                     <div class="flex flex-wrap gap-1.5">
                                         ${(pl.extras_y_variantes || []).length > 0 ? (pl.extras_y_variantes || []).map(ex => `
@@ -674,29 +882,33 @@ function escapeHtml(str) {
                                             }">
                                                 <button type="button" onclick="toggleIngredienteDisponibilidad(${ex.id})"
                                                     title="Clic para alternar entre Disponible y Agotado"
-                                                    class="text-[11px] px-2 py-1 font-medium hover:bg-amber-500/20 rounded-l-lg flex items-center gap-1">
+                                                    class="text-[11px] px-2 py-1 font-medium hover:bg-amber-500/20 ${esAdmin ? 'rounded-l-lg' : 'rounded-lg'} flex items-center gap-1">
                                                     <span>${ex.disponible ? '<i class="fa-solid fa-plus text-[9px] text-amber-400"></i>' : '<i class="fa-solid fa-xmark text-[9px] text-rose-400"></i>'}</span>
-                                                    <span>${ex.nombre}</span>
+                                                    <span>${escapeHtml(ex.nombre)}</span>
                                                     <span class="font-bold text-emerald-400">(+${sym}${ex.precio_adicional.toFixed(2)})</span>
                                                     ${!ex.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
                                                 </button>
-                                                <button type="button" onclick="editarPrecioRapidoExtra(${ex.id}, ${ex.precio_adicional}, '${ex.nombre.replace(/'/g, "\\'")}', '${sym}')"
-                                                    title="Cambiar precio de este extra"
-                                                    class="px-1.5 py-1 text-[11px] text-amber-300 hover:text-white hover:bg-amber-500/30 border-l border-amber-500/20 rounded-r-lg transition font-bold">
-                                                    <i class="fa-solid fa-pen-to-square text-[10px]"></i>
-                                                </button>
+                                                ${esAdmin ? `
+                                                    <button type="button" onclick="editarPrecioRapidoExtra(${ex.id}, ${ex.precio_adicional}, '${ex.nombre.replace(/'/g, "\\'")}', '${sym}')"
+                                                        title="Cambiar precio de esta opción"
+                                                        class="px-1.5 py-1 text-[11px] text-amber-300 hover:text-white hover:bg-amber-500/30 border-l border-amber-500/20 rounded-r-lg transition font-bold">
+                                                        <i class="fa-solid fa-pen-to-square text-[10px]"></i>
+                                                    </button>
+                                                ` : ''}
                                             </div>
-                                        `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin extras configurados</span>'}
+                                        `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin variantes configuradas</span>'}
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Botones de Acción Rápida -->
                             <div class="flex lg:flex-col gap-2 shrink-0 pt-1 lg:pt-0">
-                                <button onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
-                                    class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center justify-center gap-1.5">
-                                    <span><i class="fa-solid fa-pen-to-square mr-1"></i></span> <span>Editar</span>
-                                </button>
+                                ${esAdmin ? `
+                                    <button onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
+                                        class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center justify-center gap-1.5">
+                                        <span><i class="fa-solid fa-pen-to-square mr-1"></i></span> <span>Editar</span>
+                                    </button>
+                                ` : ''}
                                 <button onclick="togglePlatoDisponibilidad(${pl.id})"
                                     class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
                                         pl.disponible_global
@@ -704,12 +916,14 @@ function escapeHtml(str) {
                                             : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold shadow-md'
                                     }">
                                     <span><i class="fa-solid fa-${pl.disponible_global ? 'pause' : 'play'} mr-1"></i></span>
-                                    <span>${pl.disponible_global ? 'Agotar Plato' : 'Habilitar'}</span>
+                                    <span>${pl.disponible_global ? 'Agotar Hoy' : 'Habilitar'}</span>
                                 </button>
-                                <button onclick="eliminarPlato(${pl.id})"
-                                    class="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center justify-center gap-1">
-                                    <span><i class="fa-solid fa-trash mr-1"></i></span> <span class="hidden sm:inline">Borrar</span>
-                                </button>
+                                ${esAdmin ? `
+                                    <button onclick="eliminarPlato(${pl.id})"
+                                        class="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center justify-center gap-1">
+                                        <span><i class="fa-solid fa-trash mr-1"></i></span> <span class="hidden sm:inline">Borrar</span>
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -758,9 +972,10 @@ function escapeHtml(str) {
                 });
             });
 
-            // Si el comercio aún tiene pocos platos, complementamos con presets estándar
-            FALLBACK_INGREDIENTS.forEach(f => ingBaseSet.add(f));
-            FALLBACK_EXTRAS.forEach(fe => {
+            // Si el comercio aún tiene pocos productos, complementamos con presets según su giro
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
+            (profile.defaultCategories || []).forEach(f => ingBaseSet.add(f));
+            (profile.defaultExtras || []).forEach(fe => {
                 if (!extrasMap.has(fe.nombre.toLowerCase())) {
                     extrasMap.set(fe.nombre.toLowerCase(), fe);
                 }
@@ -961,21 +1176,27 @@ function escapeHtml(str) {
         }
 
         function resetFormularioPlato() {
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
             document.getElementById('platoEditId').value = '';
             document.getElementById('platoNombre').value = '';
             document.getElementById('platoPrecio').value = '';
             document.getElementById('platoDesc').value = '';
-            formIngredientesBaseList = ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'];
-            formExtrasList = [
-                { nombre: 'Extra Tocino', tipo: 'EXTRA', precio_adicional: 40.00 },
-                { nombre: 'Extra Queso', tipo: 'EXTRA', precio_adicional: 30.00 }
-            ];
+            formIngredientesBaseList = profile.usesRemovableIngredients
+                ? ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'].slice(0, 4)
+                : [];
+            formExtrasList = (profile.defaultExtras || []).slice(0, 2).map(e => ({
+                nombre: e.nombre,
+                tipo: e.tipo || 'EXTRA',
+                precio_adicional: Number(e.precio || 0)
+            }));
             renderIngredientBuilderUI();
             document.getElementById('formPlatoIcon').innerHTML = '<i class="fa-solid fa-plus"></i>';
             document.getElementById('formPlatoIcon').className = 'w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm';
-            document.getElementById('formPlatoTitle').textContent = 'Nuevo Plato';
-            document.getElementById('formPlatoSubtitle').textContent = 'Configura nombre, precio, ingredientes removibles y extras';
-            document.getElementById('btnSubmitPlatoText').textContent = 'Guardar Plato en el Menú';
+            document.getElementById('formPlatoTitle').textContent = `Nuevo ${profile.itemSingular}`;
+            document.getElementById('formPlatoSubtitle').textContent = profile.usesRemovableIngredients
+                ? 'Configura nombre, precio, ingredientes removibles y extras'
+                : 'Configura nombre, precio y variantes o presentaciones';
+            document.getElementById('btnSubmitPlatoText').textContent = `Guardar ${profile.itemSingular} en Catálogo`;
             document.getElementById('btnSubmitPlato').className =
                 'w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2';
             document.getElementById('btnCancelarEdicionPlato').classList.add('hidden');
@@ -1119,6 +1340,8 @@ function escapeHtml(str) {
             document.getElementById('cfgSimboloMoneda').value = c.simbolo_moneda || 'C$';
             document.getElementById('cfgMonedaIso').value = c.moneda || 'NIO';
             document.getElementById('cfgNombreComercial').value = c.nombre_comercial || '';
+            const cfgGiroEl = document.getElementById('cfgGiro');
+            if (cfgGiroEl) cfgGiroEl.value = getGiroProfile(c.giro).code;
             document.getElementById('cfgTelefono').value = c.telefono_propietario || '';
             document.getElementById('cfgDatosBancarios').value = c.datos_bancarios_texto || '';
             document.getElementById('cfgAceptaEfectivo').checked = c.acepta_efectivo !== false;
@@ -1144,6 +1367,7 @@ function escapeHtml(str) {
                 simbolo_moneda: document.getElementById('cfgSimboloMoneda').value.trim(),
                 moneda: document.getElementById('cfgMonedaIso').value.trim().toUpperCase(),
                 nombre_comercial: document.getElementById('cfgNombreComercial').value.trim(),
+                giro: document.getElementById('cfgGiro')?.value || undefined,
                 telefono_propietario: document.getElementById('cfgTelefono').value.trim(),
                 datos_bancarios_texto: document.getElementById('cfgDatosBancarios').value.trim(),
                 acepta_efectivo: document.getElementById('cfgAceptaEfectivo').checked,
