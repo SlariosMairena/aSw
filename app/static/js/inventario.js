@@ -26,7 +26,18 @@ const CATEGORY_ICONS = {
  * Carga el inventario desde el endpoint del panel
  */
 async function cargarInventario() {
-    if (!activeTenantId) return;
+    const tid = (typeof activeTenantId !== 'undefined' && activeTenantId) 
+        ? activeTenantId 
+        : ((typeof currentUser !== 'undefined' && currentUser) ? currentUser.tenant_id : null);
+    
+    if (!tid) {
+        console.warn('[cargarInventario] No hay tenant_id activo todavía');
+        return;
+    }
+
+    const token = (typeof authToken !== 'undefined' && authToken) ? authToken : (function() {
+        try { return localStorage.getItem('saas_jwt_token') || ''; } catch(e) { return ''; }
+    })();
 
     const tbody = document.getElementById('inventarioTableBody');
     const containerAgrupado = document.getElementById('invVistaAgrupada');
@@ -43,8 +54,8 @@ async function cargarInventario() {
     }
 
     try {
-        const res = await fetch(`/api/v1/panel/comercio/${activeTenantId}/inventario`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
+        const res = await fetch(`/api/v1/panel/comercio/${tid}/inventario`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
 
@@ -719,3 +730,5 @@ function escapeJsStr(str) {
     if (!str) return '';
     return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
+
+window.cargarInventario = cargarInventario;

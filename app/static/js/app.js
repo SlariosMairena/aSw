@@ -1,11 +1,34 @@
 // =========================================================
 // PANEL SAAS WHATSAPP ORDERS - LOGICA PRINCIPAL
 // =========================================================
-let authToken = localStorage.getItem('saas_jwt_token') || '';
-        let currentUser = null;
-        let activeTenantId = null;
-        let currentComercioData = null;
-        let activeChatPedido = null;
+let authToken = (function() {
+    try {
+        return localStorage.getItem('saas_jwt_token') || '';
+    } catch (e) {
+        return '';
+    }
+})();
+let currentUser = null;
+let activeTenantId = null;
+let currentComercioData = null;
+let activeChatPedido = null;
+
+function setLocalToken(token) {
+    authToken = token || '';
+    try {
+        if (authToken) localStorage.setItem('saas_jwt_token', authToken);
+        else localStorage.removeItem('saas_jwt_token');
+    } catch (e) {}
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
 
         function showToast(msg, isError = false) {
             const box = document.getElementById('toastBox');
@@ -89,7 +112,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                     body: { email, password }
                 });
                 authToken = data.access_token;
-                localStorage.setItem('saas_jwt_token', authToken);
+                setLocalToken(authToken);
                 currentUser = data.user;
                 showToast(`¡Bienvenido ${currentUser.nombre_completo}!`);
                 await renderAppByRole();
@@ -104,9 +127,8 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
         }
 
         function logout() {
-            authToken = '';
+            setLocalToken('');
             currentUser = null;
-            localStorage.removeItem('saas_jwt_token');
             document.getElementById('userHeaderBox').classList.add('hidden');
             document.getElementById('superAdminSection').classList.add('hidden');
             document.getElementById('comercioSection').classList.add('hidden');
@@ -130,6 +152,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 activeTenantId = currentUser.tenant_id;
                 document.getElementById('superAdminSection').classList.add('hidden');
                 document.getElementById('comercioSection').classList.remove('hidden');
+                switchComercioTab('pedidos');
                 await reloadComercioDashboard(true);
             }
         }
@@ -139,6 +162,7 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
             document.getElementById('superAdminSection').classList.add('hidden');
             document.getElementById('comercioSection').classList.remove('hidden');
             document.getElementById('btnVolverSuperAdmin').classList.remove('hidden');
+            switchComercioTab('pedidos');
             await reloadComercioDashboard(true);
         }
 
@@ -290,23 +314,41 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
         // CARGA DEL PANEL DEL RESTAURANTE / COCINA
         // =========================================================
         function switchComercioTab(tabName) {
-            ['pedidos', 'menu', 'inventario', 'sucursales'].forEach(t => {
+            console.log('[switchComercioTab] Activando pestaña:', tabName);
+            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales'];
+            
+            tabs.forEach(t => {
                 const el = document.getElementById(`tabContent_${t}`);
-                if (el) el.classList.toggle('hidden', t !== tabName);
+                if (el) {
+                    if (t === tabName) {
+                        el.classList.remove('hidden');
+                    } else {
+                        el.classList.add('hidden');
+                    }
+                }
                 const btn = document.getElementById(`tabBtn_${t}`);
                 if (btn) {
                     if (t === tabName) {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5';
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer';
                     } else {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5';
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer';
                     }
                 }
             });
 
-            if (tabName === 'inventario' && typeof cargarInventario === 'function') {
-                cargarInventario();
+            if (tabName === 'inventario') {
+                if (typeof cargarInventario === 'function') {
+                    try {
+                        cargarInventario();
+                    } catch (err) {
+                        console.error('[switchComercioTab] Error ejecutando cargarInventario:', err);
+                    }
+                } else {
+                    console.warn('[switchComercioTab] cargarInventario no está disponible aún');
+                }
             }
         }
+        window.switchComercioTab = switchComercioTab;
 
         async function reloadComercioDashboard(populateFilter = false) {
             const sucursalFilter = document.getElementById('filtroSucursalSelect').value;
@@ -1298,6 +1340,18 @@ let authToken = localStorage.getItem('saas_jwt_token') || '';
                 </div>
             `).join('');
         }
+
+        // Delegación global de clics en pestañas del panel del comercio (inmune a re-renderizado y sin doble disparo)
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest ? e.target.closest('[data-comercio-tab]') : null;
+            if (btn) {
+                e.preventDefault();
+                const tab = btn.getAttribute('data-comercio-tab');
+                if (tab && typeof switchComercioTab === 'function') {
+                    switchComercioTab(tab);
+                }
+            }
+        });
 
         // Auto-verificar si ya había sesión guardada e inicializar constructor visual de ingredientes
         window.addEventListener('DOMContentLoaded', async () => {

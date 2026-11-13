@@ -32,22 +32,22 @@
 </div>
 
 <!-- Navegación por Pestañas del Restaurante -->
-<div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3">
-    <button onclick="switchComercioTab('pedidos')" id="tabBtn_pedidos"
-        class="px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5">
-        <i class="fa-solid fa-clipboard-list"></i> <span>Tablero de Pedidos</span>
+<div class="flex flex-wrap gap-2 border-b border-slate-800 pb-3" id="comercioTabsNavigation">
+    <button type="button" id="tabBtn_pedidos" data-comercio-tab="pedidos"
+        class="px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-clipboard-list pointer-events-none"></i> <span class="pointer-events-none">Tablero de Pedidos</span>
     </button>
-    <button onclick="switchComercioTab('menu')" id="tabBtn_menu"
-        class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
-        <i class="fa-solid fa-utensils"></i> <span>Menú, Precios y Extras</span>
+    <button type="button" id="tabBtn_menu" data-comercio-tab="menu"
+        class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-utensils pointer-events-none"></i> <span class="pointer-events-none">Menú, Precios y Extras</span>
     </button>
-    <button onclick="switchComercioTab('inventario')" id="tabBtn_inventario"
-        class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
-        <i class="fa-solid fa-boxes-stacked"></i> <span>Control de Inventario</span>
-        <span id="tabBadgeBajoStock" class="hidden text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black">!</span>
+    <button type="button" id="tabBtn_inventario" data-comercio-tab="inventario"
+        class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-boxes-stacked pointer-events-none"></i> <span class="pointer-events-none">Control de Inventario</span>
+        <span id="tabBadgeBajoStock" class="hidden text-[10px] px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black pointer-events-none">!</span>
     </button>
-    <button onclick="switchComercioTab('sucursales')" id="tabBtn_sucursales"
-        class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5">
-        <i class="fa-solid fa-qrcode"></i> <span>WhatsApp por Sucursal & Mesas</span>
+    <button type="button" id="tabBtn_sucursales" data-comercio-tab="sucursales"
+        class="px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+        <i class="fa-solid fa-qrcode pointer-events-none"></i> <span class="pointer-events-none">WhatsApp por Sucursal & Mesas</span>
     </button>
 </div>

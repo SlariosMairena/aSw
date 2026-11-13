@@ -8,6 +8,7 @@ Incluye:
 - Endpoint ultraligero /health para Render / Docker
 """
 import json
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -70,7 +71,10 @@ app.include_router(payment_router)
 @app.get("/", response_class=HTMLResponse, tags=["Panel Web Visual (Fase 2)"])
 def web_panel_home(request: Request):
     """Carga el Panel Web SaaS Unificado (Login, Panel SuperAdmin y Panel de Restaurantes)."""
-    return templates.TemplateResponse(request, "index.html", {})
+    response = templates.TemplateResponse(request, "index.html", {"cache_bust": int(time.time())})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.get(

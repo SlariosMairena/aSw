@@ -9,19 +9,21 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#ecfdf5',
-                            500: '#10b981',
-                            600: '#059669',
-                            900: '#064e3b',
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            brand: {
+                                50: '#ecfdf5',
+                                500: '#10b981',
+                                600: '#059669',
+                                900: '#064e3b',
+                            }
                         }
                     }
                 }
-            }
+            };
         }
     </script>
     <style>
@@ -76,8 +78,8 @@
     <!-- 4. NOTIFICACIONES TOAST -->
     {% include 'components/toast.html' %}
 
-    <!-- 5. SCRIPTS MODULARES -->
-    <script src="/static/js/inventario.js"></script>
-    <script src="/static/js/app.js"></script>
+    <!-- 5. SCRIPTS MODULARES (app.js principal primero, luego módulos con cache busting) -->
+    <script src="/static/js/app.js?v={{ cache_bust | default('20261113_1') }}"></script>
+    <script src="/static/js/inventario.js?v={{ cache_bust | default('20261113_1') }}"></script>
 </body>
 </html>
