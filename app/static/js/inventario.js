@@ -105,8 +105,11 @@ async function cargarInventario() {
             catSelect.value = categoriaSeleccionadaActual;
         }
 
-        // 3. Renderizar píldoras rápidas de categorías
+        // 3. Renderizar píldoras rápidas de categorías + opciones dinámicas del modal
         renderizarChipsCategorias();
+        if (typeof renderDynamicInventoryCategoryOptions === 'function') {
+            renderDynamicInventoryCategoryOptions();
+        }
 
         // 4. Renderizar según filtros activos y modo de vista
         filtrarInventarioTabla();
@@ -504,10 +507,47 @@ function renderizarTablaInventario(items) {
     tbody.innerHTML = items.map(item => buildFilaItemInventarioHTML(item, curSymbol, true)).join('');
 }
 
+function renderDynamicInventoryCategoryOptions() {
+    const GIRO_CATEGORY_PRESETS = {
+        RESTAURANTE: ['Carnes', 'Panadería', 'Lácteos', 'Salsas & Especias', 'Vegetales & Frutas', 'Bebidas', 'Empaques & Descartables'],
+        CAFETERIA: ['Granos & Café', 'Lácteos & Leches', 'Repostería', 'Jarabes & Endulzantes', 'Bebidas', 'Empaques & Vasos'],
+        FARMACIA: ['Analgésicos', 'Antibióticos', 'Vitaminas & Suplementos', 'Cuidado Personal', 'Material de Curación', 'Pediatría'],
+        TIENDA: ['Ropa & Calzado', 'Accesorios', 'Hogar & Decoración', 'Electrónica', 'Empaques & Bolsas'],
+        SUPERMERCADO: ['Abarrotes', 'Lácteos & Huevos', 'Frutas & Verduras', 'Carnes & Embutidos', 'Bebidas', 'Limpieza del Hogar', 'Higiene Personal']
+    };
+    const giroRaw = String(currentComercioData?.comercio?.giro || 'RESTAURANTE').toUpperCase();
+    let presets = GIRO_CATEGORY_PRESETS.RESTAURANTE;
+    if (giroRaw.includes('CAFETER')) presets = GIRO_CATEGORY_PRESETS.CAFETERIA;
+    else if (giroRaw.includes('FARMAC')) presets = GIRO_CATEGORY_PRESETS.FARMACIA;
+    else if (giroRaw.includes('TIENDA')) presets = GIRO_CATEGORY_PRESETS.TIENDA;
+    else if (giroRaw.includes('SUPER')) presets = GIRO_CATEGORY_PRESETS.SUPERMERCADO;
+
+    const mergedSet = new Set(presets);
+    (inventarioCategorias || []).forEach(c => { if (c && c.trim()) mergedSet.add(c.trim()); });
+    (inventarioItems || []).forEach(it => { if (it.categoria && it.categoria.trim()) mergedSet.add(it.categoria.trim()); });
+    const allCats = Array.from(mergedSet);
+
+    const datalist = document.getElementById('categoriasInventarioList');
+    if (datalist) {
+        datalist.innerHTML = allCats.map(c => `<option value="${escapeHtml(c)}">`).join('');
+    }
+
+    const chips = document.getElementById('invCategoriasQuickChips');
+    if (chips) {
+        chips.innerHTML = allCats.map(c => `
+            <button type="button" onclick="document.getElementById('invItemCategoria').value='${escapeJsStr(c)}'"
+                class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-300 border border-slate-700 text-[10px] font-medium transition">
+                ${escapeHtml(c)}
+            </button>
+        `).join('');
+    }
+}
+
 /**
  * Abre el modal para dar de alta un insumo nuevo
  */
 function abrirModalNuevoInsumo() {
+    renderDynamicInventoryCategoryOptions();
     document.getElementById('invItemEditId').value = '';
     document.getElementById('invItemNombre').value = '';
     document.getElementById('invItemCategoria').value = categoriaSeleccionadaActual || '';
@@ -532,6 +572,7 @@ function abrirModalNuevoInsumo() {
  */
 function abrirModalEditarInsumoJson(safeJson) {
     try {
+        renderDynamicInventoryCategoryOptions();
         const item = JSON.parse(decodeURIComponent(safeJson));
         document.getElementById('invItemEditId').value = item.id;
         document.getElementById('invItemNombre').value = item.nombre_insumo || '';

@@ -34,6 +34,43 @@ async function cargarEstadisticasComercio() {
     }
 }
 
+async function descargarEstadisticasCSV() {
+    if (!activeTenantId || !isComercioAdminOrSuper()) return;
+    const sucursalId = document.getElementById('filtroSucursalSelect')?.value || '';
+    const params = new URLSearchParams({ periodo: estPeriodoActual });
+    if (sucursalId) params.set('sucursal_id', sucursalId);
+
+    try {
+        const res = await fetch(`/api/v1/panel/comercio/${activeTenantId}/estadisticas/exportar.csv?${params.toString()}`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        if (!res.ok) {
+            let detail = 'Error al exportar CSV';
+            try { const d = await res.json(); detail = d.detail || detail; } catch (_) {}
+            throw new Error(detail);
+        }
+        const blob = await res.blob();
+        const slug = (currentComercioData?.comercio?.slug || `comercio_${activeTenantId}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `estadisticas_${slug}_${estPeriodoActual}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showToast('Archivo CSV descargado listo para abrir en Excel.');
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.descargarEstadisticasCSV = descargarEstadisticasCSV;
+
+function imprimirReporteEstadisticas() {
+    window.print();
+}
+window.imprimirReporteEstadisticas = imprimirReporteEstadisticas;
+
 function renderEstadisticasComercio(data) {
     const c = data.comercio || {};
     const sym = c.simbolo_moneda || 'C$';

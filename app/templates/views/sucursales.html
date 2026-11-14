@@ -1,31 +1,73 @@
 <!-- PESTAÑA C: SUCURSALES, QR DE WHATSAPP (OPCIÓN B) Y RESERVACIÓN DE MESAS -->
 <div id="tabContent_sucursales" class="hidden space-y-6">
     <div class="glass rounded-2xl p-5">
-        <h3 class="text-base font-bold text-white mb-1 flex items-center">
-            <i class="fa-solid fa-qrcode text-emerald-400 mr-2.5"></i>
-            <span>Tus Sucursales y Códigos QR para tu Único Bot de WhatsApp (Opción B)</span>
-        </h3>
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+            <h3 class="text-base font-bold text-white flex items-center">
+                <i class="fa-solid fa-qrcode text-emerald-400 mr-2.5"></i>
+                <span>Sucursales, Zonas de Envio y Codigos QR de WhatsApp</span>
+            </h3>
+            <button type="button" onclick="openModalNuevaSucursal()" class="comercio-admin-only px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5">
+                <i class="fa-solid fa-plus"></i> + Nueva Sucursal
+            </button>
+        </div>
         <p class="text-xs text-slate-400 mb-4">
-            Cada sucursal tiene su propio link directo y código QR. Cuando el cliente lo toca, se abre tu WhatsApp ya enfocado en esa sucursal.
+            Cada sucursal tiene su propio link directo, QR de WhatsApp, horario abierto/cerrado, zonas de envio y configuracion de ticket termico.
         </p>
         <div id="sucursalesCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
     </div>
 
     <!-- Módulo de Reservación de Mesas (Con Pago en Modo 2, oculto si giro no usa mesas) -->
-    <div id="bloqueReservacionMesas" class="glass rounded-2xl p-5 border border-indigo-500/30">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+    <div id="bloqueReservacionMesas" class="glass rounded-2xl p-5 border border-indigo-500/30 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
                 <h3 class="text-base font-bold text-white flex items-center">
                     <i class="fa-solid fa-chair text-indigo-400 mr-2.5"></i>
-                    <span>Módulo de Reservación de Mesas (Con Pago de Anticipo)</span>
+                    <span>Mesas Fisicas y Reservaciones</span>
                 </h3>
                 <p class="text-xs text-slate-400 mt-1">
-                    Tal como definimos en el plan, las reservaciones de mesa exigen un pago obligatorio y se habilitan automáticamente al activar la API de Pagos (Modo 2).
+                    Administra tus mesas por sucursal y actualiza el estado de reservaciones pendientes o confirmadas.
                 </p>
             </div>
             <span id="badgeEstadoReservaciones" class="text-xs px-3 py-1 rounded-full font-bold"></span>
         </div>
-        <div id="mesasGridInfo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+
+        <!-- Formulario rapido para agregar mesa (solo Admin) -->
+        <div class="comercio-admin-only bg-slate-950/60 border border-slate-800 rounded-xl p-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+            <div class="sm:col-span-3">
+                <label class="block text-[11px] text-slate-400 mb-1">Sucursal</label>
+                <select id="mesaNuevaSucursalSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none"></select>
+            </div>
+            <div class="sm:col-span-3">
+                <label class="block text-[11px] text-slate-400 mb-1">Nombre / Numero de Mesa</label>
+                <input type="text" id="mesaNuevaNombre" placeholder="Ej. Mesa 5 - Terraza"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-[11px] text-slate-400 mb-1">Personas</label>
+                <input type="number" min="1" max="30" id="mesaNuevaCapacidad" value="4"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="block text-[11px] text-slate-400 mb-1">Anticipo ($)</label>
+                <input type="number" step="0.01" min="0" id="mesaNuevaAnticipo" value="0"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+            </div>
+            <div class="sm:col-span-2">
+                <button type="button" onclick="handleCrearMesaRapida()" class="w-full px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Agregar Mesa
+                </button>
+            </div>
+        </div>
+
+        <div id="mesasGridInfo" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+
+        <!-- Reservaciones Recientes -->
+        <div class="pt-3 border-t border-slate-800/80">
+            <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                <i class="fa-solid fa-calendar-check text-emerald-400"></i> Reservaciones Registradas
+            </h4>
+            <div id="reservacionesListGrid" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
     </div>
 </div>
 

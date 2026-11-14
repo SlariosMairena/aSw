@@ -24,6 +24,7 @@ from app.core.audit import record_audit_log
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.demo_seeds import normalize_giro_code, populate_tenant_demo_data
+from app.core.inventory_sync import deduct_inventory_for_delivered_order
 from app.core.deps import (
     get_current_user,
     require_comercio_admin,
@@ -49,6 +50,7 @@ from app.models.saas_models import (
     ProductoPlato,
     ReservacionMesa,
     SesionChatWhatsApp,
+    StockSucursal,
     SucursalComercio,
     SuscripcionFacturaSaaS,
     TenantComercio,
@@ -1088,6 +1090,19 @@ def comercio_dashboard(
         .order_by(ProductoPlato.id.desc())
         .all()
     )
+    agotados_rows = (
+        db.query(StockSucursal)
+        .filter(
+            StockSucursal.tenant_id == tenant_id,
+            StockSucursal.plato_id.isnot(None),
+            StockSucursal.agotado_hoy.is_(True),
+        )
+        .all()
+    )
+    agotados_por_plato: Dict[int, List[int]] = {}
+    for row in agotados_rows:
+        agotados_por_plato.setdefault(row.plato_id, []).append(row.sucursal_id)
+
     platos_data = []
     for pl in platos:
         platos_data.append(
@@ -1099,6 +1114,7 @@ def comercio_dashboard(
                 "precio_base": pl.precio_base,
                 "tiempo_preparacion_min": pl.tiempo_preparacion_min,
                 "disponible_global": pl.disponible_global,
+                "agotado_sucursal_ids": agotados_por_plato.get(pl.id, []),
                 "ingredientes_removibles": [
                     {"id": ing.id, "nombre": ing.nombre, "disponible": ing.disponible_global}
                     for ing in pl.ingredientes_opciones
@@ -1142,11 +1158,19 @@ def comercio_dashboard(
                 "tiempo_estimado_entrega_min": s.tiempo_estimado_entrega_min,
                 "costo_envio_base": s.costo_envio_base,
                 "pedido_minimo_domicilio": s.pedido_minimo_domicilio,
+                "telefono_sucursal": s.telefono_sucursal,
+                "permite_domicilio": s.permite_domicilio,
+                "permite_recoger_local": s.permite_recoger_local,
                 "ancho_ticket_termico": s.ancho_ticket_termico,
                 "deep_link_whatsapp": deep_link,
                 "qr_data_uri": generate_qr_base64_data_uri(deep_link),
                 "zonas_envio": [
-                    {"nombre_zona": z.nombre_zona, "costo_envio": z.costo_envio}
+                    {
+                        "id": z.id,
+                        "nombre_zona": z.nombre_zona,
+                        "costo_envio": z.costo_envio,
+                        "tiempo_extra_min": z.tiempo_extra_min,
+                    }
                     for z in s.zonas_envio
                 ],
                 "mesas": [
@@ -1188,8 +1212,12 @@ def comercio_dashboard(
         "platos": platos_data,
         "reservaciones_mesa": [
             {
+                "id": r.id,
                 "folio": r.folio_reserva,
+                "sucursal_id": r.sucursal_id,
+                "mesa_nombre": r.mesa.nombre_mesa if r.mesa else "Sin asignar",
                 "nombre_cliente": r.nombre_cliente,
+                "telefono_cliente": r.telefono_cliente,
                 "fecha_hora": r.fecha_hora_reserva,
                 "personas": r.cantidad_personas,
                 "monto_anticipo": r.monto_pago_requerido,
@@ -1254,6 +1282,12 @@ def actualizar_estado_pedido(
             )
         )
 
+    stock_descontado = []
+    if nuevo == "ENTREGADO":
+        stock_descontado = deduct_inventory_for_delivered_order(
+            db, pedido, current_user.email
+        )
+
     db.commit()
 
     record_audit_log(
@@ -1265,7 +1299,12 @@ def actualizar_estado_pedido(
         tenant_id=pedido.tenant_id,
         actor_email=current_user.email,
         ip_origen=request.client.host if request.client else "127.0.0.1",
-        detalles={"de": estado_anterior, "a": nuevo, "notificacion_wa": texto_aviso},
+        detalles={
+            "de": estado_anterior,
+            "a": nuevo,
+            "notificacion_wa": texto_aviso,
+            "stock_descontado": stock_descontado,
+        },
     )
 
     return {
@@ -1273,6 +1312,7 @@ def actualizar_estado_pedido(
         "folio": pedido.folio,
         "estado_pedido": pedido.estado_pedido,
         "mensaje_enviado_whatsapp": texto_aviso,
+        "stock_descontado": stock_descontado,
     }
 
 

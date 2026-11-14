@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.auth import router as auth_router
+from app.api.operaciones_api import router as operaciones_router
 from app.api.panel_api import router as panel_router
 from app.api.payment_api import router as payment_router
 from app.core.config import settings
@@ -65,6 +66,7 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 # Rutas de API (Autenticación + Panel Web Operativo + Pasarela de Pagos)
 app.include_router(auth_router)
 app.include_router(panel_router)
+app.include_router(operaciones_router)
 app.include_router(payment_router)
 
 

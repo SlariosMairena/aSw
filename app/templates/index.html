@@ -70,6 +70,9 @@
 
         <!-- Pestaña E: Estadísticas de Ventas (COMERCIO_ADMIN / SUPER_ADMIN) -->
         {% include 'views/estadisticas.html' %}
+
+        <!-- Pestaña F: Directorio de Clientes Frecuentes -->
+        {% include 'views/clientes.html' %}
     </section>
 
     <!-- 3. MODALES -->
@@ -79,6 +82,10 @@
     {% include 'modals/config_comercio_modal.html' %}
     {% include 'modals/equipo_modal.html' %}
     {% include 'modals/inventario_modal.html' %}
+    {% include 'modals/twofa_modal.html' %}
+    {% include 'modals/pos_pedido_modal.html' %}
+    {% include 'modals/sucursal_crud_modal.html' %}
+    {% include 'modals/kardex_receta_modal.html' %}
 
     <!-- 4. NOTIFICACIONES TOAST -->
     {% include 'components/toast.html' %}
@@ -88,5 +95,6 @@
     <script src="/static/js/superadmin.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/inventario.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/estadisticas.js?v={{ cache_bust | default('20261113_1') }}"></script>
+    <script src="/static/js/operaciones.js?v={{ cache_bust | default('20261113_1') }}"></script>
 </body>
 </html>

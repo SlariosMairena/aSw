@@ -1,0 +1,98 @@
+<!-- MODAL DE CREACION / EDICION DE SUCURSAL Y ZONAS DE ENVIO -->
+<div id="modalSucursalCrud" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl my-6">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-5">
+            <h3 id="modalSucursalTitle" class="font-bold text-lg text-white flex items-center gap-2">
+                <i class="fa-solid fa-store text-cyan-400"></i> Gestionar Sucursal
+            </h3>
+            <button type="button" onclick="cerrarModalSucursalCrud()" class="text-slate-400 hover:text-white text-xl leading-none">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="formSucursalCrud" onsubmit="handleGuardarSucursal(event)" class="space-y-4">
+            <input type="hidden" id="sucEditId">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Nombre de Sucursal *</label>
+                    <input type="text" id="sucEditNombre" required placeholder="Ej. Sucursal Norte"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Telefono de Contacto</label>
+                    <input type="text" id="sucEditTelefono" placeholder="+52..."
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-cyan-500">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Direccion Fisica</label>
+                <input type="text" id="sucEditDireccion" placeholder="Calle, numero, colonia y referencia"
+                    class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-cyan-500">
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Tiempo Espera (min)</label>
+                    <input type="number" min="1" max="240" id="sucEditTiempo" value="25"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Ancho Ticket Termico</label>
+                    <select id="sucEditTicketMm"
+                        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-cyan-500">
+                        <option value="58">58 mm (Portatil)</option>
+                        <option value="80">80 mm (Estandar)</option>
+                    </select>
+                </div>
+                <div class="flex flex-col justify-end pb-1">
+                    <label class="inline-flex items-center gap-2 text-xs text-slate-200 cursor-pointer">
+                        <input type="checkbox" id="sucEditAbierta" checked class="rounded border-slate-600 bg-slate-800 text-emerald-500">
+                        <span>Sucursal Abierta</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-5 pt-1">
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" id="sucEditDomicilio" checked class="rounded border-slate-600 bg-slate-800 text-cyan-500">
+                    <span>Permite Envio a Domicilio</span>
+                </label>
+                <label class="inline-flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+                    <input type="checkbox" id="sucEditRecoger" checked class="rounded border-slate-600 bg-slate-800 text-cyan-500">
+                    <span>Permite Recoger en Local</span>
+                </label>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button type="button" onclick="cerrarModalSucursalCrud()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold">
+                    Cancelar
+                </button>
+                <button type="submit" id="btnGuardarSucursal" class="px-5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold">
+                    <i class="fa-solid fa-floppy-disk"></i> Guardar Sucursal
+                </button>
+            </div>
+        </form>
+
+        <!-- Subpanel de Zonas de Envio (solo visible al editar sucursal existente) -->
+        <div id="sucZonasSection" class="mt-6 pt-5 border-t border-slate-800 hidden space-y-3">
+            <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa-solid fa-map-location-dot text-amber-400"></i> Zonas y Tarifas de Envio
+            </h4>
+            <div id="sucZonasList" class="space-y-2 max-h-40 overflow-y-auto"></div>
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 pt-1">
+                <input type="text" id="nuevaZonaNombre" placeholder="Nombre de colonia o zona"
+                    class="sm:col-span-5 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                <input type="number" step="0.01" min="0" id="nuevaZonaCosto" placeholder="Costo ($)"
+                    class="sm:col-span-3 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                <input type="number" min="0" id="nuevaZonaTiempo" value="15" placeholder="+ min"
+                    class="sm:col-span-2 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                <button type="button" onclick="handleAgregarZonaSucursal()"
+                    class="sm:col-span-2 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold">
+                    <i class="fa-solid fa-plus"></i> Zona
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+

@@ -432,6 +432,31 @@ class MovimientoInventario(Base):
     item = relationship("ItemInventario", backref="movimientos")
 
 
+class RecetaProductoInventario(Base):
+    """
+    Vincula un producto del catálogo con uno o más ítems de inventario
+    para descontar stock automáticamente cuando un pedido pasa a ENTREGADO.
+    """
+
+    __tablename__ = "recetas_producto_inventario"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    plato_id = Column(
+        Integer, ForeignKey("productos_platos.id"), nullable=False, index=True
+    )
+    item_inventario_id = Column(
+        Integer, ForeignKey("items_inventario.id"), nullable=False, index=True
+    )
+    cantidad_por_unidad = Column(Float, default=1.0, nullable=False)
+    creado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    plato = relationship("ProductoPlato")
+    item_inventario = relationship("ItemInventario")
+
+
 # =====================================================================
 # 5. CLIENTES FRECUENTES Y SESIONES DE CHAT WHATSAPP (CON CONTROL HUMANO)
 # =====================================================================

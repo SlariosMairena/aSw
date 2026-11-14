@@ -1,0 +1,147 @@
+<!-- MODAL POS / NUEVO PEDIDO EN LOCAL O MOSTRADOR -->
+<div id="modalPosPedido" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl my-6">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-5">
+            <div>
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i class="fa-solid fa-cash-register text-emerald-400"></i>
+                    <span id="posModalTitle">Nuevo Pedido en Local / Mostrador</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Registra ventas directas en caja, telefono o mesa con envio inmediato al tablero e inventario.</p>
+            </div>
+            <button type="button" onclick="cerrarModalPosPedido()" class="text-slate-400 hover:text-white text-xl leading-none">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="formPosPedido" onsubmit="handleCrearPedidoManual(event)" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <!-- Columna Izquierda: Buscador y Catalogo Rapido -->
+            <div class="lg:col-span-7 flex flex-col gap-3">
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <div class="relative flex-1">
+                        <i class="fa-solid fa-magnifying-glass text-slate-500 absolute left-3 top-2.5 text-xs"></i>
+                        <input type="text" id="posBuscarProductoInput" oninput="renderPosCatalogo()" placeholder="Buscar producto o SKU para agregar..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:border-emerald-500 outline-none">
+                    </div>
+                    <select id="posSucursalSelect" onchange="onPosSucursalChange()"
+                        class="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-200 focus:border-emerald-500 outline-none">
+                    </select>
+                </div>
+
+                <div id="posCatalogoGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    <!-- Tarjetas rapidas de productos -->
+                </div>
+            </div>
+
+            <!-- Columna Derecha: Carrito, Cliente, Modalidad y Pago -->
+            <div class="lg:col-span-5 bg-slate-950/60 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">Resumen del Pedido</span>
+                    <button type="button" onclick="limpiarCarritoPos()" class="text-[11px] text-rose-400 hover:text-rose-300">
+                        <i class="fa-solid fa-trash-can"></i> Vaciar
+                    </button>
+                </div>
+
+                <div id="posCarritoList" class="space-y-2 max-h-44 overflow-y-auto pr-1 text-xs">
+                    <div class="text-slate-500 text-center py-6">Agrega productos desde el catalogo</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Tipo de Entrega</label>
+                        <select id="posTipoEntrega" onchange="onPosTipoEntregaChange()"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                            <option value="RECOGER_LOCAL">Mostrador / Recoger</option>
+                            <option value="MESA">Consumo en Mesa / Local</option>
+                            <option value="DOMICILIO">Envio a Domicilio</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Estado Inicial</label>
+                        <select id="posEstadoInicial"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                            <option value="RECIBIDO">1. Recibido / En Cola</option>
+                            <option value="EN_PROCESO">2. En Preparacion</option>
+                            <option value="LISTO">3. Listo</option>
+                            <option value="ENTREGADO">4. Entregado / Cobrado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Nombre Cliente</label>
+                        <input type="text" id="posClienteNombre" required value="Cliente Mostrador"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Telefono / WhatsApp</label>
+                        <input type="text" id="posClienteTelefono" placeholder="Opcional o buscar..."
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                    </div>
+                </div>
+
+                <div id="posDireccionBox" class="hidden grid grid-cols-1 gap-2">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="col-span-2">
+                            <label class="block text-[11px] text-slate-400 mb-1">Direccion de Entrega</label>
+                            <input type="text" id="posDireccion" placeholder="Calle, numero, referencia"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Zona Envio</label>
+                            <select id="posZonaSelect" onchange="recalcularTotalPos()"
+                                class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white outline-none">
+                                <option value="0" data-zona="">Sin costo ($0)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Metodo de Pago</label>
+                        <select id="posMetodoPago" onchange="recalcularTotalPos()"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                            <option value="EFECTIVO">Efectivo</option>
+                            <option value="TARJETA_LOCAL">Tarjeta en Local</option>
+                            <option value="TRANSFERENCIA">Transferencia</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Pago con ($)</label>
+                        <input type="number" step="0.01" min="0" id="posPagoCon" oninput="recalcularTotalPos()" placeholder="Exacto"
+                            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+                    </div>
+                </div>
+
+                <input type="text" id="posNotas" placeholder="Notas o indicaciones de preparacion..."
+                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white outline-none">
+
+                <div class="border-t border-slate-800 pt-2 space-y-1 text-xs">
+                    <div class="flex justify-between text-slate-400">
+                        <span>Subtotal:</span><span id="posSubtotalText">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-slate-400">
+                        <span>Costo Envio:</span><span id="posEnvioText">$0.00</span>
+                    </div>
+                    <div class="flex justify-between text-base font-extrabold text-white">
+                        <span>Total:</span><span id="posTotalText" class="text-emerald-400">$0.00</span>
+                    </div>
+                    <div id="posCambioRow" class="flex justify-between text-amber-300 font-semibold hidden">
+                        <span>Cambio / Vuelto:</span><span id="posCambioText">$0.00</span>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-1">
+                    <button type="button" onclick="cerrarModalPosPedido()" class="px-3 py-2 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold">
+                        Cancelar
+                    </button>
+                    <button type="submit" id="btnGuardarPosPedido" class="flex-1 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-check-double"></i> Registrar Pedido
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

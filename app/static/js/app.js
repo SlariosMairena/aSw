@@ -127,6 +127,7 @@ function escapeHtml(str) {
         }
 
         function logout() {
+            if (typeof stopLiveKanbanPolling === 'function') stopLiveKanbanPolling();
             setLocalToken('');
             currentUser = null;
             currentComercioData = null;
@@ -457,6 +458,7 @@ function escapeHtml(str) {
             headerBox.classList.add('flex');
             document.getElementById('userBadgeName').textContent = currentUser.nombre_completo;
             applyComercioRoleVisibility();
+            if (typeof update2FABadgeNavbar === 'function') update2FABadgeNavbar();
 
             if (currentUser.rol === 'SUPER_ADMIN') {
                 document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
@@ -501,7 +503,7 @@ function escapeHtml(str) {
                 tabName = 'pedidos';
             }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
-            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'estadisticas'];
+            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas'];
             
             tabs.forEach(t => {
                 const el = document.getElementById(`tabContent_${t}`);
@@ -532,6 +534,10 @@ function escapeHtml(str) {
                         console.error('[switchComercioTab] Error ejecutando cargarInventario:', err);
                     }
                 }
+            } else if (tabName === 'clientes') {
+                if (typeof cargarClientesComercio === 'function') {
+                    cargarClientesComercio();
+                }
             } else if (tabName === 'estadisticas') {
                 if (typeof cargarEstadisticasComercio === 'function') {
                     cargarEstadisticasComercio();
@@ -539,6 +545,52 @@ function escapeHtml(str) {
             }
         }
         window.switchComercioTab = switchComercioTab;
+
+        let liveKanbanTimer = null;
+        let knownOrderIds = new Set();
+
+        function toggleLiveKanbanPolling() {
+            const btn = document.getElementById('btnLiveKanbanToggle');
+            const dot = document.getElementById('liveKanbanDot');
+            const txt = document.getElementById('liveKanbanText');
+            if (liveKanbanTimer) {
+                stopLiveKanbanPolling();
+                showToast('Auto-refresco En Vivo desactivado.');
+            } else {
+                if (currentComercioData && Array.isArray(currentComercioData.pedidos)) {
+                    knownOrderIds = new Set(currentComercioData.pedidos.map(p => p.id));
+                }
+                liveKanbanTimer = setInterval(async () => {
+                    if (!activeTenantId || document.getElementById('comercioSection')?.classList.contains('hidden')) return;
+                    const prevIds = new Set(knownOrderIds);
+                    await reloadComercioDashboard(false);
+                    const nuevos = (currentComercioData?.pedidos || []).filter(p => !prevIds.has(p.id));
+                    if (nuevos.length > 0) {
+                        playKitchenBell();
+                        showToast(`${nuevos.length} nuevo(s) pedido(s) recibido(s).`);
+                    }
+                }, 15000);
+                if (btn) btn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 text-xs font-bold transition flex items-center gap-2';
+                if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
+                if (txt) txt.textContent = 'En Vivo (15s): On';
+                showToast('Auto-refresco En Vivo activado (cada 15 segundos).');
+            }
+        }
+        window.toggleLiveKanbanPolling = toggleLiveKanbanPolling;
+
+        function stopLiveKanbanPolling() {
+            if (liveKanbanTimer) {
+                clearInterval(liveKanbanTimer);
+                liveKanbanTimer = null;
+            }
+            const btn = document.getElementById('btnLiveKanbanToggle');
+            const dot = document.getElementById('liveKanbanDot');
+            const txt = document.getElementById('liveKanbanText');
+            if (btn) btn.className = 'px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-2';
+            if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-500';
+            if (txt) txt.textContent = 'En Vivo (15s): Off';
+        }
+        window.stopLiveKanbanPolling = stopLiveKanbanPolling;
 
         async function reloadComercioDashboard(populateFilter = false) {
             const sucursalFilter = document.getElementById('filtroSucursalSelect').value;
@@ -576,9 +628,10 @@ function escapeHtml(str) {
                     }
                 }
 
+                knownOrderIds = new Set((data.pedidos || []).map(p => p.id));
                 renderKanbanPedidos(data.pedidos, sym);
                 renderMenuPlatos(data.platos, sym);
-                renderSucursalesYMesas(data.sucursales, c);
+                renderSucursalesYMesas(data.sucursales, c, data.reservaciones_mesa || []);
                 renderIngredientBuilderUI();
             } catch (err) {
                 showToast(err.message, true);
@@ -831,7 +884,9 @@ function escapeHtml(str) {
                     method: 'PATCH',
                     body: { nuevo_estado: nuevoEstado }
                 });
-                showToast(`✓ Estado actualizado a ${nuevoEstado}. Notificación enviada a WhatsApp.`);
+                const descCount = Array.isArray(res?.stock_descontado) ? res.stock_descontado.length : Number(res?.stock_descontado || 0);
+                const descTxt = descCount > 0 ? ` (${descCount} descuento(s) de inventario aplicado(s))` : '';
+                showToast(`Estado actualizado a ${nuevoEstado}. Notificacion enviada a WhatsApp.${descTxt}`);
                 await reloadComercioDashboard();
             } catch (err) {
                 if (overlay && card) {
@@ -1009,9 +1064,11 @@ function escapeHtml(str) {
 
             const esAdmin = isComercioAdminOrSuper();
             const profile = getGiroProfile(currentComercioData?.comercio?.giro);
+            const activeSucFilterId = Number(document.getElementById('filtroSucursalSelect')?.value || (currentUser && currentUser.sucursal_id) || 0);
 
             grid.innerHTML = filtered.map(pl => {
-                const isAgotado = !pl.disponible_global;
+                const agotadoEnSuc = activeSucFilterId > 0 && Array.isArray(pl.agotado_sucursal_ids) && pl.agotado_sucursal_ids.includes(activeSucFilterId);
+                const isAgotado = !pl.disponible_global || agotadoEnSuc;
                 return `
                     <div class="p-4 rounded-2xl transition-all duration-200 border ${
                         isAgotado
@@ -1043,8 +1100,9 @@ function escapeHtml(str) {
                                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                                             : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                                     }">
-                                        ${pl.disponible_global ? '<i class="fa-solid fa-circle text-[8px] mr-1 text-emerald-400"></i> DISPONIBLE' : '<i class="fa-solid fa-ban text-[9px] mr-1 text-rose-400"></i> AGOTADO HOY'}
+                                        ${pl.disponible_global ? '<i class="fa-solid fa-circle text-[8px] mr-1 text-emerald-400"></i> DISPONIBLE' : '<i class="fa-solid fa-ban text-[9px] mr-1 text-rose-400"></i> AGOTADO GLOBAL'}
                                     </span>
+                                    ${agotadoEnSuc ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40"><i class="fa-solid fa-store-slash mr-1"></i> AGOTADO EN SUCURSAL</span>` : ''}
                                 </div>
 
                                 ${pl.descripcion ? `<p class="text-xs text-slate-400 leading-relaxed">${escapeHtml(pl.descripcion)}</p>` : ''}
@@ -1127,9 +1185,23 @@ function escapeHtml(str) {
                                             : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold shadow-md'
                                     }">
                                     <span><i class="fa-solid fa-${pl.disponible_global ? 'pause' : 'play'} mr-1"></i></span>
-                                    <span>${pl.disponible_global ? 'Agotar Hoy' : 'Habilitar'}</span>
+                                    <span>${pl.disponible_global ? 'Agotar Global' : 'Habilitar'}</span>
+                                </button>
+                                <button type="button" onclick="toggleAgotadoEnSucursal(${pl.id})"
+                                    class="flex-1 lg:flex-none px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
+                                        agotadoEnSuc
+                                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
+                                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                                    }" title="Agotar o habilitar solo en la sucursal filtrada">
+                                    <i class="fa-solid fa-store-slash text-[11px]"></i>
+                                    <span>${agotadoEnSuc ? 'Habilitar Sucursal' : 'Agotar Sucursal'}</span>
                                 </button>
                                 ${esAdmin ? `
+                                    <button type="button" onclick="openModalRecetaProducto(${pl.id}, '${pl.nombre.replace(/'/g, "\\'")}')"
+                                        class="px-3 py-2 rounded-xl text-xs font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center justify-center gap-1.5"
+                                        title="Vincular insumos de inventario para descuento automatico">
+                                        <i class="fa-solid fa-link"></i> <span>Stock / Receta</span>
+                                    </button>
                                     <button onclick="eliminarPlato(${pl.id})"
                                         class="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center justify-center gap-1">
                                         <span><i class="fa-solid fa-trash mr-1"></i></span> <span class="hidden sm:inline">Borrar</span>
@@ -1601,46 +1673,11 @@ function escapeHtml(str) {
         // =========================================================
         // SUCURSALES, QR DE WHATSAPP Y RESERVACIONES DE MESA
         // =========================================================
-        function renderSucursalesYMesas(sucursales, comercio) {
-            document.getElementById('sucursalesCardsGrid').innerHTML = sucursales.map(s => `
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row items-center gap-4">
-                    <img src="${s.qr_data_uri}" alt="QR WhatsApp ${s.nombre_sucursal}" class="w-28 h-28 rounded-xl bg-white p-1.5 shadow-md">
-                    <div class="space-y-1.5 text-xs flex-1">
-                        <div class="font-bold text-base text-white">${s.nombre_sucursal}</div>
-                        <div class="text-emerald-300 font-semibold">Código Opción B: [${s.codigo_whatsapp}]</div>
-                        <div class="text-slate-400"><i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> ${s.direccion_fisica || ''}</div>
-                        <div class="text-slate-300"><i class="fa-regular fa-clock text-slate-400 mr-1"></i> Horario: ${s.horario_apertura} a ${s.horario_cierre} • Entrega: <strong>${s.tiempo_estimado_entrega_min} min</strong></div>
-                        <div class="text-slate-300"><i class="fa-solid fa-print text-slate-400 mr-1"></i> Formato Ticket: <strong>${s.ancho_ticket_termico}</strong></div>
-                        <div class="pt-1">
-                            <a href="${s.deep_link_whatsapp}" target="_blank"
-                                class="inline-block px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
-                                <i class="fa-brands fa-whatsapp text-emerald-400 mr-1.5"></i> Probar Link de WhatsApp de esta Sucursal
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-
-            const badgeRes = document.getElementById('badgeEstadoReservaciones');
-            if (comercio.reservaciones_habilitadas) {
-                badgeRes.className = 'text-xs px-3 py-1 rounded-full font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-                badgeRes.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> ACTIVO CON PAGO API (MODO 2)';
-            } else {
-                badgeRes.className = 'text-xs px-3 py-1 rounded-full font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40';
-                badgeRes.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> EN ESPERA DE INTEGRACIÓN (MODO 2)';
+        function renderSucursalesYMesas(sucursales, comercio, reservaciones = []) {
+            if (typeof renderSucursalesYMesasV2 === 'function') {
+                renderSucursalesYMesasV2(sucursales, comercio, reservaciones);
+                return;
             }
-
-            const todasLasMesas = [];
-            sucursales.forEach(s => {
-                (s.mesas || []).forEach(m => todasLasMesas.push({ ...m, sucursal: s.nombre_sucursal }));
-            });
-            document.getElementById('mesasGridInfo').innerHTML = todasLasMesas.map(m => `
-                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs">
-                    <div class="font-bold text-white"><i class="fa-solid fa-chair text-indigo-400 mr-1.5"></i> ${m.nombre_mesa}</div>
-                    <div class="text-slate-400">${m.sucursal} • Capacidad: ${m.capacidad_personas} personas</div>
-                    <div class="text-indigo-300 font-semibold mt-1">Pago obligatorio para reservar: ${comercio.simbolo_moneda}${m.monto_anticipo_reserva.toFixed(2)}</div>
-                </div>
-            `).join('');
         }
 
         // Delegación global de clics en pestañas del panel del comercio (inmune a re-renderizado y sin doble disparo)
