@@ -585,21 +585,66 @@ function escapeHtml(str) {
             }
         }
 
+        let filtroHistorialPedidos = 'TODOS';
+        let historialPedidosAbierto = false;
+
+        function toggleHistorialPedidosSection() {
+            historialPedidosAbierto = !historialPedidosAbierto;
+            const wrap = document.getElementById('wrapperColEntregados');
+            const icon = document.getElementById('iconToggleHistorialPedidos');
+            if (wrap) wrap.classList.toggle('hidden', !historialPedidosAbierto);
+            if (icon) icon.className = `fa-solid ${historialPedidosAbierto ? 'fa-chevron-up' : 'fa-chevron-down'} text-slate-400 group-hover:text-white ml-1 transition`;
+        }
+        window.toggleHistorialPedidosSection = toggleHistorialPedidosSection;
+
+        function setFiltroHistorialPedidos(filtro) {
+            filtroHistorialPedidos = filtro;
+            if (!historialPedidosAbierto) toggleHistorialPedidosSection();
+            const btns = { TODOS: 'btnHistTodos', ENTREGADO: 'btnHistEntregado', CANCELADO: 'btnHistCancelado' };
+            Object.entries(btns).forEach(([k, id]) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.className = k === filtro
+                    ? 'px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-200 border border-teal-500/40 font-semibold transition'
+                    : 'px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 font-semibold transition';
+            });
+            if (currentComercioData) {
+                renderKanbanPedidos(currentComercioData.pedidos || [], currentComercioData.comercio?.simbolo_moneda || 'C$');
+            }
+        }
+        window.setFiltroHistorialPedidos = setFiltroHistorialPedidos;
+
         function renderKanbanPedidos(pedidos, moneda) {
             const recibidos = pedidos.filter(p => p.estado_pedido === 'RECIBIDO');
             const enProceso = pedidos.filter(p => p.estado_pedido === 'EN_PROCESO');
-            const listos = pedidos.filter(p => p.estado_pedido === 'LISTO' || p.estado_pedido === 'ENTREGADO');
+            const listos = pedidos.filter(p => p.estado_pedido === 'LISTO');
+            const entregados = pedidos.filter(p => p.estado_pedido === 'ENTREGADO');
+            const cancelados = pedidos.filter(p => p.estado_pedido === 'CANCELADO');
 
             document.getElementById('countRecibido').textContent = recibidos.length;
             document.getElementById('countEnProceso').textContent = enProceso.length;
             document.getElementById('countListo').textContent = listos.length;
+            const cEnt = document.getElementById('countEntregado');
+            if (cEnt) cEnt.textContent = `${entregados.length} Entregados`;
+            const cCanc = document.getElementById('countCancelado');
+            if (cCanc) cCanc.textContent = `${cancelados.length} Cancelados`;
 
             document.getElementById('colRecibido').innerHTML = recibidos.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
                 `<p class="text-xs text-slate-500 text-center py-6">Sin pedidos pendientes en esta columna</p>`;
             document.getElementById('colEnProceso').innerHTML = enProceso.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
                 `<p class="text-xs text-slate-500 text-center py-6">Ningún pedido en preparación</p>`;
             document.getElementById('colListo').innerHTML = listos.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
-                `<p class="text-xs text-slate-500 text-center py-6">Ningún pedido marcado como listo</p>`;
+                `<p class="text-xs text-slate-500 text-center py-6">Ningún pedido listo para entrega</p>`;
+
+            const histEl = document.getElementById('colEntregados');
+            if (histEl) {
+                let histList = [];
+                if (filtroHistorialPedidos === 'ENTREGADO') histList = entregados;
+                else if (filtroHistorialPedidos === 'CANCELADO') histList = cancelados;
+                else histList = [...entregados, ...cancelados];
+                histEl.innerHTML = histList.map(p => buildPedidoCardHTML(p, moneda)).join('') ||
+                    `<p class="col-span-full text-xs text-slate-500 text-center py-4">No hay pedidos entregados o cancelados registrados.</p>`;
+            }
         }
 
         function buildPedidoCardHTML(p, moneda) {
@@ -674,7 +719,7 @@ function escapeHtml(str) {
                     </div>
 
                     <!-- Botones para cambiar estado del pedido (notifica al WhatsApp del cliente) -->
-                    <div class="grid grid-cols-3 gap-1.5 pt-1">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
                         <button onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO')"
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'RECIBIDO' ? 'bg-sky-500 text-slate-950 border-sky-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
                             <i class="fa-solid fa-inbox mr-1"></i> Recibido
@@ -687,9 +732,19 @@ function escapeHtml(str) {
                             class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'LISTO' ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
                             <i class="fa-solid fa-circle-check mr-1"></i> Listo
                         </button>
+                        <button onclick="cambiarEstadoPedido(${p.id}, 'ENTREGADO')"
+                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'ENTREGADO' ? 'bg-teal-500 text-slate-950 border-teal-400' : 'bg-slate-800 text-teal-300 border-slate-700 hover:bg-teal-500/20'}">
+                            <i class="fa-solid fa-handshake mr-1"></i> Entregado
+                        </button>
                     </div>
+                    ${p.estado_pedido === 'CANCELADO' ? `
+                        <div class="text-[11px] font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-lg px-2.5 py-1 flex items-center justify-between">
+                            <span><i class="fa-solid fa-ban mr-1"></i> Pedido CANCELADO</span>
+                            <button onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO')" class="underline text-sky-300 hover:text-white">Reabrir</button>
+                        </div>
+                    ` : ''}
 
-                    <!-- Botones de Comanda Térmica, Pago Online y Control del Chat -->
+                    <!-- Botones de Comanda Térmica, Pago Online, Chat y Cancelar -->
                     <div class="flex flex-wrap gap-2 pt-1">
                         <button onclick="openChatModal(${p.id})"
                             class="flex-1 py-2 px-3 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition whitespace-nowrap">
@@ -710,6 +765,13 @@ function escapeHtml(str) {
                             class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs transition flex items-center gap-1">
                             <i class="fa-solid fa-print mr-1"></i> Ticket
                         </a>
+                        ${(p.estado_pedido !== 'ENTREGADO' && p.estado_pedido !== 'CANCELADO') ? `
+                            <button onclick="if(confirm('¿Cancelar el pedido #${p.folio}?')) cambiarEstadoPedido(${p.id}, 'CANCELADO')"
+                                title="Cancelar este pedido"
+                                class="px-2.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs transition">
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -746,6 +808,12 @@ function escapeHtml(str) {
                 } else if (nuevoEstado === 'LISTO') {
                     iconColor = 'text-emerald-400';
                     stateLabel = '3. Listo';
+                } else if (nuevoEstado === 'ENTREGADO') {
+                    iconColor = 'text-teal-400';
+                    stateLabel = '4. Entregado';
+                } else if (nuevoEstado === 'CANCELADO') {
+                    iconColor = 'text-rose-400';
+                    stateLabel = 'Cancelado';
                 }
 
                 overlay.innerHTML = `

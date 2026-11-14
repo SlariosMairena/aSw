@@ -1229,12 +1229,17 @@ def actualizar_estado_pedido(
     pedido.actualizado_en = datetime.now(timezone.utc)
 
     # Notificación automática al chat de WhatsApp del cliente
+    nombre_com = (
+        pedido.sucursal.comercio.nombre_comercial
+        if pedido.sucursal and pedido.sucursal.comercio
+        else "el comercio"
+    )
     mensajes_estado = {
-        "RECIBIDO": f"📥 ¡Hola {pedido.nombre_cliente}! Tu pedido #{pedido.folio} ha sido *RECIBIDO* por el restaurante.",
-        "EN_PROCESO": f"👨‍🍳 ¡Tu pedido #{pedido.folio} ya está *EN PROCESO* de preparación en cocina!",
-        "LISTO": f"✅ ¡Tu pedido #{pedido.folio} está *LISTO*! {'Pronto saldrá a tu domicilio.' if pedido.tipo_entrega == 'DOMICILIO' else 'Ya puedes pasar a recogerlo.'}",
-        "ENTREGADO": f"🙌 Tu pedido #{pedido.folio} fue marcado como *ENTREGADO*. ¡Muchas gracias por tu preferencia!",
-        "CANCELADO": f"⚠️ Tu pedido #{pedido.folio} ha sido *CANCELADO*. Si tienes dudas, escríbenos por este chat.",
+        "RECIBIDO": f"Hola {pedido.nombre_cliente}, tu pedido #{pedido.folio} ha sido RECIBIDO por {nombre_com}.",
+        "EN_PROCESO": f"Tu pedido #{pedido.folio} ya está EN PROCESO / preparación en {nombre_com}.",
+        "LISTO": f"Tu pedido #{pedido.folio} está LISTO. {'Pronto saldrá a tu domicilio.' if pedido.tipo_entrega == 'DOMICILIO' else 'Ya puedes pasar a recogerlo.'}",
+        "ENTREGADO": f"Tu pedido #{pedido.folio} fue marcado como ENTREGADO. Muchas gracias por tu compra.",
+        "CANCELADO": f"Tu pedido #{pedido.folio} ha sido CANCELADO. Si tienes dudas, escríbenos por este chat.",
     }
     texto_aviso = mensajes_estado.get(nuevo, f"Actualización de pedido #{pedido.folio}: {nuevo}")
 

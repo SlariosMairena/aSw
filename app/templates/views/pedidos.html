@@ -1,35 +1,70 @@
-<!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS EN 3 COLUMNAS -->
-<div id="tabContent_pedidos" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-    <!-- Columna 1: RECIBIDO -->
-    <div class="glass rounded-2xl p-4 flex flex-col">
-        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
-            <span class="font-bold text-sm text-sky-300 flex items-center">
-                <i class="fa-solid fa-inbox text-sky-400 mr-2"></i> 1. RECIBIDO (Nuevos)
-            </span>
-            <span id="countRecibido" class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold">0</span>
+<!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS EN 3 COLUMNAS ACTIVAS + HISTORIAL ENTREGADOS -->
+<div id="tabContent_pedidos" class="space-y-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <!-- Columna 1: RECIBIDO -->
+        <div class="glass rounded-2xl p-4 flex flex-col">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                <span class="font-bold text-sm text-sky-300 flex items-center">
+                    <i class="fa-solid fa-inbox text-sky-400 mr-2"></i> 1. RECIBIDO (Nuevos)
+                </span>
+                <span id="countRecibido" class="text-xs px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-bold">0</span>
+            </div>
+            <div id="colRecibido" class="space-y-4 flex-1"></div>
         </div>
-        <div id="colRecibido" class="space-y-4 flex-1"></div>
+
+        <!-- Columna 2: EN PROCESO -->
+        <div class="glass rounded-2xl p-4 flex flex-col">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                <span class="font-bold text-sm text-amber-300 flex items-center">
+                    <i id="kanbanCol2Icon" class="fa-solid fa-fire-burner text-amber-400 mr-2"></i> <span id="kanbanCol2Label">2. EN PROCESO (En Cocina)</span>
+                </span>
+                <span id="countEnProceso" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
+            </div>
+            <div id="colEnProceso" class="space-y-4 flex-1"></div>
+        </div>
+
+        <!-- Columna 3: LISTO PARA ENTREGA -->
+        <div class="glass rounded-2xl p-4 flex flex-col">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                <span class="font-bold text-sm text-emerald-300 flex items-center">
+                    <i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 3. LISTO PARA ENTREGA
+                </span>
+                <span id="countListo" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
+            </div>
+            <div id="colListo" class="space-y-4 flex-1"></div>
+        </div>
     </div>
 
-    <!-- Columna 2: EN PROCESO -->
-    <div class="glass rounded-2xl p-4 flex flex-col">
-        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
-            <span class="font-bold text-sm text-amber-300 flex items-center">
-                <i id="kanbanCol2Icon" class="fa-solid fa-fire-burner text-amber-400 mr-2"></i> <span id="kanbanCol2Label">2. EN PROCESO (En Cocina)</span>
-            </span>
-            <span id="countEnProceso" class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
-        </div>
-        <div id="colEnProceso" class="space-y-4 flex-1"></div>
-    </div>
+    <!-- Sección 4: ENTREGADOS Y CANCELADOS (COLAPSABLE PARA NO SATURAR EL TABLERO VIVO) -->
+    <div class="glass rounded-2xl p-4 border border-slate-800">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <button type="button" onclick="toggleHistorialPedidosSection()" class="flex items-center gap-2.5 text-left group">
+                <span class="w-8 h-8 rounded-xl bg-teal-500/15 text-teal-300 border border-teal-500/30 flex items-center justify-center text-sm">
+                    <i class="fa-solid fa-box-archive"></i>
+                </span>
+                <div>
+                    <div class="font-bold text-sm text-white flex items-center gap-2">
+                        <span>4. ENTREGADOS Y FINALIZADOS</span>
+                        <span id="countEntregado" class="text-xs px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 font-bold">0</span>
+                        <span id="countCancelado" class="text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold">0 Cancelados</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Pedidos ya entregados al cliente o cancelados (haz clic para expandir o contraer)</p>
+                </div>
+                <i id="iconToggleHistorialPedidos" class="fa-solid fa-chevron-down text-slate-400 group-hover:text-white ml-1 transition"></i>
+            </button>
 
-    <!-- Columna 3: LISTO / ENTREGADO -->
-    <div class="glass rounded-2xl p-4 flex flex-col">
-        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
-            <span class="font-bold text-sm text-emerald-300 flex items-center">
-                <i class="fa-solid fa-circle-check text-emerald-400 mr-2"></i> 3. LISTO PARA ENTREGA
-            </span>
-            <span id="countListo" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
+            <div id="filtrosHistorialPedidos" class="flex items-center gap-1.5 text-xs">
+                <button type="button" onclick="setFiltroHistorialPedidos('TODOS')" id="btnHistTodos"
+                    class="px-3 py-1.5 rounded-lg bg-teal-500/20 text-teal-200 border border-teal-500/40 font-semibold transition">Todos</button>
+                <button type="button" onclick="setFiltroHistorialPedidos('ENTREGADO')" id="btnHistEntregado"
+                    class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 font-semibold transition">Entregados</button>
+                <button type="button" onclick="setFiltroHistorialPedidos('CANCELADO')" id="btnHistCancelado"
+                    class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 font-semibold transition">Cancelados</button>
+            </div>
         </div>
-        <div id="colListo" class="space-y-4 flex-1"></div>
+
+        <div id="wrapperColEntregados" class="mt-4 pt-4 border-t border-slate-800 hidden">
+            <div id="colEntregados" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
     </div>
 </div>
