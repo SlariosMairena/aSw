@@ -1282,6 +1282,15 @@ def actualizar_estado_pedido(
                 contenido=texto_aviso,
             )
         )
+        if nuevo in ("ENTREGADO", "CANCELADO"):
+            sesion_cierre = (
+                db.query(SesionChatWhatsApp)
+                .filter(SesionChatWhatsApp.id == pedido.sesion_chat_id)
+                .first()
+            )
+            if sesion_cierre:
+                sesion_cierre.estado_conversacion = "COMPLETADO"
+                sesion_cierre.activa = False
 
     stock_descontado = []
     if nuevo == "ENTREGADO":
