@@ -231,3 +231,41 @@ async function cargarEstadoConexionWhatsapp(checkEvolution = false) {
     }
 }
 window.cargarEstadoConexionWhatsapp = cargarEstadoConexionWhatsapp;
+
+async function generarQrRealEvolution() {
+    const qrBox = document.getElementById('waEvolutionQrBox');
+    const qrStatus = document.getElementById('waEvolutionQrStatus');
+    const qrWrap = document.getElementById('waEvolutionQrImgWrap');
+    if (!qrBox || !qrStatus || !qrWrap) return;
+
+    qrBox.classList.remove('hidden');
+    qrStatus.textContent = 'Solicitando codigo QR real a Evolution API...';
+    qrWrap.innerHTML = '<span class="text-xs text-slate-500 p-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Generando...</span>';
+
+    try {
+        const res = await apiFetch('/api/v1/whatsapp/evolution/conectar-qr', { method: 'POST' });
+        if (res.connected) {
+            qrStatus.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i> WhatsApp conectado y listo para recibir pedidos reales.';
+            qrWrap.innerHTML = '';
+            qrWrap.classList.add('hidden');
+            showToast('WhatsApp real ya esta conectado.');
+            cargarEstadoConexionWhatsapp(true);
+            return;
+        }
+        if (res.qr_base64) {
+            qrWrap.classList.remove('hidden');
+            qrStatus.textContent = 'Escanea con tu celular: WhatsApp -> Dispositivos vinculados -> Vincular';
+            qrWrap.innerHTML = `<img src="${res.qr_base64}" alt="QR Real WhatsApp" class="w-48 h-48 object-contain">`;
+            showToast('QR real generado. Escanealo con tu WhatsApp.');
+        } else {
+            qrStatus.textContent = res.detail || 'No se recibio QR.';
+            qrWrap.innerHTML = '';
+        }
+    } catch (err) {
+        qrStatus.innerHTML = `<span class="text-rose-400">${escapeHtml(err.message)}</span>`;
+        qrWrap.innerHTML = '';
+        showToast(err.message, true);
+    }
+}
+window.generarQrRealEvolution = generarQrRealEvolution;
+

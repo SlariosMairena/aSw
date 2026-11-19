@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.deps import get_current_user, verify_tenant_isolation
+from app.core.deps import get_current_user, require_comercio_admin, verify_tenant_isolation
 from app.models.saas_models import (
     SesionChatWhatsApp,
     SucursalComercio,
@@ -23,7 +23,9 @@ from app.services.ai_router import get_available_ai_providers
 from app.services.whatsapp_bot_service import process_incoming_whatsapp_message
 from app.services.whatsapp_provider import (
     clean_whatsapp_phone,
+    create_or_connect_evolution_qr,
     get_evolution_connection_status,
+    logout_evolution_instance,
     send_whatsapp_text,
     verify_meta_signature,
 )
@@ -283,3 +285,33 @@ def estado_conexion_whatsapp(
         ),
         "evolution": evolution_status,
     }
+
+
+@router.post("/evolution/conectar-qr")
+def conectar_evolution_qr(
+    current_user: Usuario = Depends(require_comercio_admin),
+):
+    """
+    Crea/conecta la instancia en Evolution API y devuelve el QR real de WhatsApp
+    para escanearlo directamente desde el panel web.
+    """
+    base = (settings.BASE_URL or "http://localhost:8000").rstrip("/")
+    # Si FastAPI corre en localhost y Evolution en Docker, host.docker.internal permite llegar al host
+    webhook_url = (
+        base.replace("http://localhost:", "http://host.docker.internal:")
+        .replace("http://127.0.0.1:", "http://host.docker.internal:")
+        + "/api/v1/whatsapp/webhook/evolution"
+    )
+    res = create_or_connect_evolution_qr(webhook_url)
+    if not res.get("ok"):
+        raise HTTPException(status_code=502, detail=res.get("detail") or "Error conectando con Evolution API.")
+    return res
+
+
+@router.post("/evolution/desconectar")
+def desconectar_evolution(
+    current_user: Usuario = Depends(require_comercio_admin),
+):
+    """Cierra la sesión de WhatsApp vinculada en Evolution API."""
+    return logout_evolution_instance()
+

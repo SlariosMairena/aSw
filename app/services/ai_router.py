@@ -177,3 +177,4 @@ def interpret_natural_order_message(
             continue
 
     return None
+
