@@ -21,6 +21,7 @@ from app.api.auth import router as auth_router
 from app.api.operaciones_api import router as operaciones_router
 from app.api.panel_api import router as panel_router
 from app.api.payment_api import router as payment_router
+from app.api.whatsapp_api import router as whatsapp_router
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.init_db import init_database
@@ -68,6 +69,7 @@ app.include_router(auth_router)
 app.include_router(panel_router)
 app.include_router(operaciones_router)
 app.include_router(payment_router)
+app.include_router(whatsapp_router)
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Panel Web Visual (Fase 2)"])

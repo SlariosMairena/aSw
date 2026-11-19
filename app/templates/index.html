@@ -86,6 +86,7 @@
     {% include 'modals/pos_pedido_modal.html' %}
     {% include 'modals/sucursal_crud_modal.html' %}
     {% include 'modals/kardex_receta_modal.html' %}
+    {% include 'modals/whatsapp_sim_modal.html' %}
 
     <!-- 4. NOTIFICACIONES TOAST -->
     {% include 'components/toast.html' %}
@@ -96,5 +97,6 @@
     <script src="/static/js/inventario.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/estadisticas.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/operaciones.js?v={{ cache_bust | default('20261113_1') }}"></script>
+    <script src="/static/js/whatsapp_sim.js?v={{ cache_bust | default('20261113_1') }}"></script>
 </body>
 </html>

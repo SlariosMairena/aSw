@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.demo_seeds import normalize_giro_code, populate_tenant_demo_data
 from app.core.inventory_sync import deduct_inventory_for_delivered_order
+from app.services.whatsapp_provider import send_whatsapp_text
 from app.core.deps import (
     get_current_user,
     require_comercio_admin,
@@ -1290,6 +1291,10 @@ def actualizar_estado_pedido(
 
     db.commit()
 
+    # Envío saliente real por Evolution API / Meta Cloud API (no bloquea si está en modo simulado)
+    if texto_aviso and pedido.telefono_cliente:
+        send_whatsapp_text(pedido.telefono_cliente, texto_aviso)
+
     record_audit_log(
         db=db,
         accion="CAMBIO_ESTADO_PEDIDO",
@@ -1418,6 +1423,9 @@ def enviar_mensaje_humano_al_chat(
     db.add(nuevo_msg)
     db.commit()
     db.refresh(nuevo_msg)
+
+    # Envío saliente real al cliente por WhatsApp si el proveedor está configurado
+    send_whatsapp_text(sesion.telefono_cliente, texto)
 
     return {
         "status": "ok",

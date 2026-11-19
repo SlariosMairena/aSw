@@ -395,10 +395,16 @@ function renderSucursalesYMesasV2(sucursales, comercio, reservaciones = []) {
                 </div>
 
                 <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
-                    <a href="${s.deep_link_whatsapp}" target="_blank"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
-                        <i class="fa-brands fa-whatsapp"></i> Probar Link WhatsApp
-                    </a>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        <a href="${s.deep_link_whatsapp}" target="_blank"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
+                            <i class="fa-brands fa-whatsapp"></i> Link WhatsApp
+                        </a>
+                        <button type="button" onclick="openModalWhatsappSim(${s.id})"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-bold text-xs transition">
+                            <i class="fa-solid fa-robot"></i> Simular Bot Aqui
+                        </button>
+                    </div>
                     <div class="flex items-center gap-1.5">
                         <button type="button" onclick="toggleSucursalAbiertaRapida(${s.id}, ${!s.abierto_ahora}, ${s.tiempo_estimado_entrega_min || 30}, '${escapeHtml(s.ancho_ticket_termico || '80mm')}')"
                             class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition ${
