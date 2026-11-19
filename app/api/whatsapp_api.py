@@ -6,6 +6,9 @@ API de WhatsApp:
   (alternando entre Menú Guiado Sin IA y Modo Híbrido con IA)
 - Diagnóstico de estado de conexión y URLs de Webhook
 """
+from collections import OrderedDict
+import threading
+import time
 from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
@@ -31,6 +34,31 @@ from app.services.whatsapp_provider import (
 )
 
 router = APIRouter(prefix="/api/v1/whatsapp", tags=["Bot WhatsApp y Webhooks"])
+
+# Deduplicación en memoria de IDs de mensajes entrantes (evita respuestas dobles
+# cuando Evolution API dispara webhook global + webhook de instancia o reintenta).
+_PROCESSED_MSG_IDS: "OrderedDict[str, float]" = OrderedDict()
+_PROCESSED_LOCK = threading.Lock()
+_DEDUP_TTL_SECONDS = 300.0
+_DEDUP_MAX_SIZE = 1000
+
+
+def _is_duplicate_message(msg_id: Optional[str]) -> bool:
+    if not msg_id:
+        return False
+    now = time.monotonic()
+    with _PROCESSED_LOCK:
+        # Limpiar expirados
+        while _PROCESSED_MSG_IDS:
+            oldest_k, oldest_t = next(iter(_PROCESSED_MSG_IDS.items()))
+            if now - oldest_t > _DEDUP_TTL_SECONDS or len(_PROCESSED_MSG_IDS) > _DEDUP_MAX_SIZE:
+                _PROCESSED_MSG_IDS.popitem(last=False)
+            else:
+                break
+        if msg_id in _PROCESSED_MSG_IDS:
+            return True
+        _PROCESSED_MSG_IDS[msg_id] = now
+        return False
 
 
 class SimuladorMensajeRequest(BaseModel):
@@ -73,6 +101,10 @@ async def webhook_evolution_api(request: Request, db: Session = Depends(get_db))
     key = data.get("key") or {}
     if key.get("fromMe"):
         return {"status": "ignored", "reason": "fromMe"}
+
+    msg_id = str(key.get("id") or data.get("id") or "").strip()
+    if msg_id and _is_duplicate_message(f"evo:{msg_id}"):
+        return {"status": "ignored", "reason": "duplicate_message_id"}
 
     remote_jid = str(key.get("remoteJid") or data.get("from") or "")
     if "@g.us" in remote_jid:
@@ -153,6 +185,9 @@ async def webhook_meta_cloud(request: Request, db: Session = Depends(get_db)):
                 (contacts[0].get("profile") or {}).get("name") if contacts else "Cliente WhatsApp"
             )
             for msg in value.get("messages") or []:
+                meta_msg_id = str(msg.get("id") or "").strip()
+                if meta_msg_id and _is_duplicate_message(f"meta:{meta_msg_id}"):
+                    continue
                 telefono = clean_whatsapp_phone(str(msg.get("from") or ""))
                 msg_type = msg.get("type")
                 texto = ""

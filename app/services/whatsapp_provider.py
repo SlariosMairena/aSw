@@ -197,17 +197,12 @@ def create_or_connect_evolution_qr(webhook_url: str) -> Dict[str, Any]:
                         "detail": "WhatsApp ya está conectado y activo en esta instancia.",
                     }
 
-            # 2. Intentar crear la instancia con QR + Webhook (si ya existe devolverá 403/409 y seguimos a /connect)
+            # 2. Intentar crear la instancia con QR (el webhook ya lo maneja WEBHOOK_GLOBAL_URL
+            # para evitar disparos duplicados; si ya existe devolverá 403/409 y seguimos a /connect)
             create_payload = {
                 "instanceName": instance,
                 "qrcode": True,
                 "integration": "WHATSAPP-BAILEYS",
-                "webhook": {
-                    "url": webhook_url,
-                    "byEvents": False,
-                    "base64": False,
-                    "events": ["MESSAGES_UPSERT"],
-                },
             }
             c_resp = client.post(f"{base_url}/instance/create", headers=headers, json=create_payload)
             if 200 <= c_resp.status_code < 300:
@@ -230,22 +225,7 @@ def create_or_connect_evolution_qr(webhook_url: str) -> Dict[str, Any]:
                         "detail": "Escanea este QR desde WhatsApp -> Dispositivos vinculados.",
                     }
 
-            # 3. Asegurar webhook configurado en instancia existente
-            client.post(
-                f"{base_url}/webhook/set/{instance}",
-                headers=headers,
-                json={
-                    "webhook": {
-                        "enabled": True,
-                        "url": webhook_url,
-                        "webhookByEvents": False,
-                        "webhookBase64": False,
-                        "events": ["MESSAGES_UPSERT"],
-                    }
-                },
-            )
-
-            # 4. Solicitar QR fresco en /instance/connect/{instance}
+            # 3. Solicitar QR fresco en /instance/connect/{instance}
             conn_resp = client.get(f"{base_url}/instance/connect/{instance}", headers=headers)
             if 200 <= conn_resp.status_code < 300:
                 conn_data = conn_resp.json()
