@@ -1,17 +1,14 @@
 <!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS EN 3 COLUMNAS ACTIVAS + HISTORIAL ENTREGADOS -->
 <div id="tabContent_pedidos" class="space-y-5">
-    <!-- Barra de Acciones Rapidas: Pedido en Mostrador (POS) y En Vivo (Auto-Refresco) -->
+    <!-- Barra de Acciones Rapidas: Pedido en Mostrador (POS) y Bot WhatsApp -->
     <div class="glass rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2 text-xs text-slate-300">
-            <i class="fa-solid fa-bolt text-amber-400"></i>
-            <span>Gestion en tiempo real de pedidos entrantes, mostrador y despacho</span>
+        <div class="flex items-center gap-2.5 text-xs text-slate-300">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px]">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Vivo
+            </span>
+            <span>Actualizacion automatica en tiempo real de pedidos y movimientos</span>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <button type="button" id="btnLiveKanbanToggle" onclick="toggleLiveKanbanPolling()"
-                class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-2">
-                <span id="liveKanbanDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
-                <span id="liveKanbanText">En Vivo (15s): Off</span>
-            </button>
             <button type="button" id="btnAbrirSimuladorWa" onclick="openModalWhatsappSim()"
                 class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition flex items-center gap-1.5">
                 <i class="fa-brands fa-whatsapp text-sm"></i> <span>Probar Bot WhatsApp</span>

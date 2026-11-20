@@ -471,6 +471,7 @@ function escapeHtml(str) {
                 document.getElementById('comercioSection').classList.remove('hidden');
                 switchComercioTab('pedidos');
                 await reloadComercioDashboard(true);
+                startLiveKanbanPolling();
             }
         }
 
@@ -482,9 +483,11 @@ function escapeHtml(str) {
             applyComercioRoleVisibility();
             switchComercioTab('pedidos');
             await reloadComercioDashboard(true);
+            startLiveKanbanPolling();
         }
 
         async function switchBackToSuperAdmin() {
+            stopLiveKanbanPolling();
             document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
             document.getElementById('comercioSection').classList.add('hidden');
             document.getElementById('superAdminSection').classList.remove('hidden');
@@ -547,50 +550,105 @@ function escapeHtml(str) {
         window.switchComercioTab = switchComercioTab;
 
         let liveKanbanTimer = null;
+        let livePollInFlight = false;
         let knownOrderIds = new Set();
+        let knownOrderStates = new Map();
+        let lastOrdersSignature = '';
 
-        function toggleLiveKanbanPolling() {
-            const btn = document.getElementById('btnLiveKanbanToggle');
-            const dot = document.getElementById('liveKanbanDot');
-            const txt = document.getElementById('liveKanbanText');
-            if (liveKanbanTimer) {
-                stopLiveKanbanPolling();
-                showToast('Auto-refresco En Vivo desactivado.');
-            } else {
-                if (currentComercioData && Array.isArray(currentComercioData.pedidos)) {
-                    knownOrderIds = new Set(currentComercioData.pedidos.map(p => p.id));
-                }
-                liveKanbanTimer = setInterval(async () => {
-                    if (!activeTenantId || document.getElementById('comercioSection')?.classList.contains('hidden')) return;
+        function _computeOrdersSignature(pedidos) {
+            return (pedidos || [])
+                .map(p => `${p.id}:${p.estado_pedido}:${p.estado_pago}:${(p.mensajes_chat || []).length}`)
+                .join('|');
+        }
+
+        function _syncKnownOrdersSnapshot(pedidos) {
+            knownOrderIds = new Set();
+            knownOrderStates = new Map();
+            (pedidos || []).forEach(p => {
+                knownOrderIds.add(p.id);
+                knownOrderStates.set(p.id, {
+                    folio: p.folio,
+                    estado: p.estado_pedido,
+                    pago: p.estado_pago,
+                    msgs: (p.mensajes_chat || []).length
+                });
+            });
+            lastOrdersSignature = _computeOrdersSignature(pedidos);
+        }
+
+        async function pollLivePedidosTick() {
+            if (livePollInFlight || document.hidden || !activeTenantId || !authToken) return;
+            const sec = document.getElementById('comercioSection');
+            if (!sec || sec.classList.contains('hidden')) return;
+
+            livePollInFlight = true;
+            try {
+                const sucursalFilter = document.getElementById('filtroSucursalSelect')?.value || '';
+                const query = sucursalFilter ? `?sucursal_id=${sucursalFilter}` : '';
+                const data = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/dashboard${query}`);
+                const pedidos = data.pedidos || [];
+                const newSig = _computeOrdersSignature(pedidos);
+
+                if (newSig !== lastOrdersSignature) {
                     const prevIds = new Set(knownOrderIds);
-                    await reloadComercioDashboard(false);
-                    const nuevos = (currentComercioData?.pedidos || []).filter(p => !prevIds.has(p.id));
+                    const prevStates = new Map(knownOrderStates);
+
+                    const nuevos = pedidos.filter(p => !prevIds.has(p.id));
+                    const movidos = pedidos.filter(p => {
+                        const prev = prevStates.get(p.id);
+                        return prev && prev.estado !== p.estado_pedido;
+                    });
+
+                    currentComercioData = data;
+                    const sym = data.comercio?.simbolo_moneda || 'C$';
+                    _syncKnownOrdersSnapshot(pedidos);
+                    renderKanbanPedidos(pedidos, sym);
+
+                    if (activeChatPedido) {
+                        const updatedChat = pedidos.find(x => x.id === activeChatPedido.id);
+                        if (updatedChat) {
+                            activeChatPedido = updatedChat;
+                            renderChatModalMessages(updatedChat);
+                        }
+                    }
+
                     if (nuevos.length > 0) {
                         playKitchenBell();
-                        showToast(`${nuevos.length} nuevo(s) pedido(s) recibido(s).`);
+                        const folios = nuevos.map(n => `#${n.folio}`).join(', ');
+                        showToast(`Nuevo pedido recibido: ${folios}`);
+                    } else if (movidos.length > 0) {
+                        const m = movidos[0];
+                        showToast(`Pedido #${m.folio} actualizado a ${m.estado_pedido}`);
                     }
-                }, 15000);
-                if (btn) btn.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/50 text-emerald-300 text-xs font-bold transition flex items-center gap-2';
-                if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-                if (txt) txt.textContent = 'En Vivo (15s): On';
-                showToast('Auto-refresco En Vivo activado (cada 15 segundos).');
+                }
+            } catch (_) {
+                // Fallo puntual en polling silencioso: se reintenta en 3s sin interrumpir al usuario
+            } finally {
+                livePollInFlight = false;
             }
         }
-        window.toggleLiveKanbanPolling = toggleLiveKanbanPolling;
+
+        function startLiveKanbanPolling() {
+            if (liveKanbanTimer) clearInterval(liveKanbanTimer);
+            liveKanbanTimer = setInterval(pollLivePedidosTick, 3000);
+        }
+        window.startLiveKanbanPolling = startLiveKanbanPolling;
 
         function stopLiveKanbanPolling() {
             if (liveKanbanTimer) {
                 clearInterval(liveKanbanTimer);
                 liveKanbanTimer = null;
             }
-            const btn = document.getElementById('btnLiveKanbanToggle');
-            const dot = document.getElementById('liveKanbanDot');
-            const txt = document.getElementById('liveKanbanText');
-            if (btn) btn.className = 'px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-semibold transition flex items-center gap-2';
-            if (dot) dot.className = 'w-2 h-2 rounded-full bg-slate-500';
-            if (txt) txt.textContent = 'En Vivo (15s): Off';
+            livePollInFlight = false;
+            lastOrdersSignature = '';
         }
         window.stopLiveKanbanPolling = stopLiveKanbanPolling;
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && liveKanbanTimer) {
+                pollLivePedidosTick();
+            }
+        });
 
         async function reloadComercioDashboard(populateFilter = false) {
             const sucursalFilter = document.getElementById('filtroSucursalSelect').value;
@@ -628,7 +686,7 @@ function escapeHtml(str) {
                     }
                 }
 
-                knownOrderIds = new Set((data.pedidos || []).map(p => p.id));
+                _syncKnownOrdersSnapshot(data.pedidos || []);
                 renderKanbanPedidos(data.pedidos, sym);
                 renderMenuPlatos(data.platos, sym);
                 renderSucursalesYMesas(data.sucursales, c, data.reservaciones_mesa || []);
