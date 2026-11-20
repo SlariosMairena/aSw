@@ -13,7 +13,7 @@ import json
 import random
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 
@@ -36,9 +36,83 @@ from app.models.saas_models import (
 from app.services.ai_router import interpret_natural_order_message
 from app.services.whatsapp_provider import clean_whatsapp_phone
 
+# Tiempo máximo de inactividad (en minutos) antes de dar por terminada
+# una conversación abandonada (sin pedido en curso) para ahorrar memoria y BD.
+SESSION_IDLE_TIMEOUT_MINUTES = 8
+_LAST_SWEEP_AT: Optional[datetime] = None
+
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _as_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _expire_session_if_idle(db: Session, sesion: SesionChatWhatsApp, now: datetime) -> bool:
+    """
+    Si la sesión lleva más de SESSION_IDLE_TIMEOUT_MINUTES sin respuesta y NO tiene
+    un pedido activo en curso, la marca como terminada (EXPIRADA) y elimina mensajes
+    abandonados si nunca generó un pedido. Retorna True si fue expirada.
+    """
+    if not sesion or not sesion.activa:
+        return False
+    if sesion.estado_conversacion == "SIGUIENDO_PEDIDO":
+        return False
+
+    last_ts = _as_utc(sesion.ultimo_mensaje_en)
+    if not last_ts or (now - last_ts) <= timedelta(minutes=SESSION_IDLE_TIMEOUT_MINUTES):
+        return False
+
+    sesion.activa = False
+    sesion.estado_conversacion = "EXPIRADA"
+    sesion.carrito_json = "{}"
+
+    # Si esta sesión nunca generó un pedido real, purgar sus mensajes temporales para no inflar la BD
+    tiene_pedido = (
+        db.query(Pedido.id).filter(Pedido.sesion_chat_id == sesion.id).first() is not None
+    )
+    if not tiene_pedido:
+        db.query(MensajeChatWhatsApp).filter(
+            MensajeChatWhatsApp.sesion_id == sesion.id
+        ).delete(synchronize_session=False)
+    return True
+
+
+def cleanup_expired_whatsapp_sessions(db: Session, force: bool = False) -> int:
+    """
+    Cierra en lote sesiones abandonadas (> 8 min sin respuesta y sin pedido en curso).
+    Se ejecuta de forma ligera (máximo 1 vez cada 2 min salvo force=True) sin hilos extra.
+    """
+    global _LAST_SWEEP_AT
+    now = _utcnow()
+    if not force and _LAST_SWEEP_AT and (now - _LAST_SWEEP_AT) < timedelta(minutes=2):
+        return 0
+    _LAST_SWEEP_AT = now
+
+    cutoff = now - timedelta(minutes=SESSION_IDLE_TIMEOUT_MINUTES)
+    candidatas = (
+        db.query(SesionChatWhatsApp)
+        .filter(
+            SesionChatWhatsApp.activa.is_(True),
+            SesionChatWhatsApp.estado_conversacion != "SIGUIENDO_PEDIDO",
+            SesionChatWhatsApp.ultimo_mensaje_en < cutoff,
+        )
+        .limit(100)
+        .all()
+    )
+    cerradas = 0
+    for s in candidatas:
+        if _expire_session_if_idle(db, s, now):
+            cerradas += 1
+    if cerradas:
+        db.flush()
+    return cerradas
 
 
 def _normalize_text(text: str) -> str:
@@ -527,6 +601,9 @@ def _resolve_or_create_session(
     texto: str,
     forced_sucursal_id: Optional[int] = None,
 ) -> Tuple[Optional[SesionChatWhatsApp], Optional[str]]:
+    now = _utcnow()
+    cleanup_expired_whatsapp_sessions(db)
+
     branch_code = _extract_branch_code(texto)
     target_suc: Optional[SucursalComercio] = None
 
@@ -553,6 +630,8 @@ def _resolve_or_create_session(
             .order_by(SesionChatWhatsApp.id.desc())
             .first()
         )
+        if sesion and _expire_session_if_idle(db, sesion, now):
+            sesion = None
         if not sesion:
             sesion = SesionChatWhatsApp(
                 tenant_id=target_suc.tenant_id,
@@ -580,6 +659,8 @@ def _resolve_or_create_session(
         .order_by(SesionChatWhatsApp.ultimo_mensaje_en.desc())
         .first()
     )
+    if sesion and _expire_session_if_idle(db, sesion, now):
+        sesion = None
     if sesion:
         return sesion, None
 
