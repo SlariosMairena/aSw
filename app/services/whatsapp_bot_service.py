@@ -15,8 +15,10 @@ import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import quote
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.demo_seeds import normalize_giro_code
 from app.models.saas_models import (
     CategoriaMenu,
@@ -368,6 +370,7 @@ def _format_welcome_categories(
     state: Dict[str, Any],
     nombre_cliente: Optional[str],
     is_returning: bool = False,
+    telefono_cliente: Optional[str] = None,
 ) -> str:
     copy = _giro_copy(comercio.giro)
     cats = [c for c in categorias if any(p.categoria_id == c.id for p in platos)]
@@ -379,7 +382,16 @@ def _format_welcome_categories(
         lines.append(f"{_saludo_nombre(nombre_cliente)} Qué gusto saludarte desde *{comercio.nombre_comercial}* ({sucursal.nombre_sucursal}).")
         if not sucursal.abierto_ahora:
             lines.append(f"Por ahora estamos cerrados (Horario: {sucursal.horario_apertura} a {sucursal.horario_cierre}), pero puedes revisar {copy['catalog']}.")
-        lines.append("\n¿Qué te gustaría pedir hoy? Responde con el número o el nombre:")
+        base_url = (settings.BASE_URL or "http://localhost:8000").rstrip("/")
+        qs_parts = []
+        if telefono_cliente:
+            qs_parts.append(f"tel={quote(clean_whatsapp_phone(telefono_cliente))}")
+        if nombre_cliente and not nombre_cliente.lower().startswith("cliente"):
+            qs_parts.append(f"nombre={quote(nombre_cliente.strip())}")
+        qs = ("?" + "&".join(qs_parts)) if qs_parts else ""
+        menu_link = f"{base_url}/m/{quote(sucursal.codigo_whatsapp or '')}{qs}"
+        lines.append(f"\n*Pide más rápido tocando nuestro menú interactivo:*\n{menu_link}")
+        lines.append("\nO si prefieres pedir por aquí, responde con el número:")
 
     for idx, cat in enumerate(cats, start=1):
         lines.append(f"*{idx}.* {cat.nombre}")
@@ -1031,7 +1043,7 @@ def process_incoming_whatsapp_message(
         state["pending_item"] = None
         sesion.estado_conversacion = "EXPLORANDO_MENU"
         reply_text = _format_welcome_categories(
-            comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=False
+            comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=False, telefono_cliente=telefono
         )
         quick_replies = [str(i) for i in range(1, min(len(cats_con_items), 4) + 1)]
     elif norm in ("ver", "carrito", "mi pedido"):

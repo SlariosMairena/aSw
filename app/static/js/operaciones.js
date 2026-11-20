@@ -400,6 +400,10 @@ function renderSucursalesYMesasV2(sucursales, comercio, reservaciones = []) {
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition">
                             <i class="fa-brands fa-whatsapp"></i> Link WhatsApp
                         </a>
+                        <a href="/m/${encodeURIComponent(s.codigo_whatsapp || '')}" target="_blank"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-bold text-xs transition">
+                            <i class="fa-solid fa-mobile-screen-button"></i> Menú Web
+                        </a>
                         <button type="button" onclick="openModalWhatsappSim(${s.id})"
                             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-bold text-xs transition">
                             <i class="fa-solid fa-robot"></i> Simular Bot Aqui

@@ -18,6 +18,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.api.auth import router as auth_router
+from app.api.menu_publico_api import router as menu_publico_router
 from app.api.operaciones_api import router as operaciones_router
 from app.api.panel_api import router as panel_router
 from app.api.payment_api import router as payment_router
@@ -70,6 +71,7 @@ app.include_router(panel_router)
 app.include_router(operaciones_router)
 app.include_router(payment_router)
 app.include_router(whatsapp_router)
+app.include_router(menu_publico_router)
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Panel Web Visual (Fase 2)"])
