@@ -6,21 +6,21 @@
     <title>{{ comercio_nombre }} — Menú Interactivo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/brand_theme.css?v=1">
     <style>
-        body { background: #020617; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="min-h-screen pb-28">
-    <!-- Header del Comercio -->
-    <header class="sticky top-0 z-30 bg-slate-950/95 backdrop-blur border-b border-slate-800 px-4 py-3">
+<body class="min-h-screen pb-28 theme-crema">
+    <!-- Header del Comercio (Verde Abeto 30%) -->
+    <header class="ui-navbar sticky top-0 z-30 px-4 py-3 shadow-sm">
         <div class="max-w-2xl mx-auto flex items-center justify-between gap-3">
             <div class="min-w-0">
                 <h1 id="pubComercioNombre" class="font-extrabold text-base text-white truncate">{{ comercio_nombre }}</h1>
-                <p id="pubSucursalSub" class="text-xs text-slate-400 truncate">{{ sucursal_nombre }}</p>
+                <p id="pubSucursalSub" class="text-xs text-[#B2CABD] truncate">{{ sucursal_nombre }}</p>
             </div>
-            <span id="pubEstadoBadge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
+            <span id="pubEstadoBadge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/15 text-[#F5EFE4] border border-white/25 shrink-0">
                 Cargando...
             </span>
         </div>

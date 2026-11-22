@@ -23,13 +23,13 @@ function appendWaSimBubble(remitente, text, meta = '') {
     const div = document.createElement('div');
     div.className = `flex ${isClient ? 'justify-end' : 'justify-start'}`;
     div.innerHTML = `
-        <div class="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed shadow ${
+        <div class="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
             isClient
-                ? 'bg-emerald-700/80 text-white rounded-br-sm'
-                : 'bg-slate-800 border border-slate-700 text-slate-100 rounded-bl-sm'
+                ? 'ui-bubble-out'
+                : 'ui-bubble-in'
         }">
-            <div class="text-[10px] font-bold opacity-75 mb-1 flex items-center justify-between gap-3">
-                <span>${isClient ? '<i class="fa-solid fa-user mr-1"></i> Tu (Cliente)' : '<i class="fa-solid fa-robot text-emerald-400 mr-1"></i> Bot WhatsApp'}${meta ? ` · ${escapeHtml(meta)}` : ''}</span>
+            <div class="ui-bubble-meta text-[10px] font-bold mb-1 flex items-center justify-between gap-3">
+                <span>${isClient ? '<i class="fa-solid fa-user mr-1"></i> Tu (Cliente)' : '<i class="fa-solid fa-robot mr-1"></i> Bot OrdenaPro'}${meta ? ` · ${escapeHtml(meta)}` : ''}</span>
                 <span>${hora}</span>
             </div>
             <div>${formatWhatsappTextHtml(text)}</div>

@@ -1,0 +1,449 @@
+/* ============================================================================
+   SISTEMA DE TEMA 60 / 30 / 10 — IDENTIDAD PROPIA
+   60% Dominante: Crema Clásica (#F5EFE4 / #FFFDF8)
+   30% Secundario: Verde Abeto (#1B4332 / #255742)
+   10% Acento:     Rojo Tomate (#D6402B / #B8321F)
+   ============================================================================ */
+
+:root {
+  --c60-bg: #F5EFE4;
+  --c60-card: #FFFDF8;
+  --c60-soft: #EDE5D7;
+  --c60-hover: #EFE7D9;
+  --c60-border: #DFD5C3;
+
+  --c30-main: #1B4332;
+  --c30-hover: #143326;
+  --c30-soft: #255742;
+  --c30-tint: #E4EFE9;
+  --c30-text-on: #F4F7F5;
+  --c30-muted-on: #B2CABD;
+
+  --c10-accent: #D6402B;
+  --c10-hover: #B8321F;
+  --c10-tint: #FDECE9;
+  --c10-text-on: #FFFFFF;
+
+  --text-main: #1A241E;
+  --text-secondary: #39483F;
+  --text-muted: #5C6B62;
+
+  --chat-bg: #EDE5D7;
+  --chat-in: #FFFDF8;
+  --chat-out: #1B4332;
+  --chat-out-text: #F5EFE4;
+}
+
+html.theme-crema,
+body.theme-crema {
+  background: var(--c60-bg) !important;
+  color: var(--text-main) !important;
+  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Scrollbar sutil en crema/abeto */
+body.theme-crema ::-webkit-scrollbar { width: 7px; height: 7px; }
+body.theme-crema ::-webkit-scrollbar-track { background: var(--c60-soft); }
+body.theme-crema ::-webkit-scrollbar-thumb { background: #C8BBA5; border-radius: 9999px; }
+body.theme-crema ::-webkit-scrollbar-thumb:hover { background: var(--c30-soft); }
+
+/* ============================================================================
+   COMPONENTES DE MARCA (NAVBAR, SIDEBAR IZQUIERDO, TARJETAS, BOTONES)
+   ============================================================================ */
+
+.ui-navbar {
+  background: var(--c30-main) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: var(--c30-text-on) !important;
+}
+
+.ui-brand-logo {
+  background: var(--c10-accent);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(214, 64, 43, 0.28);
+}
+
+/* Sidebar Vertical Izquierdo (Escritorio) + Barra Inferior Fija (Móvil) */
+.ui-comercio-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .ui-comercio-shell {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+}
+
+.ui-sidebar {
+  background: var(--c30-main);
+  color: var(--c30-text-on);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(27, 67, 50, 0.14);
+}
+
+@media (max-width: 1023px) {
+  .ui-sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+    padding: 0.45rem 0.6rem;
+    overflow-x: auto;
+  }
+  body.theme-crema #comercioSection {
+    padding-bottom: 5.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .ui-sidebar {
+    width: 232px;
+    flex-shrink: 0;
+    border-radius: 1rem;
+    padding: 0.9rem;
+    position: sticky;
+    top: 5rem;
+  }
+}
+
+.ui-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.62rem 0.85rem;
+  border-radius: 0.72rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--c30-muted-on);
+  background: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+}
+
+@media (min-width: 1024px) {
+  .ui-nav-btn {
+    width: 100%;
+  }
+}
+
+.ui-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #FFFFFF;
+}
+
+.ui-nav-btn.is-active {
+  background: var(--c10-accent) !important;
+  color: var(--c10-text-on) !important;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(214, 64, 43, 0.32);
+}
+
+.ui-nav-btn.ui-nav-bot {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #E4EFE9;
+}
+
+.ui-nav-btn.ui-nav-bot:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #FFFFFF;
+}
+
+.ui-main-pane {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Superficie de tarjetas (reemplaza .glass oscura por Crema Papel elevado) */
+body.theme-crema .glass {
+  background: var(--c60-card) !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--c60-border) !important;
+  box-shadow: 0 2px 8px rgba(27, 67, 50, 0.05);
+  color: var(--text-main);
+}
+
+/* ============================================================================
+   ADAPTACIÓN SEMÁNTICA ARMÓNICA PARA VISTAS Y MODALES RENDERIZADOS POR JS
+   Respeta zonas oscuras intencionales (.keep-dark, .ui-navbar, .ui-sidebar)
+   ============================================================================ */
+
+/* Fondos oscuros slate -> Crema Clásica / Papel */
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-950,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-950\/95,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-950\/90,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-950\/70,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-950\/60 {
+  background-color: var(--c60-soft) !important;
+}
+
+/* Backdrops de modales se mantienen oscuros semitransparentes */
+body.theme-crema .fixed.inset-0.bg-slate-950\/85,
+body.theme-crema .fixed.inset-0.bg-slate-950\/80,
+body.theme-crema .fixed.inset-0.bg-slate-950\/75,
+body.theme-crema .fixed.inset-0.bg-black\/70,
+body.theme-crema .fixed.inset-0.bg-black\/80 {
+  background-color: rgba(20, 36, 28, 0.62) !important;
+}
+
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/95,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/90,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/80,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/70,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/60,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/50,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-900\/40 {
+  background-color: var(--c60-card) !important;
+}
+
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-800,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-800\/90,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-800\/80,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-800\/70,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-800\/60,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).bg-slate-800\/50 {
+  background-color: var(--c60-soft) !important;
+}
+
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).hover\:bg-slate-700:hover,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).hover\:bg-slate-800:hover {
+  background-color: #E3D9C7 !important;
+}
+
+/* Bordes slate -> Arena suave */
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).border-slate-800,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).border-slate-700,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).border-slate-700\/70,
+body.theme-crema :not(.keep-dark):not(.ui-navbar):not(.ui-sidebar).border-slate-600 {
+  border-color: var(--c60-border) !important;
+}
+
+/* Textos claros -> Carbón / Verde oscuro legible sobre crema (excepto dentro de fondos sólidos oscuros o botones CTA) */
+body.theme-crema .text-white:not(.keep-white):not(.ui-navbar *):not(.ui-sidebar *):not([class*="bg-emerald-6"]):not([class*="bg-emerald-5"]):not([class*="bg-rose-6"]):not([class*="bg-red-6"]):not([class*="bg-amber-6"]):not([class*="bg-indigo-6"]):not([class*="bg-sky-6"]):not([class*="bg-cyan-6"]):not(.ui-btn-primary):not(.ui-btn-secondary):not(.ui-bubble-out):not(.ui-bubble-out *) {
+  color: var(--text-main) !important;
+}
+
+body.theme-crema .text-slate-100:not(.ui-navbar *):not(.ui-sidebar *):not(.ui-bubble-out *),
+body.theme-crema .text-slate-200:not(.ui-navbar *):not(.ui-sidebar *):not(.ui-bubble-out *) {
+  color: var(--text-main) !important;
+}
+
+body.theme-crema .text-slate-300:not(.ui-navbar *):not(.ui-sidebar *):not(.ui-bubble-out *) {
+  color: var(--text-secondary) !important;
+}
+
+body.theme-crema .text-slate-400:not(.ui-navbar *):not(.ui-sidebar *):not(.ui-bubble-out *),
+body.theme-crema .text-slate-500:not(.ui-navbar *):not(.ui-sidebar *):not(.ui-bubble-out *) {
+  color: var(--text-muted) !important;
+}
+
+/* Botones CTA principales: emerald-600 / emerald-500 -> Rojo Tomate (10%) o Verde Abeto (30%) */
+body.theme-crema button.bg-emerald-600,
+body.theme-crema a.bg-emerald-600,
+body.theme-crema .ui-btn-primary {
+  background-color: var(--c10-accent) !important;
+  color: #FFFFFF !important;
+  border-color: var(--c10-accent) !important;
+  box-shadow: 0 3px 10px rgba(214, 64, 43, 0.22);
+}
+
+body.theme-crema button.bg-emerald-600:hover,
+body.theme-crema a.bg-emerald-600:hover,
+body.theme-crema .ui-btn-primary:hover {
+  background-color: var(--c10-hover) !important;
+}
+
+body.theme-crema button.bg-emerald-500,
+body.theme-crema .ui-btn-secondary {
+  background-color: var(--c30-main) !important;
+  color: #FFFFFF !important;
+  border-color: var(--c30-main) !important;
+}
+
+body.theme-crema button.bg-emerald-500:hover,
+body.theme-crema .ui-btn-secondary:hover {
+  background-color: var(--c30-hover) !important;
+}
+
+/* Botones / Badges tintados (emerald / indigo / sky / amber / rose) con alto contraste sobre crema */
+body.theme-crema .bg-emerald-500\/20,
+body.theme-crema .bg-emerald-500\/15,
+body.theme-crema .bg-emerald-500\/10,
+body.theme-crema .bg-emerald-600\/25,
+body.theme-crema .bg-emerald-950\/80,
+body.theme-crema .bg-emerald-950\/40 {
+  background-color: var(--c30-tint) !important;
+  border-color: #B7D4C5 !important;
+}
+body.theme-crema .text-emerald-300:not(.ui-navbar *):not(.ui-sidebar *),
+body.theme-crema .text-emerald-200:not(.ui-navbar *):not(.ui-sidebar *),
+body.theme-crema .text-emerald-100:not(.ui-navbar *):not(.ui-sidebar *),
+body.theme-crema .text-emerald-400:not(.ui-navbar *):not(.ui-sidebar *) {
+  color: var(--c30-main) !important;
+}
+
+body.theme-crema .bg-indigo-500\/20,
+body.theme-crema .bg-indigo-500\/15,
+body.theme-crema .bg-indigo-950\/40 {
+  background-color: #EEF2FF !important;
+  border-color: #C7D2FE !important;
+}
+body.theme-crema .text-indigo-300:not(.ui-navbar *),
+body.theme-crema .text-indigo-200:not(.ui-navbar *),
+body.theme-crema .text-indigo-400:not(.ui-navbar *) {
+  color: #3730A3 !important;
+}
+
+body.theme-crema .bg-sky-500\/20,
+body.theme-crema .bg-sky-500\/15,
+body.theme-crema .bg-sky-500\/10,
+body.theme-crema .bg-cyan-500\/20,
+body.theme-crema .bg-teal-500\/20,
+body.theme-crema .bg-teal-500\/15,
+body.theme-crema .bg-teal-500\/10 {
+  background-color: #E0F2FE !important;
+  border-color: #BAE6FD !important;
+}
+body.theme-crema .text-sky-300,
+body.theme-crema .text-sky-200,
+body.theme-crema .text-sky-400,
+body.theme-crema .text-cyan-300,
+body.theme-crema .text-cyan-200,
+body.theme-crema .text-cyan-400 {
+  color: #0369A1 !important;
+}
+body.theme-crema .text-teal-300,
+body.theme-crema .text-teal-200,
+body.theme-crema .text-teal-400 {
+  color: #0F766E !important;
+}
+
+body.theme-crema .bg-purple-500\/20,
+body.theme-crema .bg-purple-500\/15,
+body.theme-crema .bg-purple-500\/10,
+body.theme-crema .bg-fuchsia-500\/20,
+body.theme-crema .bg-fuchsia-500\/15,
+body.theme-crema .bg-fuchsia-500\/10,
+body.theme-crema .bg-pink-500\/20,
+body.theme-crema .bg-pink-500\/15,
+body.theme-crema .bg-pink-500\/10 {
+  background-color: #F3E8FF !important;
+  border-color: #D8B4FE !important;
+}
+body.theme-crema .text-purple-300,
+body.theme-crema .text-purple-200,
+body.theme-crema .text-purple-400,
+body.theme-crema .text-fuchsia-300,
+body.theme-crema .text-fuchsia-200,
+body.theme-crema .text-fuchsia-400,
+body.theme-crema .text-pink-300,
+body.theme-crema .text-pink-200,
+body.theme-crema .text-pink-400 {
+  color: #6B21A8 !important;
+}
+
+/* Navbar: asegurar contraste perfecto en el botón 2FA incluso si JS le añade bg-emerald-500/20 */
+body.theme-crema .ui-navbar #btnOpen2FA {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  color: #FFFFFF !important;
+}
+body.theme-crema .ui-navbar #btnOpen2FA:hover {
+  background-color: rgba(255, 255, 255, 0.24) !important;
+}
+
+/* Toast flotante: siempre texto blanco nítido sobre Verde Abeto o Rojo Tomate */
+body.theme-crema #toast,
+body.theme-crema #toastBox {
+  color: #FFFFFF !important;
+}
+body.theme-crema #toast *,
+body.theme-crema #toastBox * {
+  color: #FFFFFF !important;
+}
+
+body.theme-crema .bg-amber-500\/20,
+body.theme-crema .bg-amber-500\/15,
+body.theme-crema .bg-amber-500\/10 {
+  background-color: #FEF3C7 !important;
+  border-color: #FDE68A !important;
+}
+body.theme-crema .text-amber-300,
+body.theme-crema .text-amber-200,
+body.theme-crema .text-amber-400 {
+  color: #92400E !important;
+}
+
+body.theme-crema .bg-rose-500\/20,
+body.theme-crema .bg-rose-500\/15,
+body.theme-crema .bg-rose-500\/10 {
+  background-color: var(--c10-tint) !important;
+  border-color: #F6C2B9 !important;
+}
+body.theme-crema .text-rose-300:not(.ui-navbar *),
+body.theme-crema .text-rose-400:not(.ui-navbar *) {
+  color: var(--c10-accent) !important;
+}
+
+/* Inputs, selects y textareas siempre nítidos en crema papel */
+body.theme-crema input:not([type="checkbox"]):not([type="radio"]),
+body.theme-crema select,
+body.theme-crema textarea {
+  background-color: #FFFFFF !important;
+  color: var(--text-main) !important;
+  border-color: var(--c60-border) !important;
+}
+
+body.theme-crema input:focus,
+body.theme-crema select:focus,
+body.theme-crema textarea:focus {
+  border-color: var(--c30-main) !important;
+  box-shadow: 0 0 0 2px rgba(27, 67, 50, 0.14);
+}
+
+/* ============================================================================
+   ESTILO DE CHAT (SIMULADOR Y MODAL CHAT EN VIVO)
+   ============================================================================ */
+.ui-chat-bg {
+  background-color: var(--chat-bg) !important;
+  background-image: radial-gradient(rgba(27, 67, 50, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.ui-bubble-in {
+  background: var(--chat-in) !important;
+  color: var(--text-main) !important;
+  border: 1px solid var(--c60-border) !important;
+  border-top-left-radius: 4px !important;
+  box-shadow: 0 1px 3px rgba(27, 67, 50, 0.08);
+}
+
+.ui-bubble-out {
+  background: var(--chat-out) !important;
+  color: var(--chat-out-text) !important;
+  border: 1px solid var(--c30-soft) !important;
+  border-top-right-radius: 4px !important;
+  box-shadow: 0 2px 6px rgba(27, 67, 50, 0.18);
+}
+
+.ui-bubble-out .ui-bubble-meta {
+  color: var(--c30-muted-on) !important;
+}
+
+.ui-bubble-in .ui-bubble-meta {
+  color: var(--text-muted) !important;
+}
+

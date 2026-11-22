@@ -536,9 +536,9 @@ function escapeHtml(str) {
                     const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
                     const hideInvCls = (t === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) ? ' hidden' : '';
                     if (t === tabName) {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer' + adminOnlyCls + hideInvCls;
+                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls;
                     } else {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer' + adminOnlyCls + hideInvCls;
+                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls;
                     }
                 }
             });
