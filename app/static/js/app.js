@@ -1116,6 +1116,7 @@ function escapeHtml(str) {
 
         function selectMenuCategoryChip(cat) {
             activeCatalogCategory = cat || '';
+            menuCurrentPage = 1;
             const sel = document.getElementById('filterCategoryMenuSelect');
             if (sel) sel.value = activeCatalogCategory;
             renderMenuCategoryChips();
@@ -1126,10 +1127,21 @@ function escapeHtml(str) {
         function onMenuCategorySelectChange() {
             const sel = document.getElementById('filterCategoryMenuSelect');
             activeCatalogCategory = sel ? sel.value : '';
+            menuCurrentPage = 1;
             renderMenuCategoryChips();
             filterCatalogCards();
         }
         window.onMenuCategorySelectChange = onMenuCategorySelectChange;
+
+        const MENU_PAGE_SIZE = 8;
+        let menuCurrentPage = 1;
+
+        function setMenuPage(page) {
+            menuCurrentPage = Math.max(1, Number(page) || 1);
+            filterCatalogCards(null, false);
+            document.getElementById('tabContent_menu')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        window.setMenuPage = setMenuPage;
 
         function renderMenuCategoryChips() {
             const bar = document.getElementById('menuCategoriasChipsBar');
@@ -1201,13 +1213,17 @@ function escapeHtml(str) {
             filterCatalogCards(moneda);
         }
 
-        function filterCatalogCards(moneda = null) {
+        function filterCatalogCards(moneda = null, resetPage = true) {
             const sym = moneda || (currentComercioData && currentComercioData.comercio ? currentComercioData.comercio.simbolo_moneda : '$');
             const searchInput = document.getElementById('searchMenuInput');
             const catSelect = document.getElementById('filterCategoryMenuSelect');
             
             const q = (searchInput ? searchInput.value : '').toLowerCase().trim();
             const cat = catSelect ? catSelect.value : '';
+            if (resetPage && q !== activeCatalogSearch) {
+                menuCurrentPage = 1;
+                activeCatalogSearch = q;
+            }
 
             const filtered = allPlatosCache.filter(pl => {
                 const matchQ = !q || (pl.nombre || '').toLowerCase().includes(q) || (pl.descripcion || '').toLowerCase().includes(q);
@@ -1216,26 +1232,58 @@ function escapeHtml(str) {
             });
 
             const grid = document.getElementById('menuPlatosGrid');
+            const pagBar = document.getElementById('menuPaginationBar');
             if (!grid) return;
 
             if (filtered.length === 0) {
+                if (pagBar) pagBar.classList.add('hidden');
                 grid.innerHTML = `
                     <div class="p-8 text-center rounded-2xl bg-slate-900/40 border border-slate-800">
                         <i class="fa-solid fa-magnifying-glass text-3xl block mb-2 text-slate-600"></i>
-                        <p class="text-sm font-semibold text-slate-300">No se encontraron platos</p>
-                        <p class="text-xs text-slate-500 mt-1">Prueba con otro término de búsqueda o agrega un nuevo plato a la izquierda.</p>
+                        <p class="text-sm font-semibold text-slate-300">No se encontraron productos</p>
+                        <p class="text-xs text-slate-500 mt-1">Prueba con otro término de búsqueda o agrega uno nuevo con el botón superior.</p>
                     </div>
                 `;
                 return;
+            }
+
+            const totalPages = Math.max(1, Math.ceil(filtered.length / MENU_PAGE_SIZE));
+            if (menuCurrentPage > totalPages) menuCurrentPage = totalPages;
+            const startIdx = (menuCurrentPage - 1) * MENU_PAGE_SIZE;
+            const pageItems = filtered.slice(startIdx, startIdx + MENU_PAGE_SIZE);
+
+            if (pagBar) {
+                if (totalPages > 1) {
+                    pagBar.classList.remove('hidden');
+                    const endIdx = Math.min(startIdx + MENU_PAGE_SIZE, filtered.length);
+                    pagBar.innerHTML = `
+                        <span class="text-slate-400">Mostrando <strong class="text-white">${startIdx + 1}-${endIdx}</strong> de <strong class="text-white">${filtered.length}</strong> productos</span>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" onclick="setMenuPage(${menuCurrentPage - 1})" ${menuCurrentPage <= 1 ? 'disabled' : ''}
+                                class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${menuCurrentPage <= 1 ? 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'}">
+                                <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+                            </button>
+                            <span class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold">
+                                Página ${menuCurrentPage} / ${totalPages}
+                            </span>
+                            <button type="button" onclick="setMenuPage(${menuCurrentPage + 1})" ${menuCurrentPage >= totalPages ? 'disabled' : ''}
+                                class="px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${menuCurrentPage >= totalPages ? 'bg-slate-900 text-slate-600 border-slate-800 cursor-not-allowed' : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'}">
+                                Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    pagBar.classList.add('hidden');
+                }
             }
 
             const esAdmin = isComercioAdminOrSuper();
             const profile = getGiroProfile(currentComercioData?.comercio?.giro);
             const activeSucFilterId = Number(document.getElementById('filtroSucursalSelect')?.value || (currentUser && currentUser.sucursal_id) || 0);
 
-            // Agrupar productos por categoría para una vista limpia y ordenada
+            // Agrupar los productos de la página actual por categoría
             const grupos = {};
-            filtered.forEach(pl => {
+            pageItems.forEach(pl => {
                 const c = pl.categoria || 'General';
                 if (!grupos[c]) grupos[c] = [];
                 grupos[c].push(pl);

@@ -434,12 +434,28 @@ def _format_products_list(
     comercio: TenantComercio,
     categoria: CategoriaMenu,
     platos_cat: List[ProductoPlato],
+    page: int = 0,
+    page_size: int = 6,
 ) -> str:
     sym = comercio.simbolo_moneda or "C$"
-    lines = [f"*{categoria.nombre}*", "¿Cuál te gustaría? Responde con el número o el nombre:\n"]
-    for idx, pl in enumerate(platos_cat, start=1):
+    total = len(platos_cat)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = max(0, min(page, total_pages - 1))
+    start = page * page_size
+    chunk = platos_cat[start : start + page_size]
+
+    header_pag = f" (Pág. {page + 1}/{total_pages})" if total_pages > 1 else ""
+    lines = [f"*{categoria.nombre}*{header_pag}", "¿Cuál te gustaría? Responde con el número o el nombre:\n"]
+    for idx, pl in enumerate(chunk, start=start + 1):
         lines.append(f"*{idx}.* {pl.nombre} — *{sym}{pl.precio_base:.2f}*")
-    lines.append("\n*0.* Volver atrás")
+
+    nav = []
+    if page + 1 < total_pages:
+        nav.append("*+* Ver más productos")
+    if page > 0:
+        nav.append("*-* Página anterior")
+    nav.append("*0.* Volver a categorías")
+    lines.append("\n" + "  |  ".join(nav))
     return "\n".join(lines)
 
 
@@ -1229,18 +1245,32 @@ def process_incoming_whatsapp_message(
                     )
                     quick_replies = [str(i) for i in range(1, min(len(cats_con_items), 4) + 1)]
 
-        # 2. ELIGIENDO_PRODUCTO -> Por número o nombre aproximado
+        # 2. ELIGIENDO_PRODUCTO -> Por número, nombre aproximado o paginación (+ / -)
         elif est == "ELIGIENDO_PRODUCTO":
             cat_obj = next((c for c in cats_con_items if c.id == state.get("categoria_id")), None)
             platos_cat = [p for p in platos if p.categoria_id == state.get("categoria_id")]
+            cur_page = int(state.get("productos_page") or 0)
+            total_pages = max(1, (len(platos_cat) + 5) // 6)
             num = int(_extract_number(texto)) if texto.strip().isdigit() else None
+
             if num == 0 or _fuzzy_contains_any(norm, ["volver", "atras", "regresar"]) or not cat_obj:
                 state["categoria_id"] = None
+                state["productos_page"] = 0
                 sesion.estado_conversacion = "EXPLORANDO_MENU"
                 reply_text = _format_welcome_categories(
                     comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=True
                 )
                 quick_replies = [str(i) for i in range(1, min(len(cats_con_items), 4) + 1)]
+            elif texto.strip() == "+" or _fuzzy_contains_any(norm, ["mas productos", "siguiente", "ver mas"]):
+                cur_page = min(total_pages - 1, cur_page + 1)
+                state["productos_page"] = cur_page
+                reply_text = _format_products_list(comercio, cat_obj, platos_cat, page=cur_page)
+                quick_replies = ["+", "-", "0"] if cur_page + 1 < total_pages else ["-", "0"]
+            elif texto.strip() == "-" or _fuzzy_contains_any(norm, ["anterior", "pagina anterior"]):
+                cur_page = max(0, cur_page - 1)
+                state["productos_page"] = cur_page
+                reply_text = _format_products_list(comercio, cat_obj, platos_cat, page=cur_page)
+                quick_replies = ["+", "0"] if cur_page + 1 < total_pages else ["0"]
             else:
                 p_idx = (num - 1) if (num and 1 <= num <= len(platos_cat)) else _fuzzy_match_options(texto, [p.nombre for p in platos_cat], cutoff=0.62)
                 if p_idx is not None and 0 <= p_idx < len(platos_cat):
@@ -1253,13 +1283,17 @@ def process_incoming_whatsapp_message(
                         "cantidad": 1,
                     }
                     sesion.estado_conversacion = "PIDIENDO_CANTIDAD"
-                    reply_text = f"¡Buena elección! *{pl.nombre}* ({sym}{pl.precio_base:.2f}).\n\n¿Cuántas unidades te gustaría llevar?"
-                    quick_replies = ["1", "2", "3"]
+                    reply_text = (
+                        f"¡Buena elección! *{pl.nombre}* ({sym}{pl.precio_base:.2f}).\n\n"
+                        "¿Cuántas unidades te gustaría llevar?\n"
+                        "_Responde *0* si prefieres cancelar este producto y elegir otro._"
+                    )
+                    quick_replies = ["1", "2", "3", "0"]
                 else:
-                    reply_text = _format_products_list(comercio, cat_obj, platos_cat)
+                    reply_text = _format_products_list(comercio, cat_obj, platos_cat, page=cur_page)
                     quick_replies = [str(i) for i in range(1, min(len(platos_cat), 4) + 1)] + ["0"]
 
-        # 3. PIDIENDO_CANTIDAD -> Acepta dígitos o palabras ("dos", "una", etc.)
+        # 3. PIDIENDO_CANTIDAD -> Acepta dígitos, palabras ("dos") o 0/cancelar para volver atrás
         elif est == "PIDIENDO_CANTIDAD":
             pending = state.get("pending_item")
             qty_num = _extract_number(texto)
@@ -1268,6 +1302,22 @@ def process_incoming_whatsapp_message(
                 reply_text = _format_welcome_categories(
                     comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=True
                 )
+            elif texto.strip() == "0" or _fuzzy_contains_any(norm, ["cancelar", "cancelo", "volver", "atras", "otro", "no quiero"]):
+                state["pending_item"] = None
+                cat_obj = next((c for c in cats_con_items if c.id == state.get("categoria_id")), None)
+                if cat_obj:
+                    platos_cat = [p for p in platos if p.categoria_id == cat_obj.id]
+                    sesion.estado_conversacion = "ELIGIENDO_PRODUCTO"
+                    reply_text = "Sin problema, cancelé ese producto.\n\n" + _format_products_list(
+                        comercio, cat_obj, platos_cat, page=int(state.get("productos_page") or 0)
+                    )
+                    quick_replies = ["1", "2", "0"]
+                else:
+                    sesion.estado_conversacion = "EXPLORANDO_MENU"
+                    reply_text = "Sin problema, cancelé ese producto.\n\n" + _format_welcome_categories(
+                        comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=True
+                    )
+                    quick_replies = [str(i) for i in range(1, min(len(cats_con_items), 4) + 1)]
             elif qty_num and 1 <= int(qty_num) <= 50:
                 pending["cantidad"] = int(qty_num)
                 removibles, extras = _get_item_customization_options(db, pending["plato_id"])
@@ -1293,10 +1343,10 @@ def process_incoming_whatsapp_message(
                     reply_text = _format_ask_more(comercio, state, f"{pending['cantidad']}x {pending['nombre']}")
                     quick_replies = ["1", "2", "3"]
             else:
-                reply_text = "Por favor indícame cuántas unidades deseas (por ejemplo: *1*, *2* o *dos*)."
-                quick_replies = ["1", "2", "3"]
+                reply_text = "Indícame cuántas unidades deseas (ej: *1*, *2* o *dos*), o responde *0* para cancelar y elegir otro producto."
+                quick_replies = ["1", "2", "3", "0"]
 
-        # 4. PERSONALIZANDO_ITEM -> Tolerante a "no quiero pepinillas", "quitale sebolla", extras por nombre o "1"
+        # 4. PERSONALIZANDO_ITEM -> Tolerante a "no quiero pepinillas", "quitale sebolla", extras o 0 para cancelar
         elif est == "PERSONALIZANDO_ITEM":
             pending = state.get("pending_item")
             if not pending:
@@ -1304,6 +1354,22 @@ def process_incoming_whatsapp_message(
                 reply_text = _format_welcome_categories(
                     comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=True
                 )
+            elif texto.strip() == "0" or _fuzzy_contains_any(norm, ["cancelar", "cancelo", "volver", "atras"]):
+                state["pending_item"] = None
+                cat_obj = next((c for c in cats_con_items if c.id == state.get("categoria_id")), None)
+                if cat_obj:
+                    platos_cat = [p for p in platos if p.categoria_id == cat_obj.id]
+                    sesion.estado_conversacion = "ELIGIENDO_PRODUCTO"
+                    reply_text = "Producto cancelado.\n\n" + _format_products_list(
+                        comercio, cat_obj, platos_cat, page=int(state.get("productos_page") or 0)
+                    )
+                    quick_replies = ["1", "2", "0"]
+                else:
+                    sesion.estado_conversacion = "EXPLORANDO_MENU"
+                    reply_text = "Producto cancelado.\n\n" + _format_welcome_categories(
+                        comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=True
+                    )
+                    quick_replies = [str(i) for i in range(1, min(len(cats_con_items), 4) + 1)]
             else:
                 removibles, extras = _get_item_customization_options(db, pending["plato_id"])
                 extras_sel: List[Dict[str, Any]] = []
