@@ -13,20 +13,29 @@ import httpx
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+_LAST_AI_ERROR: str = ""
+
+
+def get_last_ai_error() -> str:
+    return _LAST_AI_ERROR
+
+
+def _clean_key(raw: str) -> str:
+    return (raw or "").strip().strip('"').strip("'")
 
 
 def get_available_ai_providers() -> List[str]:
     """Devuelve la lista ordenada de proveedores IA que tienen API Key configurada."""
     key_map = {
-        "gemini": settings.GEMINI_API_KEY,
-        "groq": settings.GROQ_API_KEY,
-        "openrouter": settings.OPENROUTER_API_KEY,
-        "openai": settings.OPENAI_API_KEY,
+        "gemini": _clean_key(settings.GEMINI_API_KEY),
+        "groq": _clean_key(settings.GROQ_API_KEY),
+        "openrouter": _clean_key(settings.OPENROUTER_API_KEY),
+        "openai": _clean_key(settings.OPENAI_API_KEY),
     }
     return [
         prov
         for prov in settings.AI_PROVIDER_PRIORITY
-        if (key_map.get(prov) or "").strip()
+        if key_map.get(prov)
     ]
 
 
@@ -79,36 +88,47 @@ def _call_openai_compatible(
 
 
 def _call_gemini(
-    api_key: str, model: str, system_prompt: str, user_prompt: str, max_tokens: int = 350
+    api_key: str, model: str, system_prompt: str, user_prompt: str, max_tokens: int = 1024
 ) -> Optional[str]:
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent?key={api_key}"
-    )
-    gen_cfg: Dict[str, Any] = {
-        "temperature": 0.2,
-        "maxOutputTokens": max_tokens,
-        "responseMimeType": "application/json",
-    }
-    # En gemini-2.5-flash desactivamos thinkingBudget para respuestas rápidas y JSON sin truncar
-    if "2.5" in (model or ""):
-        gen_cfg["thinkingConfig"] = {"thinkingBudget": 0}
-    payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
-        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-        "generationConfig": gen_cfg,
-    }
-    with httpx.Client(timeout=14.0) as client:
-        resp = client.post(url, json=payload)
-        if 200 <= resp.status_code < 300:
-            data = resp.json()
-            candidates = data.get("candidates") or []
-            if candidates:
-                parts = candidates[0].get("content", {}).get("parts") or []
-                if parts:
-                    return parts[0].get("text", "")
-        else:
-            logger.warning("Gemini HTTP %s: %s", resp.status_code, resp.text[:250])
+    global _LAST_AI_ERROR
+    clean_api = _clean_key(api_key)
+    models_to_try = [model or "gemini-2.5-flash"]
+    if "gemini-2.0-flash" not in models_to_try:
+        models_to_try.append("gemini-2.0-flash")
+
+    for mdl in models_to_try:
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{mdl}:generateContent?key={clean_api}"
+        )
+        payload = {
+            "system_instruction": {"parts": [{"text": system_prompt}]},
+            "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+            "generationConfig": {
+                "temperature": 0.2,
+                "maxOutputTokens": max(1024, max_tokens),
+                "responseMimeType": "application/json",
+            },
+        }
+        try:
+            with httpx.Client(timeout=15.0) as client:
+                resp = client.post(url, json=payload)
+                if 200 <= resp.status_code < 300:
+                    data = resp.json()
+                    candidates = data.get("candidates") or []
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts") or []
+                        if parts:
+                            _LAST_AI_ERROR = ""
+                            return parts[0].get("text", "")
+                    _LAST_AI_ERROR = f"Gemini ({mdl}) respondió sin texto."
+                else:
+                    err_short = resp.text[:180].replace(clean_api, "***")
+                    _LAST_AI_ERROR = f"Gemini ({mdl}) HTTP {resp.status_code}: {err_short}"
+                    logger.warning(_LAST_AI_ERROR)
+        except Exception as exc:
+            _LAST_AI_ERROR = f"Gemini ({mdl}) error de red: {str(exc)[:140]}"
+            logger.warning(_LAST_AI_ERROR)
     return None
 
 

@@ -22,7 +22,7 @@ from app.models.saas_models import (
     SucursalComercio,
     Usuario,
 )
-from app.services.ai_router import get_available_ai_providers
+from app.services.ai_router import get_available_ai_providers, get_last_ai_error
 from app.services.whatsapp_bot_service import process_incoming_whatsapp_message
 from app.services.whatsapp_provider import (
     clean_whatsapp_phone,
@@ -257,7 +257,7 @@ def simulador_enviar_mensaje(
         forced_sucursal_id=suc.id,
         modo_bot=payload.modo_bot,
     )
-    return {"status": "ok", **result}
+    return {"status": "ok", "ai_last_error": get_last_ai_error(), **result}
 
 
 @router.post("/simulador/reiniciar")
