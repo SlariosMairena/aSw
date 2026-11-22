@@ -178,6 +178,19 @@ async function enviarMensajeSimulador(texto) {
             if (typeof reloadComercioDashboard === 'function') {
                 await reloadComercioDashboard(false);
             }
+        } else if (res.reserva_creada) {
+            const banner = document.getElementById('waSimPedidoBanner');
+            const bannerTxt = document.getElementById('waSimPedidoBannerText');
+            if (banner && bannerTxt) {
+                const esPend = res.reserva_creada.estado_reserva === 'ESPERANDO_PAGO';
+                const estadoLbl = esPend ? 'Pendiente de pago (sin confirmar hasta pagar anticipo)' : 'Confirmada';
+                const iconCls = esPend ? 'fa-clock text-amber-400' : 'fa-calendar-check text-emerald-400';
+                bannerTxt.innerHTML = `<i class="fa-solid ${iconCls} mr-1.5"></i> Reservacion <strong>#${escapeHtml(res.reserva_creada.folio)}</strong> registrada — ${estadoLbl}.`;
+                banner.classList.remove('hidden');
+            }
+            if (typeof reloadComercioDashboard === 'function') {
+                await reloadComercioDashboard(false);
+            }
         }
     } catch (err) {
         showToast(err.message, true);
