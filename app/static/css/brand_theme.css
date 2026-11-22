@@ -488,3 +488,203 @@ body.theme-crema textarea:focus {
   background-color: var(--c30-tint) !important;
 }
 
+/* ============================================================================
+   MODO OSCURO — VERSIÓN NOCTURNA 60 / 30 / 10 (ABETO NOCTURNO + CREMA + TOMATE)
+   Se activa agregando la clase .theme-dark en <html> y <body>
+   ============================================================================ */
+html.theme-dark,
+body.theme-dark {
+  --c60-bg: #101613;
+  --c60-card: #17201B;
+  --c60-soft: #1F2B24;
+  --c60-hover: #25342C;
+  --c60-border: #2B3B32;
+
+  --c30-main: #0C2219;
+  --c30-hover: #143628;
+  --c30-soft: #1E4D39;
+  --c30-tint: #1A3328;
+  --c30-text-on: #F4F7F5;
+  --c30-muted-on: #9AB5A7;
+
+  --c10-accent: #E04F33;
+  --c10-hover: #F05E42;
+  --c10-tint: rgba(224, 79, 51, 0.18);
+  --c10-text-on: #FFFFFF;
+
+  --text-main: #F3EFE6;
+  --text-secondary: #CED8D2;
+  --text-muted: #92A69B;
+
+  --chat-bg: #0D1411;
+  --chat-in: #1B2620;
+  --chat-out: #1B4332;
+  --chat-out-text: #F5EFE4;
+}
+
+body.theme-dark ::-webkit-scrollbar-track { background: #101613; }
+body.theme-dark ::-webkit-scrollbar-thumb { background: #2D4036; }
+body.theme-dark ::-webkit-scrollbar-thumb:hover { background: #3E594B; }
+
+body.theme-dark .glass {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* Adaptar utilidades hex crema usadas en Kanban / Header / Modal Detalle */
+body.theme-dark .bg-\[\#FFFDF8\] { background-color: var(--c60-card) !important; }
+body.theme-dark .bg-\[\#F5EFE4\] { background-color: var(--c60-bg) !important; }
+body.theme-dark .bg-\[\#EDE5D7\] { background-color: var(--c60-soft) !important; }
+body.theme-dark .hover\:bg-\[\#E2D6C1\]:hover { background-color: #2A3B32 !important; }
+body.theme-dark .border-\[\#DFD5C3\],
+body.theme-dark .border-\[\#EDE5D7\] { border-color: var(--c60-border) !important; }
+
+body.theme-dark .text-\[\#1A241E\] { color: var(--text-main) !important; }
+body.theme-dark .text-\[\#39483F\] { color: var(--text-secondary) !important; }
+body.theme-dark .text-\[\#5C6B62\] { color: var(--text-muted) !important; }
+body.theme-dark .text-\[\#1B4332\] { color: #6EE7B7 !important; }
+body.theme-dark .text-\[\#B8321F\] { color: #FCA5A5 !important; }
+body.theme-dark .text-\[\#92400E\] { color: #FCD34D !important; }
+
+body.theme-dark .bg-\[\#E4EFE9\] { background-color: rgba(27, 67, 50, 0.45) !important; border-color: #2D6A4F !important; }
+body.theme-dark .hover\:bg-\[\#D2E6DC\]:hover { background-color: rgba(27, 67, 50, 0.65) !important; }
+body.theme-dark .bg-\[\#FDECE9\] { background-color: rgba(214, 64, 43, 0.2) !important; border-color: rgba(224, 79, 51, 0.45) !important; }
+body.theme-dark .hover\:bg-\[\#F9D7D0\]:hover { background-color: rgba(214, 64, 43, 0.32) !important; }
+body.theme-dark .bg-\[\#FEF3C7\] { background-color: rgba(245, 158, 11, 0.18) !important; border-color: rgba(251, 191, 36, 0.4) !important; }
+body.theme-dark .bg-\[\#DCFCE7\] { background-color: rgba(34, 197, 94, 0.16) !important; border-color: rgba(74, 222, 128, 0.35) !important; }
+body.theme-dark .text-\[\#166534\] { color: #86EFAC !important; }
+
+/* Inputs oscuros nítidos */
+body.theme-dark input:not([type="checkbox"]):not([type="radio"]),
+body.theme-dark select,
+body.theme-dark textarea {
+  background-color: #121A16 !important;
+  color: var(--text-main) !important;
+  border-color: var(--c60-border) !important;
+}
+
+body.theme-dark input:focus,
+body.theme-dark select:focus,
+body.theme-dark textarea:focus {
+  border-color: #4ADE80 !important;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.15);
+}
+
+/* Badges tintados en modo oscuro con alto contraste */
+body.theme-dark .bg-emerald-500\/20,
+body.theme-dark .bg-emerald-500\/15,
+body.theme-dark .bg-emerald-500\/10,
+body.theme-dark .bg-emerald-600\/25,
+body.theme-dark .bg-emerald-950\/80,
+body.theme-dark .bg-emerald-950\/40 {
+  background-color: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(52, 211, 153, 0.35) !important;
+}
+body.theme-dark .text-emerald-300:not(.ui-navbar *):not(.ui-sidebar *),
+body.theme-dark .text-emerald-200:not(.ui-navbar *):not(.ui-sidebar *),
+body.theme-dark .text-emerald-100:not(.ui-navbar *):not(.ui-sidebar *),
+body.theme-dark .text-emerald-400:not(.ui-navbar *):not(.ui-sidebar *) {
+  color: #6EE7B7 !important;
+}
+
+body.theme-dark .bg-indigo-500\/20,
+body.theme-dark .bg-indigo-500\/15,
+body.theme-dark .bg-indigo-950\/40 {
+  background-color: rgba(99, 102, 241, 0.18) !important;
+  border-color: rgba(129, 140, 248, 0.38) !important;
+}
+body.theme-dark .text-indigo-300:not(.ui-navbar *),
+body.theme-dark .text-indigo-200:not(.ui-navbar *),
+body.theme-dark .text-indigo-400:not(.ui-navbar *) {
+  color: #A5B4FC !important;
+}
+
+body.theme-dark .bg-sky-500\/20,
+body.theme-dark .bg-sky-500\/15,
+body.theme-dark .bg-sky-500\/10,
+body.theme-dark .bg-cyan-500\/20,
+body.theme-dark .bg-teal-500\/20,
+body.theme-dark .bg-teal-500\/15,
+body.theme-dark .bg-teal-500\/10 {
+  background-color: rgba(14, 165, 233, 0.16) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+body.theme-dark .text-sky-300,
+body.theme-dark .text-sky-200,
+body.theme-dark .text-sky-400,
+body.theme-dark .text-cyan-300,
+body.theme-dark .text-cyan-200,
+body.theme-dark .text-cyan-400 {
+  color: #7DD3FC !important;
+}
+body.theme-dark .text-teal-300,
+body.theme-dark .text-teal-200,
+body.theme-dark .text-teal-400 {
+  color: #5EEAD4 !important;
+}
+
+body.theme-dark .bg-amber-500\/20,
+body.theme-dark .bg-amber-500\/15,
+body.theme-dark .bg-amber-500\/10 {
+  background-color: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(251, 191, 36, 0.38) !important;
+}
+body.theme-dark .text-amber-300,
+body.theme-dark .text-amber-200,
+body.theme-dark .text-amber-400 {
+  color: #FCD34D !important;
+}
+
+body.theme-dark .bg-purple-500\/20,
+body.theme-dark .bg-purple-500\/15,
+body.theme-dark .bg-purple-500\/10,
+body.theme-dark .bg-fuchsia-500\/20,
+body.theme-dark .bg-fuchsia-500\/15,
+body.theme-dark .bg-fuchsia-500\/10,
+body.theme-dark .bg-pink-500\/20,
+body.theme-dark .bg-pink-500\/15,
+body.theme-dark .bg-pink-500\/10 {
+  background-color: rgba(168, 85, 247, 0.18) !important;
+  border-color: rgba(192, 132, 252, 0.38) !important;
+}
+body.theme-dark .text-purple-300,
+body.theme-dark .text-purple-200,
+body.theme-dark .text-purple-400,
+body.theme-dark .text-fuchsia-300,
+body.theme-dark .text-fuchsia-200,
+body.theme-dark .text-fuchsia-400,
+body.theme-dark .text-pink-300,
+body.theme-dark .text-pink-200,
+body.theme-dark .text-pink-400 {
+  color: #D8B4FE !important;
+}
+
+body.theme-dark .bg-rose-500\/20,
+body.theme-dark .bg-rose-500\/15,
+body.theme-dark .bg-rose-500\/10 {
+  background-color: rgba(224, 79, 51, 0.2) !important;
+  border-color: rgba(248, 113, 113, 0.4) !important;
+}
+body.theme-dark .text-rose-300:not(.ui-navbar *),
+body.theme-dark .text-rose-400:not(.ui-navbar *) {
+  color: #FCA5A5 !important;
+}
+
+/* Tabla cebra sin líneas en Modo Oscuro */
+body.theme-dark .ui-zebra-table thead tr {
+  background-color: #0C2219 !important;
+}
+body.theme-dark .ui-zebra-table tbody tr:nth-child(odd) {
+  background-color: #17201B !important;
+}
+body.theme-dark .ui-zebra-table tbody tr:nth-child(even) {
+  background-color: #1E2A23 !important;
+}
+body.theme-dark .ui-zebra-table tbody tr:hover {
+  background-color: #24382D !important;
+}
+
+body.theme-dark .hover\:bg-slate-700:hover,
+body.theme-dark .hover\:bg-slate-800:hover {
+  background-color: #25342C !important;
+}
+

@@ -6,7 +6,27 @@
     <title>{{ comercio_nombre }} — Menú Interactivo</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/brand_theme.css?v=1">
+    <link rel="stylesheet" href="/static/css/brand_theme.css?v=3">
+    <script>
+        (function() {
+            if (localStorage.getItem('ordenapro_theme') === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+            }
+        })();
+        function togglePublicTheme() {
+            const isDark = document.documentElement.classList.toggle('theme-dark');
+            document.body?.classList.toggle('theme-dark', isDark);
+            localStorage.setItem('ordenapro_theme', isDark ? 'dark' : 'light');
+            const ic = document.getElementById('pubThemeIcon');
+            if (ic) ic.className = isDark ? 'fa-solid fa-sun text-[#FDE68A]' : 'fa-solid fa-moon text-[#FDE68A]';
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const isDark = document.documentElement.classList.contains('theme-dark');
+            document.body?.classList.toggle('theme-dark', isDark);
+            const ic = document.getElementById('pubThemeIcon');
+            if (ic) ic.className = isDark ? 'fa-solid fa-sun text-[#FDE68A]' : 'fa-solid fa-moon text-[#FDE68A]';
+        });
+    </script>
     <style>
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -20,9 +40,15 @@
                 <h1 id="pubComercioNombre" class="font-extrabold text-base text-white truncate">{{ comercio_nombre }}</h1>
                 <p id="pubSucursalSub" class="text-xs text-[#B2CABD] truncate">{{ sucursal_nombre }}</p>
             </div>
-            <span id="pubEstadoBadge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/15 text-[#F5EFE4] border border-white/25 shrink-0">
-                Cargando...
-            </span>
+            <div class="flex items-center gap-2 shrink-0">
+                <button type="button" onclick="togglePublicTheme()" title="Cambiar modo Claro / Oscuro"
+                    class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 flex items-center justify-center transition">
+                    <i id="pubThemeIcon" class="fa-solid fa-moon text-[#FDE68A] text-xs"></i>
+                </button>
+                <span id="pubEstadoBadge" class="px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/15 text-[#F5EFE4] border border-white/25 shrink-0">
+                    Cargando...
+                </span>
+            </div>
         </div>
     </header>
 

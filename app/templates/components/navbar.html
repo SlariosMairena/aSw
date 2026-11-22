@@ -17,8 +17,16 @@
             </div>
         </div>
 
-        <!-- Estado de Sesión y Perfil Activo -->
-        <div id="userHeaderBox" class="hidden items-center gap-2.5 text-xs">
+        <!-- Estado de Sesión, Toggle Modo Oscuro y Perfil Activo -->
+        <div class="flex items-center gap-2.5 text-xs">
+            <button id="btnThemeToggle" type="button" onclick="toggleBrandTheme()"
+                class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white keep-white border border-white/20 font-semibold transition flex items-center gap-1.5"
+                title="Cambiar entre Modo Claro y Modo Oscuro">
+                <i id="iconThemeToggle" class="fa-solid fa-moon text-[#FDE68A]"></i>
+                <span id="lblThemeToggle" class="hidden md:inline">Oscuro</span>
+            </button>
+
+            <div id="userHeaderBox" class="hidden items-center gap-2.5 text-xs">
             <span id="userBadgeRole" class="px-2.5 py-1 rounded-full font-bold bg-white/10 text-[#F5EFE4] border border-white/20"></span>
             <span id="userBadgeName" class="font-medium text-[#E4EFE9] hidden sm:inline"></span>
             <button id="btnOpen2FA" type="button" onclick="openModal2FA()" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold transition flex items-center gap-1.5" title="Configurar autenticacion en dos pasos (2FA)">
@@ -30,6 +38,7 @@
             <button onclick="logout()" class="px-3 py-1.5 rounded-lg bg-[#D6402B] hover:bg-[#B8321F] text-white font-semibold transition flex items-center gap-1.5 shadow-sm">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> <span>Salir</span>
             </button>
+            </div>
         </div>
     </div>
 </header>
