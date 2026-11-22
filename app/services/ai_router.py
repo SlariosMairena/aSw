@@ -87,16 +87,63 @@ def _call_openai_compatible(
     return None
 
 
+_CACHED_GEMINI_MODELS: List[str] = []
+
+
+def _discover_gemini_models(clean_api: str) -> List[str]:
+    """Consulta /v1beta/models para obtener los modelos Gemini flash realmente disponibles para esta API Key."""
+    global _CACHED_GEMINI_MODELS
+    if _CACHED_GEMINI_MODELS:
+        return _CACHED_GEMINI_MODELS
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={clean_api}"
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(url)
+            if 200 <= resp.status_code < 300:
+                found: List[str] = []
+                for m in resp.json().get("models") or []:
+                    methods = m.get("supportedGenerationMethods") or []
+                    name = str(m.get("name") or "").replace("models/", "")
+                    if "generateContent" in methods and "gemini" in name.lower() and "embedding" not in name.lower():
+                        found.append(name)
+                # Priorizar modelos flash recientes y estables
+                def _score(n: str) -> int:
+                    nl = n.lower()
+                    if "2.5-flash-lite" in nl:
+                        return 1
+                    if "2.5-flash" in nl and "preview" not in nl and "tts" not in nl and "image" not in nl:
+                        return 0
+                    if "flash-latest" in nl:
+                        return 2
+                    if "flash" in nl and "tts" not in nl and "image" not in nl and "audio" not in nl:
+                        return 3
+                    return 9
+                found.sort(key=_score)
+                _CACHED_GEMINI_MODELS = [n for n in found if _score(n) <= 3][:4]
+                return _CACHED_GEMINI_MODELS
+    except Exception as exc:
+        logger.warning("No se pudo listar modelos Gemini: %s", exc)
+    return []
+
+
 def _call_gemini(
     api_key: str, model: str, system_prompt: str, user_prompt: str, max_tokens: int = 1024
 ) -> Optional[str]:
     global _LAST_AI_ERROR
     clean_api = _clean_key(api_key)
-    models_to_try = [model or "gemini-2.5-flash"]
-    if "gemini-2.0-flash" not in models_to_try:
-        models_to_try.append("gemini-2.0-flash")
+    models_to_try: List[str] = []
+    for candidate in [model or "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]:
+        if candidate and candidate not in models_to_try:
+            models_to_try.append(candidate)
 
-    for mdl in models_to_try:
+    # Sumar modelos descubiertos dinámicamente si los anteriores fallan
+    discovered_checked = False
+    errors: List[str] = []
+
+    idx = 0
+    while idx < len(models_to_try):
+        mdl = models_to_try[idx]
+        idx += 1
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{mdl}:generateContent?key={clean_api}"
@@ -121,14 +168,24 @@ def _call_gemini(
                         if parts:
                             _LAST_AI_ERROR = ""
                             return parts[0].get("text", "")
-                    _LAST_AI_ERROR = f"Gemini ({mdl}) respondió sin texto."
+                    errors.append(f"{mdl}:sin_texto")
                 else:
-                    err_short = resp.text[:180].replace(clean_api, "***")
-                    _LAST_AI_ERROR = f"Gemini ({mdl}) HTTP {resp.status_code}: {err_short}"
-                    logger.warning(_LAST_AI_ERROR)
+                    msg = ""
+                    try:
+                        msg = (resp.json().get("error") or {}).get("message") or ""
+                    except Exception:
+                        msg = resp.text[:100]
+                    errors.append(f"{mdl}:{resp.status_code} {msg[:70]}")
+                    if resp.status_code in (404, 429) and not discovered_checked:
+                        discovered_checked = True
+                        for dm in _discover_gemini_models(clean_api):
+                            if dm not in models_to_try:
+                                models_to_try.append(dm)
         except Exception as exc:
-            _LAST_AI_ERROR = f"Gemini ({mdl}) error de red: {str(exc)[:140]}"
-            logger.warning(_LAST_AI_ERROR)
+            errors.append(f"{mdl}:net {str(exc)[:60]}")
+
+    _LAST_AI_ERROR = " | ".join(errors[-2:]) if errors else "Gemini sin respuesta"
+    logger.warning("Gemini falló en todos los modelos: %s", _LAST_AI_ERROR)
     return None
 
 
