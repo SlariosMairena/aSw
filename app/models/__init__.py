@@ -23,6 +23,7 @@ from app.models.saas_models import (
     AuditLog,
     ProductoImagen,
     ComercioLogo,
+    ConexionWhatsappComercio,
 )
 
 __all__ = [
@@ -49,5 +50,6 @@ __all__ = [
     "AuditLog",
     "ProductoImagen",
     "ComercioLogo",
+    "ConexionWhatsappComercio",
 ]
 

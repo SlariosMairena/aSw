@@ -120,53 +120,74 @@
             const grid = document.getElementById('saMetricsGrid');
             if (!grid) return;
             grid.innerHTML = `
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <div class="flex items-center justify-between text-xs text-slate-400">
-                        <span>Comercios Activos</span>
-                        <i class="fa-solid fa-store text-indigo-400"></i>
+                <div class="glass rounded-2xl p-4 flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-[#5C6B62]">Comercios Activos</p>
+                        <p class="text-2xl font-extrabold text-[#1A241E] mt-1">${m.comercios_activos || 0} <span class="text-sm font-semibold text-[#5C6B62]">/ ${m.total_comercios || 0}</span></p>
+                        <p class="text-[11px] text-[#5C6B62] mt-1">Trial: ${m.comercios_trial || 0} · Por vencer: ${m.comercios_por_vencer || 0} · Susp: ${m.comercios_suspendidos || 0}</p>
                     </div>
-                    <p class="text-2xl font-bold text-white">${m.comercios_activos || 0} <span class="text-sm text-slate-500 font-normal">/ ${m.total_comercios || 0}</span></p>
-                    <p class="text-[11px] text-slate-400">Trial: ${m.comercios_trial || 0} · Por vencer: ${m.comercios_por_vencer || 0} · Susp: ${m.comercios_suspendidos || 0}</p>
+                    <span class="w-10 h-10 rounded-xl bg-[#E4EFE9] text-[#1B4332] flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-store"></i>
+                    </span>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <div class="flex items-center justify-between text-xs text-slate-400">
-                        <span>MRR Mensual Estimado</span>
-                        <i class="fa-solid fa-sack-dollar text-emerald-400"></i>
+                <div class="glass rounded-2xl p-4 flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-[#5C6B62]">MRR Mensual</p>
+                        <p class="text-2xl font-extrabold text-[#1B4332] mt-1">$${Number(m.ingresos_fijos_mensuales_usd || 0).toFixed(2)} <span class="text-xs font-semibold">USD</span></p>
+                        <p class="text-[11px] text-[#5C6B62] mt-1">Cobrado: $${Number(m.facturas_pagadas_usd || 0).toFixed(2)} USD</p>
                     </div>
-                    <p class="text-2xl font-bold text-emerald-400">$${Number(m.ingresos_fijos_mensuales_usd || 0).toFixed(2)} <span class="text-xs font-normal">USD</span></p>
-                    <p class="text-[11px] text-slate-400">Cobrado en facturas: $${Number(m.facturas_pagadas_usd || 0).toFixed(2)} USD</p>
+                    <span class="w-10 h-10 rounded-xl bg-[#E4EFE9] text-[#1B4332] flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-sack-dollar"></i>
+                    </span>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <div class="flex items-center justify-between text-xs text-slate-400">
-                        <span>Facturas Pendientes</span>
-                        <i class="fa-solid fa-file-invoice-dollar text-amber-400"></i>
+                <div class="glass rounded-2xl p-4 flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-[#5C6B62]">Facturas Pendientes</p>
+                        <p class="text-2xl font-extrabold text-[#D6402B] mt-1">$${Number(m.facturas_pendientes_usd || 0).toFixed(2)} <span class="text-xs font-semibold">USD</span></p>
+                        <p class="text-[11px] text-[#5C6B62] mt-1">${m.facturas_pendientes_count || 0} factura(s) por cobrar</p>
                     </div>
-                    <p class="text-2xl font-bold text-amber-400">$${Number(m.facturas_pendientes_usd || 0).toFixed(2)} <span class="text-xs font-normal">USD</span></p>
-                    <p class="text-[11px] text-slate-400">${m.facturas_pendientes_count || 0} factura(s) por cobrar</p>
+                    <span class="w-10 h-10 rounded-xl bg-[#FDECE9] text-[#D6402B] flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-file-invoice-dollar"></i>
+                    </span>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <div class="flex items-center justify-between text-xs text-slate-400">
-                        <span>Volumen &amp; Usuarios SaaS</span>
-                        <i class="fa-solid fa-chart-line text-sky-400"></i>
+                <div class="glass rounded-2xl p-4 flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-[#5C6B62]">Volumen SaaS</p>
+                        <p class="text-2xl font-extrabold text-[#1A241E] mt-1">${m.total_pedidos_procesados || 0} <span class="text-xs font-semibold text-[#5C6B62]">ped/mes</span></p>
+                        <p class="text-[11px] text-[#5C6B62] mt-1">${m.total_usuarios || 0} usuarios registrados</p>
                     </div>
-                    <p class="text-2xl font-bold text-sky-400">${m.total_pedidos_procesados || 0} <span class="text-xs font-normal text-slate-400">pedidos/mes</span></p>
-                    <p class="text-[11px] text-slate-400">${m.total_usuarios || 0} usuarios registrados</p>
+                    <span class="w-10 h-10 rounded-xl bg-[#EDE5D7] text-[#1B4332] flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </span>
                 </div>
             `;
         }
 
         function getEstadoBadgeMeta(estado, activo) {
             if (!activo || estado === 'SUSPENDIDO') {
-                return { label: 'SUSPENDIDO', badgeCls: 'bg-red-500/15 text-red-400 border border-red-500/30', icon: 'fa-ban', order: 4 };
+                return { label: 'SUSPENDIDO', badgeCls: 'bg-[#FDECE9] text-[#B8321F] border border-[#F6C2B9]', icon: 'fa-ban', order: 4 };
             }
             if (estado === 'POR_VENCER') {
-                return { label: 'POR VENCER', badgeCls: 'bg-amber-500/15 text-amber-300 border border-amber-500/30', icon: 'fa-triangle-exclamation', order: 1 };
+                return { label: 'POR VENCER', badgeCls: 'bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]', icon: 'fa-triangle-exclamation', order: 1 };
             }
             if (estado === 'TRIAL') {
-                return { label: 'TRIAL', badgeCls: 'bg-sky-500/15 text-sky-300 border border-sky-500/30', icon: 'fa-flask', order: 2 };
+                return { label: 'TRIAL', badgeCls: 'bg-[#E0F2FE] text-[#0369A1] border border-[#BAE6FD]', icon: 'fa-flask', order: 2 };
             }
-            return { label: 'ACTIVO', badgeCls: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30', icon: 'fa-circle-check', order: 3 };
+            return { label: 'ACTIVO', badgeCls: 'bg-[#E4EFE9] text-[#1B4332] border border-[#B7D4C5]', icon: 'fa-circle-check', order: 3 };
         }
+
+        const saOpenComercioDetails = new Set();
+        function toggleSaComercioDetail(tenantId) {
+            const box = document.getElementById(`saComDetail_${tenantId}`);
+            const chev = document.getElementById(`saComChev_${tenantId}`);
+            if (!box) return;
+            const willOpen = box.classList.contains('hidden');
+            box.classList.toggle('hidden', !willOpen);
+            if (willOpen) saOpenComercioDetails.add(tenantId);
+            else saOpenComercioDetails.delete(tenantId);
+            if (chev) chev.className = `fa-solid fa-chevron-${willOpen ? 'up' : 'down'} text-[10px]`;
+        }
+        window.toggleSaComercioDetail = toggleSaComercioDetail;
 
         function renderSuperAdminComercios() {
             const container = document.getElementById('saComerciosList');
@@ -192,20 +213,20 @@
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 text-center text-slate-400 text-sm"><i class="fa-solid fa-store-slash text-2xl text-slate-600 mb-2 block"></i>No hay comercios que coincidan con los filtros actuales.</div>`;
+                container.innerHTML = `<div class="glass rounded-2xl p-8 text-center text-[#5C6B62] text-sm"><i class="fa-solid fa-store-slash text-2xl opacity-50 mb-2 block"></i>No hay comercios que coincidan con los filtros actuales.</div>`;
                 return;
             }
 
             if (!saComerciosGroupMode) {
-                container.innerHTML = `<div class="space-y-4">${filtered.map(renderComercioCard).join('')}</div>`;
+                container.innerHTML = `<div class="space-y-3">${filtered.map(renderComercioCard).join('')}</div>`;
                 return;
             }
 
             const groups = [
-                { key: 'POR_VENCER', title: 'Atención Prioritaria: Por Vencer', icon: 'fa-triangle-exclamation text-amber-400', items: [] },
-                { key: 'TRIAL', title: 'Comercios en Prueba (Trial)', icon: 'fa-flask text-sky-400', items: [] },
-                { key: 'ACTIVO', title: 'Comercios Activos', icon: 'fa-circle-check text-emerald-400', items: [] },
-                { key: 'SUSPENDIDO', title: 'Comercios Suspendidos / Bloqueados', icon: 'fa-ban text-red-400', items: [] }
+                { key: 'POR_VENCER', title: 'Por Vencer', icon: 'fa-triangle-exclamation text-[#92400E]', items: [] },
+                { key: 'TRIAL', title: 'En Prueba (Trial)', icon: 'fa-flask text-[#0369A1]', items: [] },
+                { key: 'ACTIVO', title: 'Comercios Activos', icon: 'fa-circle-check text-[#1B4332]', items: [] },
+                { key: 'SUSPENDIDO', title: 'Suspendidos', icon: 'fa-ban text-[#D6402B]', items: [] }
             ];
 
             filtered.forEach(c => {
@@ -217,18 +238,18 @@
             container.innerHTML = groups
                 .filter(g => g.items.length > 0)
                 .map(g => `
-                    <details open class="bg-slate-900/50 border border-slate-800 rounded-2xl overflow-hidden">
-                        <summary class="cursor-pointer select-none px-4 py-3 bg-slate-900 flex items-center justify-between text-sm font-bold text-white hover:bg-slate-800/70 transition">
-                            <span class="flex items-center gap-2">
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between px-1">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-[#5C6B62] flex items-center gap-2">
                                 <i class="fa-solid ${g.icon}"></i>
                                 <span>${g.title}</span>
                             </span>
-                            <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 font-semibold">${g.items.length}</span>
-                        </summary>
-                        <div class="p-4 space-y-4">
+                            <span class="text-[11px] px-2.5 py-0.5 rounded-full bg-[#EDE5D7] text-[#1A241E] font-bold">${g.items.length}</span>
+                        </div>
+                        <div class="space-y-2.5">
                             ${g.items.map(renderComercioCard).join('')}
                         </div>
-                    </details>
+                    </div>
                 `).join('');
         }
 
@@ -239,94 +260,104 @@
             const used = Number(c.pedidos_mes_actual || 0);
             const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
             const vencStr = c.fecha_vencimiento ? new Date(c.fecha_vencimiento).toLocaleDateString() : 'Sin vencimiento';
+            const isOpen = saOpenComercioDetails.has(c.id);
+            const initials = (c.nombre_comercial || 'C').split(' ').slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
 
             return `
-            <div class="bg-slate-900 border ${isSuspended ? 'border-red-900/50' : 'border-slate-800'} rounded-2xl p-5 flex flex-col xl:flex-row justify-between gap-5">
-                <div class="space-y-3 flex-1 min-w-0">
-                    <div class="flex items-center gap-2.5 flex-wrap">
-                        <span class="text-lg font-bold text-white truncate">${escapeHtml(c.nombre_comercial)}</span>
-                        <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${meta.badgeCls}">
-                            <i class="fa-solid ${meta.icon}"></i>
-                            <span>${meta.label}</span>
-                        </span>
-                        <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">${escapeHtml(c.plan?.nombre || 'Sin Plan')}</span>
-                        <span class="text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-300">${escapeHtml(c.giro || 'RESTAURANTE')} · ${escapeHtml(c.simbolo_moneda || 'C$')} (${escapeHtml(c.moneda || 'NIO')})</span>
-                        ${c.facturas_pendientes > 0 ? `<span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30"><i class="fa-solid fa-receipt mr-1"></i>${c.facturas_pendientes} factura(s) pend.</span>` : ''}
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs text-slate-400">
-                        <div><i class="fa-solid fa-envelope text-slate-500 mr-1.5"></i>${escapeHtml(c.email_contacto || 'Sin correo')}</div>
-                        <div><i class="fa-solid fa-phone text-slate-500 mr-1.5"></i>${escapeHtml(c.telefono_propietario || 'Sin teléfono')}</div>
-                        <div><i class="fa-solid fa-calendar-day text-slate-500 mr-1.5"></i>Vence: <span class="text-slate-200 font-medium">${vencStr}</span></div>
-                        <div><i class="fa-solid fa-users text-slate-500 mr-1.5"></i>${c.usuarios_count || 0} usuario(s) · <span class="font-mono text-slate-300">${escapeHtml(c.slug)}</span></div>
-                    </div>
-
-                    <!-- Barra de Consumo Mensual del Plan -->
-                    <div class="max-w-md space-y-1">
-                        <div class="flex justify-between text-[11px] text-slate-400">
-                            <span>Consumo de pedidos del mes</span>
-                            <span class="font-semibold text-slate-200">${used} / ${limit || '∞'} (${pct}%)</span>
+            <div class="glass rounded-2xl p-4 space-y-3 transition-all ${isSuspended ? 'opacity-85' : ''}">
+                <!-- Fila Principal Compacta -->
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-xl bg-[#1B4332] text-white keep-white font-extrabold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                            ${escapeHtml(initials)}
                         </div>
-                        <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                            <div class="h-full ${pct >= 90 ? 'bg-red-500' : pct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}" style="width: ${pct}%"></div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-sm sm:text-base font-extrabold text-[#1A241E] truncate">${escapeHtml(c.nombre_comercial)}</span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${meta.badgeCls}">
+                                    <i class="fa-solid ${meta.icon}"></i>
+                                    <span>${meta.label}</span>
+                                </span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EDE5D7] text-[#1A241E]">${escapeHtml(c.plan?.nombre || 'Sin Plan')}</span>
+                                ${c.facturas_pendientes > 0 ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">${c.facturas_pendientes} pend.</span>` : ''}
+                            </div>
+                            <p class="text-[11px] text-[#5C6B62] truncate mt-0.5">
+                                ${escapeHtml(c.giro || 'RESTAURANTE')} · ${escapeHtml(c.simbolo_moneda || 'C$')} (${escapeHtml(c.moneda || 'NIO')}) · ${(c.sucursales || []).length} suc. · ${used}/${limit || '∞'} ped/mes
+                            </p>
                         </div>
                     </div>
 
-                    <!-- Chips de Módulos -->
-                    <div class="flex flex-wrap gap-2 text-[11px]">
-                        <span class="px-2 py-0.5 rounded-md ${c.modo_pago_api_activo ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'}">
-                            <i class="fa-solid fa-credit-card mr-1"></i>Modo 2 Pagos API: ${c.modo_pago_api_activo ? 'Activo' : 'Simulación'}
-                        </span>
-                        <span class="px-2 py-0.5 rounded-md ${c.reservaciones_habilitadas ? 'bg-sky-500/10 text-sky-300 border border-sky-500/20' : 'bg-slate-800 text-slate-400'}">
-                            <i class="fa-solid fa-chair mr-1"></i>Mesas &amp; Reservas: ${c.reservaciones_habilitadas ? 'Habilitado' : 'Deshabilitado'}
-                        </span>
-                    </div>
-
-                    <!-- Acciones Operativas sobre el Comercio -->
-                    <div class="flex flex-wrap gap-2 pt-1">
-                        <button type="button" onclick="inspectComercioAsSuperAdmin(${c.id}, '${escapeHtml(c.nombre_comercial).replace(/'/g, "\\'")}')" class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm">
+                    <!-- Acciones Limpias -->
+                    <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="inspectComercioAsSuperAdmin(${c.id}, '${escapeHtml(c.nombre_comercial).replace(/'/g, "\\'")}')"
+                            class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition shadow-sm">
                             <i class="fa-solid fa-eye"></i>
-                            <span>Entrar al Panel</span>
+                            <span>Entrar</span>
                         </button>
-                        <button type="button" onclick="openModalEditarComercioAdmin(${c.id})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                            <span>Editar / Plan</span>
+                        <button type="button" onclick="openModalEditarComercioAdmin(${c.id})"
+                            class="bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-pen-to-square text-[#1B4332]"></i>
+                            <span>Editar</span>
                         </button>
-                        <button type="button" onclick="openModalUsuariosComercioAdmin(${c.id})" class="bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-users-gear"></i>
-                            <span>Usuarios (${c.usuarios_count || 0})</span>
+                        <button type="button" onclick="toggleSaComercioDetail(${c.id})"
+                            class="bg-[#FFFDF8] hover:bg-[#EDE5D7] border border-[#DFD5C3] text-[#1A241E] px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                            <span>Más</span>
+                            <i id="saComChev_${c.id}" class="fa-solid fa-chevron-${isOpen ? 'up' : 'down'} text-[10px]"></i>
                         </button>
-                        <button type="button" onclick="openModalGenerarFacturaSaaS(${c.id})" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-file-invoice-dollar"></i>
-                            <span>Facturar</span>
-                        </button>
-                        <button type="button" onclick="poblarDemoComercio(this, ${c.id})" title="Cargar productos, inventario y pedidos de prueba según su giro" class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            <span>Poblar Datos Demo</span>
-                        </button>
-                        ${isSuspended
-                            ? `<button type="button" onclick="toggleEstadoSuscripcion(this, ${c.id}, 'ACTIVO')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"><i class="fa-solid fa-circle-check"></i><span>Reactivar</span></button>`
-                            : `<button type="button" onclick="toggleEstadoSuscripcion(this, ${c.id}, 'SUSPENDIDO')" class="bg-red-500/15 hover:bg-red-500/25 text-red-300 border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"><i class="fa-solid fa-ban"></i><span>Suspender</span></button>`
-                        }
                     </div>
                 </div>
 
-                <!-- Sucursales y QR WhatsApp -->
-                <div class="flex gap-3 flex-wrap xl:justify-end items-start">
-                    ${(c.sucursales || []).map(s => `
-                        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex items-center gap-3 w-full sm:w-auto">
-                            <img src="${s.qr_data_uri}" alt="QR ${escapeHtml(s.codigo_whatsapp)}" class="w-16 h-16 rounded-lg bg-white p-1 shrink-0">
-                            <div class="space-y-1 min-w-0">
-                                <p class="text-xs font-bold text-white truncate">${escapeHtml(s.nombre_sucursal)}</p>
-                                <p class="text-[11px] font-mono text-emerald-400">Código: ${escapeHtml(s.codigo_whatsapp)}</p>
-                                <a href="${s.deep_link_whatsapp}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-indigo-400 hover:underline inline-flex items-center gap-1">
-                                    <i class="fa-brands fa-whatsapp"></i>
-                                    <span>Probar Link</span>
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-                                </a>
-                            </div>
+                <!-- Panel Desplegable: Datos, Consumo, Acciones Secundarias y QRs -->
+                <div id="saComDetail_${c.id}" class="${isOpen ? '' : 'hidden'} pt-3 border-t border-[#EDE5D7] space-y-3 text-xs">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-[#5C6B62]">
+                        <div><i class="fa-solid fa-envelope text-[#1B4332] mr-1.5"></i>${escapeHtml(c.email_contacto || 'Sin correo')}</div>
+                        <div><i class="fa-solid fa-phone text-[#1B4332] mr-1.5"></i>${escapeHtml(c.telefono_propietario || 'Sin teléfono')}</div>
+                        <div><i class="fa-solid fa-calendar-day text-[#1B4332] mr-1.5"></i>Vence: <strong class="text-[#1A241E]">${vencStr}</strong></div>
+                        <div><i class="fa-solid fa-users text-[#1B4332] mr-1.5"></i>${c.usuarios_count || 0} usuario(s) · <span class="font-mono">${escapeHtml(c.slug)}</span></div>
+                    </div>
+
+                    <div class="max-w-sm space-y-1">
+                        <div class="flex justify-between text-[11px] text-[#5C6B62]">
+                            <span>Consumo mensual</span>
+                            <strong class="text-[#1A241E]">${used} / ${limit || '∞'} (${pct}%)</strong>
                         </div>
-                    `).join('')}
+                        <div class="h-1.5 w-full bg-[#EDE5D7] rounded-full overflow-hidden">
+                            <div class="h-full ${pct >= 90 ? 'bg-[#D6402B]' : pct >= 70 ? 'bg-amber-500' : 'bg-[#1B4332]'}" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="openModalUsuariosComercioAdmin(${c.id})" class="bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-users-gear text-[#1B4332]"></i><span>Usuarios (${c.usuarios_count || 0})</span>
+                        </button>
+                        <button type="button" onclick="openModalGenerarFacturaSaaS(${c.id})" class="bg-[#E4EFE9] hover:bg-[#D2E6DC] border border-[#B7D4C5] text-[#1B4332] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-file-invoice-dollar"></i><span>Facturar</span>
+                        </button>
+                        <button type="button" onclick="poblarDemoComercio(this, ${c.id})" class="bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#FDE68A] text-[#92400E] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i><span>Poblar Demo</span>
+                        </button>
+                        ${isSuspended
+                            ? `<button type="button" onclick="toggleEstadoSuscripcion(this, ${c.id}, 'ACTIVO')" class="bg-[#E4EFE9] hover:bg-[#D2E6DC] border border-[#B7D4C5] text-[#1B4332] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition"><i class="fa-solid fa-circle-check"></i><span>Reactivar</span></button>`
+                            : `<button type="button" onclick="toggleEstadoSuscripcion(this, ${c.id}, 'SUSPENDIDO')" class="bg-[#FDECE9] hover:bg-[#F9D7D0] border border-[#F6C2B9] text-[#B8321F] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition"><i class="fa-solid fa-ban"></i><span>Suspender</span></button>`
+                        }
+                    </div>
+
+                    ${(c.sucursales || []).length > 0 ? `
+                        <div class="flex gap-2.5 flex-wrap pt-1">
+                            ${(c.sucursales || []).map(s => `
+                                <div class="bg-[#F5EFE4] border border-[#DFD5C3] rounded-xl p-2.5 flex items-center gap-2.5">
+                                    <img src="${s.qr_data_uri}" alt="QR ${escapeHtml(s.codigo_whatsapp)}" class="w-14 h-14 rounded-lg bg-white p-1 shrink-0">
+                                    <div class="space-y-0.5 min-w-0">
+                                        <p class="text-xs font-bold text-[#1A241E] truncate">${escapeHtml(s.nombre_sucursal)}</p>
+                                        <p class="text-[11px] font-mono text-[#1B4332]">${escapeHtml(s.codigo_whatsapp)}</p>
+                                        <a href="${s.deep_link_whatsapp}" target="_blank" rel="noopener noreferrer" class="text-[11px] text-[#D6402B] hover:underline font-bold inline-flex items-center gap-1">
+                                            <i class="fa-brands fa-whatsapp"></i><span>Link WA</span>
+                                        </a>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
             </div>`;
         }
@@ -365,36 +396,36 @@
                 return;
             }
             list.innerHTML = planes.map(p => `
-                <div class="bg-slate-950 border ${p.activo ? 'border-slate-800' : 'border-slate-800/50 opacity-75'} rounded-2xl p-4 flex flex-col justify-between gap-4">
+                <div class="bg-[#FFFDF8] border border-[#DFD5C3] ${p.activo ? '' : 'opacity-70'} rounded-2xl p-4 flex flex-col justify-between gap-4 shadow-sm">
                     <div class="space-y-2.5">
                         <div class="flex items-start justify-between gap-2">
                             <div>
-                                <span class="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">${escapeHtml(p.codigo)}</span>
-                                <h4 class="text-base font-bold text-white mt-1.5">${escapeHtml(p.nombre)}</h4>
+                                <span class="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-[#EDE5D7] text-[#1B4332]">${escapeHtml(p.codigo)}</span>
+                                <h4 class="text-base font-extrabold text-[#1A241E] mt-1.5">${escapeHtml(p.nombre)}</h4>
                             </div>
                             <div class="text-right">
-                                <p class="text-xl font-bold text-emerald-400">$${Number(p.precio_mensual_usd || 0).toFixed(2)}</p>
-                                <p class="text-[10px] text-slate-500">USD / mes</p>
+                                <p class="text-xl font-extrabold text-[#1B4332]">$${Number(p.precio_mensual_usd || 0).toFixed(2)}</p>
+                                <p class="text-[10px] text-[#5C6B62]">USD / mes</p>
                             </div>
                         </div>
-                        <p class="text-xs text-slate-400">${escapeHtml(p.descripcion || 'Sin descripción comercial')}</p>
-                        <div class="grid grid-cols-2 gap-1.5 text-[11px] text-slate-300 pt-1">
-                            <div><i class="fa-solid fa-receipt text-slate-500 mr-1"></i>Límite: ${p.limite_pedidos_mes} ped/mes</div>
-                            <div><i class="fa-solid fa-shop text-slate-500 mr-1"></i>Máx sucursales: ${p.max_sucursales}</div>
-                            <div><i class="fa-solid fa-percent text-slate-500 mr-1"></i>Comisión: ${p.porcentaje_comision_pedido}%</div>
-                            <div><i class="fa-solid fa-building text-slate-500 mr-1"></i>Suscritos: <strong>${p.comercios_suscritos || 0}</strong></div>
+                        <p class="text-xs text-[#5C6B62]">${escapeHtml(p.descripcion || 'Sin descripción comercial')}</p>
+                        <div class="grid grid-cols-2 gap-1.5 text-[11px] text-[#39483F] pt-1">
+                            <div><i class="fa-solid fa-receipt text-[#1B4332] mr-1"></i>Límite: ${p.limite_pedidos_mes} ped/mes</div>
+                            <div><i class="fa-solid fa-shop text-[#1B4332] mr-1"></i>Sucursales: ${p.max_sucursales}</div>
+                            <div><i class="fa-solid fa-percent text-[#1B4332] mr-1"></i>Comisión: ${p.porcentaje_comision_pedido}%</div>
+                            <div><i class="fa-solid fa-building text-[#1B4332] mr-1"></i>Suscritos: <strong>${p.comercios_suscritos || 0}</strong></div>
                         </div>
                         <div class="flex flex-wrap gap-1.5 text-[10px] pt-1">
-                            <span class="px-2 py-0.5 rounded ${p.incluye_intervencion_humana ? 'bg-emerald-500/10 text-emerald-300' : 'bg-slate-800 text-slate-500'}">Chat Humano</span>
-                            <span class="px-2 py-0.5 rounded ${p.incluye_impresion_termica ? 'bg-emerald-500/10 text-emerald-300' : 'bg-slate-800 text-slate-500'}">Tickets 58/80mm</span>
-                            <span class="px-2 py-0.5 rounded ${p.incluye_reservacion_mesas ? 'bg-emerald-500/10 text-emerald-300' : 'bg-slate-800 text-slate-500'}">Mesas &amp; Reservas</span>
+                            <span class="px-2 py-0.5 rounded font-semibold ${p.incluye_intervencion_humana ? 'bg-[#E4EFE9] text-[#1B4332]' : 'bg-[#EDE5D7] text-[#5C6B62]'}">Chat Humano</span>
+                            <span class="px-2 py-0.5 rounded font-semibold ${p.incluye_impresion_termica ? 'bg-[#E4EFE9] text-[#1B4332]' : 'bg-[#EDE5D7] text-[#5C6B62]'}">Tickets 58/80mm</span>
+                            <span class="px-2 py-0.5 rounded font-semibold ${p.incluye_reservacion_mesas ? 'bg-[#E4EFE9] text-[#1B4332]' : 'bg-[#EDE5D7] text-[#5C6B62]'}">Mesas &amp; Reservas</span>
                         </div>
                     </div>
-                    <div class="flex justify-between items-center border-t border-slate-800 pt-3 text-xs">
-                        <span class="${p.activo ? 'text-emerald-400' : 'text-red-400'} font-semibold">${p.activo ? 'Disponible' : 'Oculto'}</span>
-                        <button type="button" onclick="openModalPlanSaaS(${p.id})" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition">
-                            <i class="fa-solid fa-pen"></i>
-                            <span>Editar Plan</span>
+                    <div class="flex justify-between items-center border-t border-[#EDE5D7] pt-3 text-xs">
+                        <span class="${p.activo ? 'text-[#1B4332]' : 'text-[#D6402B]'} font-bold">${p.activo ? 'Disponible' : 'Oculto'}</span>
+                        <button type="button" onclick="openModalPlanSaaS(${p.id})" class="bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-pen text-[#1B4332]"></i>
+                            <span>Editar</span>
                         </button>
                     </div>
                 </div>
@@ -413,63 +444,50 @@
             });
 
             if (facturas.length === 0) {
-                list.innerHTML = `<div class="bg-slate-950 border border-slate-800 rounded-xl p-6 text-center text-slate-400 text-sm">No hay facturas SaaS en esta vista. Usa "Generar Factura" para emitir un cobro mensual.</div>`;
+                list.innerHTML = `<div class="p-6 text-center text-[#5C6B62] text-sm">No hay facturas SaaS en esta vista. Usa "Generar Factura" para emitir un cobro mensual.</div>`;
                 return;
             }
 
-            const pendientes = facturas.filter(f => f.estado_pago !== 'PAGADO');
-            const pagadas = facturas.filter(f => f.estado_pago === 'PAGADO');
-
-            const renderFacturaRow = f => {
-                const isPaid = f.estado_pago === 'PAGADO';
-                return `
-                    <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
-                        <div class="space-y-1">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="font-bold text-sm text-white">${escapeHtml(f.comercio_nombre)}</span>
-                                <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">Periodo ${escapeHtml(f.periodo_mes)}</span>
-                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/15 text-amber-300 border border-amber-500/30'}">${escapeHtml(f.estado_pago)}</span>
-                            </div>
-                            <p class="text-xs text-slate-400">
-                                Fijo: $${Number(f.monto_mensualidad_fija || 0).toFixed(2)} + Comisiones (${f.pedidos_contabilizados || 0} ped): $${Number(f.monto_comision_pedidos || 0).toFixed(2)}
-                                ${f.referencia_pago ? ` · Ref: <span class="text-slate-300 font-mono">${escapeHtml(f.referencia_pago)}</span>` : ''}
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <p class="text-base font-bold ${isPaid ? 'text-emerald-400' : 'text-amber-300'}">$${Number(f.total_a_pagar || 0).toFixed(2)} USD</p>
-                            ${!isPaid
-                                ? `<button type="button" onclick="marcarFacturaPagada(${f.id})" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition"><i class="fa-solid fa-check"></i><span>Marcar Pagada</span></button>`
-                                : `<button type="button" onclick="revertirFacturaPendiente(${f.id})" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-1.5 rounded-lg transition">Marcar Pendiente</button>`
-                            }
-                        </div>
+            list.innerHTML = `
+                <div class="rounded-xl overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="ui-zebra-table w-full text-left border-collapse text-xs">
+                            <thead class="uppercase">
+                                <tr>
+                                    <th class="px-3.5 py-3">Comercio</th>
+                                    <th class="px-3.5 py-3">Periodo</th>
+                                    <th class="px-3.5 py-3">Estado</th>
+                                    <th class="px-3.5 py-3 text-right">Total USD</th>
+                                    <th class="px-3.5 py-3 text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${facturas.map(f => {
+                                    const isPaid = f.estado_pago === 'PAGADO';
+                                    return `
+                                    <tr>
+                                        <td class="px-3.5 py-2.5 font-bold text-[#1A241E]">
+                                            ${escapeHtml(f.comercio_nombre)}
+                                            ${f.referencia_pago ? `<div class="text-[10px] font-mono font-normal text-[#5C6B62]">Ref: ${escapeHtml(f.referencia_pago)}</div>` : ''}
+                                        </td>
+                                        <td class="px-3.5 py-2.5 font-mono text-[#5C6B62]">${escapeHtml(f.periodo_mes)}</td>
+                                        <td class="px-3.5 py-2.5">
+                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaid ? 'bg-[#E4EFE9] text-[#1B4332]' : 'bg-[#FEF3C7] text-[#92400E]'}">${escapeHtml(f.estado_pago)}</span>
+                                        </td>
+                                        <td class="px-3.5 py-2.5 text-right font-extrabold ${isPaid ? 'text-[#1B4332]' : 'text-[#D6402B]'}">$${Number(f.total_a_pagar || 0).toFixed(2)}</td>
+                                        <td class="px-3.5 py-2.5 text-right">
+                                            ${!isPaid
+                                                ? `<button type="button" onclick="marcarFacturaPagada(${f.id})" class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition">Marcar Pagada</button>`
+                                                : `<button type="button" onclick="revertirFacturaPendiente(${f.id})" class="bg-[#EDE5D7] hover:bg-[#E2D6C1] text-[#1A241E] text-[11px] font-bold px-2.5 py-1 rounded-lg transition">Pendiente</button>`
+                                            }
+                                        </td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
-            };
-
-            let html = '';
-            if (pendientes.length > 0) {
-                html += `
-                    <details open class="bg-slate-950/60 border border-amber-500/20 rounded-xl overflow-hidden">
-                        <summary class="cursor-pointer px-4 py-2.5 bg-amber-500/10 text-amber-300 text-xs font-bold flex items-center justify-between">
-                            <span><i class="fa-solid fa-clock mr-1.5"></i>Facturas Pendientes / Por Cobrar</span>
-                            <span>${pendientes.length}</span>
-                        </summary>
-                        <div class="p-3 space-y-2.5">${pendientes.map(renderFacturaRow).join('')}</div>
-                    </details>
-                `;
-            }
-            if (pagadas.length > 0) {
-                html += `
-                    <details ${pendientes.length === 0 ? 'open' : ''} class="bg-slate-950/60 border border-slate-800 rounded-xl overflow-hidden">
-                        <summary class="cursor-pointer px-4 py-2.5 bg-slate-900 text-emerald-400 text-xs font-bold flex items-center justify-between">
-                            <span><i class="fa-solid fa-circle-check mr-1.5"></i>Historial de Facturas Pagadas</span>
-                            <span>${pagadas.length}</span>
-                        </summary>
-                        <div class="p-3 space-y-2.5">${pagadas.map(renderFacturaRow).join('')}</div>
-                    </details>
-                `;
-            }
-            list.innerHTML = html;
+                </div>
+            `;
         }
 
         async function marcarFacturaPagada(facturaId) {
@@ -507,25 +525,25 @@
             const grid = document.getElementById('saSystemHealthGrid');
             if (!grid) return;
             grid.innerHTML = `
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <p class="text-[11px] text-slate-400"><i class="fa-brands fa-whatsapp text-emerald-400 mr-1.5"></i>Proveedor WhatsApp</p>
-                    <p class="text-sm font-bold text-white">${escapeHtml(m.whatsapp_provider || 'TWILIO')}</p>
-                    <p class="text-xs font-mono text-emerald-400">${escapeHtml(m.whatsapp_bot_number || 'Sin número')}</p>
+                <div class="glass rounded-2xl p-4 space-y-1">
+                    <p class="text-[11px] font-bold uppercase text-[#5C6B62]"><i class="fa-brands fa-whatsapp text-[#1B4332] mr-1.5"></i>WhatsApp</p>
+                    <p class="text-sm font-extrabold text-[#1A241E]">${escapeHtml(m.whatsapp_provider || 'EVOLUTION_QR')}</p>
+                    <p class="text-xs font-mono text-[#1B4332]">${escapeHtml(m.whatsapp_bot_number || 'Instancia activa')}</p>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <p class="text-[11px] text-slate-400"><i class="fa-solid fa-robot text-indigo-400 mr-1.5"></i>Motor de IA</p>
-                    <p class="text-sm font-bold text-white">${escapeHtml(m.ai_priority || 'Ollama -> Gemini -> OpenAI')}</p>
-                    <p class="text-xs text-slate-400">Fallback automático en cascada</p>
+                <div class="glass rounded-2xl p-4 space-y-1">
+                    <p class="text-[11px] font-bold uppercase text-[#5C6B62]"><i class="fa-solid fa-robot text-[#1B4332] mr-1.5"></i>Motor de IA</p>
+                    <p class="text-sm font-extrabold text-[#1A241E] truncate" title="${escapeHtml(m.ai_priority || '')}">${escapeHtml(m.ai_priority || 'Groq -> Gemini -> GitHub')}</p>
+                    <p class="text-xs text-[#5C6B62]">Cascada automática</p>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <p class="text-[11px] text-slate-400"><i class="fa-solid fa-credit-card text-amber-400 mr-1.5"></i>Pasarela Global</p>
-                    <p class="text-sm font-bold text-white">${escapeHtml(m.payment_mode || 'SIMULATION')}</p>
-                    <p class="text-xs text-slate-400">Listo para Stripe / Checkout Pro</p>
+                <div class="glass rounded-2xl p-4 space-y-1">
+                    <p class="text-[11px] font-bold uppercase text-[#5C6B62]"><i class="fa-solid fa-credit-card text-[#D6402B] mr-1.5"></i>Pasarela</p>
+                    <p class="text-sm font-extrabold text-[#1A241E]">${escapeHtml(m.payment_mode || 'SIMULATION')}</p>
+                    <p class="text-xs text-[#5C6B62]">Listo para Pagadito API</p>
                 </div>
-                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-1">
-                    <p class="text-[11px] text-slate-400"><i class="fa-solid fa-database text-cyan-400 mr-1.5"></i>Base de Datos</p>
-                    <p class="text-sm font-bold text-white">PostgreSQL Multi-Tenant</p>
-                    <p class="text-xs font-mono text-cyan-300">Schema: ${escapeHtml(m.database_schema || 'public')}</p>
+                <div class="glass rounded-2xl p-4 space-y-1">
+                    <p class="text-[11px] font-bold uppercase text-[#5C6B62]"><i class="fa-solid fa-database text-[#1B4332] mr-1.5"></i>Base de Datos</p>
+                    <p class="text-sm font-extrabold text-[#1A241E]">PostgreSQL Neon</p>
+                    <p class="text-xs font-mono text-[#5C6B62]">Schema: ${escapeHtml(m.database_schema || 'saas_whatsapp')}</p>
                 </div>
             `;
         }
@@ -550,22 +568,32 @@
                 return;
             }
 
-            list.innerHTML = logs.map(l => `
-                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-wrap justify-between items-center gap-2 text-xs">
-                    <div class="space-y-0.5 min-w-0">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="font-bold text-cyan-300">${escapeHtml(l.accion)}</span>
-                            <span class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">${escapeHtml(l.recurso_tipo || 'SISTEMA')}${l.recurso_id ? '#' + l.recurso_id : ''}</span>
-                            ${l.tenant_id ? `<span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300">Tenant #${l.tenant_id}</span>` : ''}
-                        </div>
-                        <p class="text-[11px] text-slate-400">
-                            Actor: <span class="text-slate-200">${escapeHtml(l.actor_email || 'Sistema')}</span>
-                            ${l.ip_origen ? ` · IP: <span class="font-mono">${escapeHtml(l.ip_origen)}</span>` : ''}
-                        </p>
+            list.innerHTML = `
+                <div class="rounded-xl overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="ui-zebra-table w-full text-left border-collapse text-xs">
+                            <thead class="uppercase">
+                                <tr>
+                                    <th class="px-3.5 py-3">Acción</th>
+                                    <th class="px-3.5 py-3">Recurso</th>
+                                    <th class="px-3.5 py-3">Actor</th>
+                                    <th class="px-3.5 py-3 text-right">Fecha</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${logs.map(l => `
+                                    <tr>
+                                        <td class="px-3.5 py-2.5 font-bold text-[#1B4332]">${escapeHtml(l.accion)}</td>
+                                        <td class="px-3.5 py-2.5 font-mono text-[11px] text-[#5C6B62]">${escapeHtml(l.recurso_tipo || 'SISTEMA')}${l.recurso_id ? '#' + l.recurso_id : ''}${l.tenant_id ? ` · T#${l.tenant_id}` : ''}</td>
+                                        <td class="px-3.5 py-2.5 text-[#1A241E]">${escapeHtml(l.actor_email || 'Sistema')}</td>
+                                        <td class="px-3.5 py-2.5 text-right font-mono text-[11px] text-[#5C6B62]">${new Date(l.creado_en).toLocaleString()}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
-                    <span class="text-[11px] text-slate-500 font-mono">${new Date(l.creado_en).toLocaleString()}</span>
                 </div>
-            `).join('');
+            `;
         }
 
         // =========================================================

@@ -893,3 +893,28 @@ class ComercioLogo(Base):
     imagen_bytes = Column(LargeBinary, nullable=False)
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
+
+# =====================================================================
+# 12. CONEXIÓN WHATSAPP MULTI-NÚMERO POR COMERCIO (LISTO PARA ACTIVAR)
+# =====================================================================
+class ConexionWhatsappComercio(Base):
+    """
+    Prepara el enrutamiento multi-número por comercio (1 instancia Evolution API
+    o 1 número Meta Cloud API por tenant). Se activa con WHATSAPP_MULTI_TENANT_ENABLED=true.
+    """
+
+    __tablename__ = "conexiones_whatsapp_comercio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    provider = Column(String(30), default="evolution_qr", nullable=False)
+    evolution_instance_name = Column(String(80), nullable=True, unique=True, index=True)
+    numero_whatsapp = Column(String(30), nullable=True)
+    meta_phone_number_id = Column(String(80), nullable=True)
+    meta_access_token = Column(Text, nullable=True)
+    modo_bot = Column(String(30), default="SOLO_IA", nullable=False)
+    activo = Column(Boolean, default=True, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+

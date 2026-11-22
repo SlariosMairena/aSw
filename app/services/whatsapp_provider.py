@@ -35,9 +35,12 @@ def verify_meta_signature(raw_body: bytes, signature_header: Optional[str]) -> b
     return hmac.compare_digest(expected, received)
 
 
-def send_whatsapp_text(telefono: str, texto: str) -> Dict[str, Any]:
+def send_whatsapp_text(
+    telefono: str, texto: str, instance_name: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Envía un mensaje de texto saliente al cliente por el proveedor configurado.
+    Si instance_name se proporciona (modo multi-número), usa esa instancia en Evolution API.
     Nunca lanza excepciones que bloqueen el panel o el webhook si el proveedor externo está apagado.
     """
     phone = clean_whatsapp_phone(telefono)
@@ -50,7 +53,7 @@ def send_whatsapp_text(telefono: str, texto: str) -> Dict[str, Any]:
     if provider == "evolution_qr":
         api_key = (settings.WHATSAPP_EVOLUTION_API_KEY or "").strip()
         base_url = (settings.WHATSAPP_EVOLUTION_BASE_URL or "").strip().rstrip("/")
-        instance = (settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
+        instance = (instance_name or settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
         if not api_key or not base_url or not instance:
             return {
                 "sent": False,
@@ -122,7 +125,7 @@ def send_whatsapp_text(telefono: str, texto: str) -> Dict[str, Any]:
 
 
 def send_whatsapp_media(
-    telefono: str, media_url: str, caption: str = ""
+    telefono: str, media_url: str, caption: str = "", instance_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Envía una imagen (con texto caption opcional) por WhatsApp vía Evolution API v2
@@ -130,13 +133,13 @@ def send_whatsapp_media(
     """
     phone = clean_whatsapp_phone(telefono)
     if not phone or not media_url:
-        return send_whatsapp_text(telefono, caption)
+        return send_whatsapp_text(telefono, caption, instance_name=instance_name)
 
     provider = (settings.WHATSAPP_PROVIDER or "evolution_qr").strip().lower()
     if provider == "evolution_qr":
         api_key = (settings.WHATSAPP_EVOLUTION_API_KEY or "").strip()
         base_url = (settings.WHATSAPP_EVOLUTION_BASE_URL or "").strip().rstrip("/")
-        instance = (settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
+        instance = (instance_name or settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
         if not api_key or not base_url or not instance:
             return {"sent": False, "provider": "evolution_qr", "mode": "simulado"}
         url = f"{base_url}/message/sendMedia/{instance}"
@@ -155,7 +158,7 @@ def send_whatsapp_media(
                     return {"sent": True, "provider": "evolution_qr", "media": True, "status_code": resp.status_code}
         except Exception as exc:
             logger.warning("Error enviando media por Evolution API, usando texto: %s", exc)
-        return send_whatsapp_text(telefono, caption)
+        return send_whatsapp_text(telefono, caption, instance_name=instance_name)
 
     if provider == "meta_cloud":
         token = (settings.WHATSAPP_META_ACCESS_TOKEN or "").strip()
@@ -183,11 +186,11 @@ def send_whatsapp_media(
     return send_whatsapp_text(telefono, caption)
 
 
-def get_evolution_connection_status() -> Dict[str, Any]:
+def get_evolution_connection_status(instance_name: Optional[str] = None) -> Dict[str, Any]:
     """Consulta el estado de conexión de la instancia en Evolution API (si está configurada)."""
     api_key = (settings.WHATSAPP_EVOLUTION_API_KEY or "").strip()
     base_url = (settings.WHATSAPP_EVOLUTION_BASE_URL or "").strip().rstrip("/")
-    instance = (settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
+    instance = (instance_name or settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
     if not api_key or not base_url or not instance:
         return {
             "configured": False,
@@ -228,14 +231,39 @@ def get_evolution_connection_status() -> Dict[str, Any]:
         }
 
 
-def create_or_connect_evolution_qr(webhook_url: str) -> Dict[str, Any]:
+def resolve_tenant_whatsapp_instance(db, tenant_id: Optional[int]) -> Optional[str]:
+    """
+    Devuelve la instancia Evolution API dedicada del comercio SOLO si
+    WHATSAPP_MULTI_TENANT_ENABLED=true y el comercio tiene conexión activa configurada.
+    En modo instancia única (default), retorna None para usar WHATSAPP_EVOLUTION_INSTANCE.
+    """
+    if not settings.WHATSAPP_MULTI_TENANT_ENABLED or not tenant_id or db is None:
+        return None
+    from app.models.saas_models import ConexionWhatsappComercio
+
+    conn = (
+        db.query(ConexionWhatsappComercio)
+        .filter(
+            ConexionWhatsappComercio.tenant_id == int(tenant_id),
+            ConexionWhatsappComercio.activo.is_(True),
+        )
+        .first()
+    )
+    if conn and conn.evolution_instance_name:
+        return conn.evolution_instance_name.strip()
+    return None
+
+
+def create_or_connect_evolution_qr(
+    webhook_url: str, instance_name: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Crea la instancia en Evolution API v2 (si aún no existe), configura el webhook
     MESSAGES_UPSERT y solicita el código QR real (base64) para escanear con WhatsApp.
     """
     api_key = (settings.WHATSAPP_EVOLUTION_API_KEY or "").strip()
     base_url = (settings.WHATSAPP_EVOLUTION_BASE_URL or "").strip().rstrip("/")
-    instance = (settings.WHATSAPP_EVOLUTION_INSTANCE or "saas_bot_principal").strip()
+    instance = (instance_name or settings.WHATSAPP_EVOLUTION_INSTANCE or "saas_bot_principal").strip()
     if not api_key or not base_url or not instance:
         return {
             "ok": False,

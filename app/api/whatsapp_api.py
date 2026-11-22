@@ -18,6 +18,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_comercio_admin, verify_tenant_isolation
 from app.models.saas_models import (
+    ConexionWhatsappComercio,
     SesionChatWhatsApp,
     SucursalComercio,
     Usuario,
@@ -128,19 +129,50 @@ async def webhook_evolution_api(request: Request, db: Session = Depends(get_db))
         return {"status": "ignored", "reason": "empty_or_non_text"}
 
     push_name = str(data.get("pushName") or "Cliente WhatsApp").strip()
+
+    # Preparado para multi-número por comercio (solo se activa si WHATSAPP_MULTI_TENANT_ENABLED=true)
+    forced_sucursal_id = None
+    outbound_instance = None
+    modo_webhook = _default_webhook_mode()
+    incoming_instance = str(payload.get("instance") or "").strip()
+    if settings.WHATSAPP_MULTI_TENANT_ENABLED and incoming_instance:
+        conn = (
+            db.query(ConexionWhatsappComercio)
+            .filter(
+                ConexionWhatsappComercio.evolution_instance_name == incoming_instance,
+                ConexionWhatsappComercio.activo.is_(True),
+            )
+            .first()
+        )
+        if conn:
+            outbound_instance = conn.evolution_instance_name
+            if conn.modo_bot in ("SOLO_IA", "MENU_GUIADO", "HIBRIDO_IA"):
+                modo_webhook = conn.modo_bot
+            first_suc = (
+                db.query(SucursalComercio)
+                .filter(SucursalComercio.tenant_id == conn.tenant_id)
+                .order_by(SucursalComercio.id.asc())
+                .first()
+            )
+            if first_suc:
+                forced_sucursal_id = first_suc.id
+
     result = process_incoming_whatsapp_message(
         db=db,
         telefono_raw=telefono,
         texto_raw=texto,
         nombre_cliente=push_name,
-        modo_bot=_default_webhook_mode(),
+        forced_sucursal_id=forced_sucursal_id,
+        modo_bot=modo_webhook,
     )
 
     delivery = None
     if result.get("reply_image_url"):
-        delivery = send_whatsapp_media(telefono, result["reply_image_url"], result.get("reply_text") or "")
+        delivery = send_whatsapp_media(
+            telefono, result["reply_image_url"], result.get("reply_text") or "", instance_name=outbound_instance
+        )
     elif result.get("reply_text"):
-        delivery = send_whatsapp_text(telefono, result["reply_text"])
+        delivery = send_whatsapp_text(telefono, result["reply_text"], instance_name=outbound_instance)
 
     return {
         "status": "ok",

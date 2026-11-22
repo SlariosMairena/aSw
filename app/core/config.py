@@ -104,6 +104,9 @@ class Settings:
         self.OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
         # 5. Conexión WhatsApp (Solo Nivel 1 QR y Nivel 2 Meta Cloud API)
+        self.WHATSAPP_MULTI_TENANT_ENABLED: bool = (
+            os.getenv("WHATSAPP_MULTI_TENANT_ENABLED", "false").strip().lower() == "true"
+        )
         self.WHATSAPP_PROVIDER: str = os.getenv(
             "WHATSAPP_PROVIDER", "evolution_qr"
         )
