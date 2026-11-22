@@ -39,6 +39,7 @@ from app.models.saas_models import (
 from app.services.ai_router import (
     detect_escalation_or_complaint_ai,
     interpret_natural_order_message,
+    run_full_ai_order_turn,
     validate_and_normalize_address_ai,
 )
 from app.services.whatsapp_provider import clean_whatsapp_phone
@@ -935,6 +936,306 @@ def _create_order_from_session(
     return pedido
 
 
+def _handle_solo_ia_turn(
+    db: Session,
+    sesion: SesionChatWhatsApp,
+    comercio: TenantComercio,
+    sucursal: SucursalComercio,
+    categorias: List[CategoriaMenu],
+    platos: List[ProductoPlato],
+    state: Dict[str, Any],
+    telefono: str,
+    texto: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Ejecuta un turno completo 100% manejado por IA (SOLO_IA) respetando
+    estrictamente el catálogo real, precios desde BD y confirmación obligatoria.
+    Retorna None si la IA no está disponible para hacer fallback seguro.
+    """
+    copy = _giro_copy(comercio.giro)
+    sym = comercio.simbolo_moneda or "C$"
+    zonas_act = [z for z in sucursal.zonas_envio if z.activa]
+
+    # Link personalizado al Mini-Menú Web
+    base_url = (settings.BASE_URL or "http://localhost:8000").rstrip("/")
+    qs_parts = [f"tel={quote(clean_whatsapp_phone(telefono))}"]
+    if sesion.nombre_cliente and not sesion.nombre_cliente.lower().startswith("cliente"):
+        qs_parts.append(f"nombre={quote(sesion.nombre_cliente.strip())}")
+    menu_link = f"{base_url}/m/{quote(sucursal.codigo_whatsapp or '')}?{'&'.join(qs_parts)}"
+
+    # Revisar pedido activo si la sesión está en SIGUIENDO_PEDIDO
+    pedido_activo_ctx = None
+    if sesion.estado_conversacion == "SIGUIENDO_PEDIDO" and state.get("pedido_activo_id"):
+        ped_act = db.query(Pedido).filter(Pedido.id == int(state["pedido_activo_id"])).first()
+        if ped_act and ped_act.estado_pedido not in ("ENTREGADO", "CANCELADO"):
+            pedido_activo_ctx = {
+                "folio": ped_act.folio,
+                "estado": ped_act.estado_pedido,
+                "total": ped_act.total,
+                "tiempo_estimado_min": sucursal.tiempo_estimado_entrega_min,
+            }
+        else:
+            state.clear()
+            state.update(_empty_state())
+            sesion.estado_conversacion = "EXPLORANDO_MENU"
+
+    cli_prev = (
+        db.query(ClienteFrecuente)
+        .filter(
+            ClienteFrecuente.tenant_id == comercio.id,
+            ClienteFrecuente.telefono_whatsapp == telefono,
+        )
+        .first()
+    )
+
+    catalogo_ctx = []
+    for p in platos[:45]:
+        rem, exs = _get_item_customization_options(db, p.id)
+        item_ctx: Dict[str, Any] = {
+            "plato_id": p.id,
+            "categoria": p.categoria.nombre if p.categoria else "General",
+            "nombre": p.nombre,
+            "precio": float(p.precio_base),
+        }
+        if rem and copy["uses_tables"]:
+            item_ctx["ingredientes"] = [r.nombre for r in rem]
+        if exs:
+            item_ctx["extras"] = [
+                {"extra_id": e.id, "nombre": e.nombre, "precio": float(e.precio_adicional or 0.0)}
+                for e in exs[:6]
+            ]
+        catalogo_ctx.append(item_ctx)
+
+    context_payload = {
+        "comercio": {
+            "nombre": comercio.nombre_comercial,
+            "giro": comercio.giro,
+            "simbolo_moneda": sym,
+            "acepta_efectivo": bool(comercio.acepta_efectivo),
+            "acepta_transferencia": bool(comercio.acepta_transferencia),
+            "datos_bancarios": comercio.datos_bancarios_texto or "",
+            "usa_mesas": copy["uses_tables"],
+            "menu_web_url": menu_link,
+        },
+        "sucursal": {
+            "nombre": sucursal.nombre_sucursal,
+            "abierto_ahora": bool(sucursal.abierto_ahora),
+            "horario": f"{sucursal.horario_apertura} a {sucursal.horario_cierre}",
+            "tiempo_estimado_min": sucursal.tiempo_estimado_entrega_min,
+            "permite_domicilio": bool(sucursal.permite_domicilio),
+            "permite_recoger_local": bool(sucursal.permite_recoger_local),
+            "costo_envio_base": float(sucursal.costo_envio_base or 0.0),
+            "zonas_envio": [
+                {"zona_id": z.id, "nombre": z.nombre_zona, "costo": float(z.costo_envio or 0.0)}
+                for z in zonas_act
+            ],
+        },
+        "cliente": {
+            "nombre": sesion.nombre_cliente or "Cliente",
+            "ultima_direccion": cli_prev.ultima_direccion if cli_prev else None,
+        },
+        "pedido_activo_en_curso": pedido_activo_ctx,
+        "carrito_actual": {
+            "items": state.get("items") or [],
+            "subtotal": _calc_subtotal(state.get("items") or []),
+            "tipo_entrega": state.get("tipo_entrega"),
+            "zona_nombre": state.get("zona_nombre"),
+            "costo_envio": float(state.get("costo_envio") or 0.0),
+            "direccion_entrega": state.get("direccion_entrega"),
+            "metodo_pago": state.get("metodo_pago"),
+            "paga_con": state.get("paga_con"),
+        },
+        "catalogo_disponible": catalogo_ctx,
+    }
+
+    # Últimos 8 mensajes previos de esta sesión (excluyendo el actual que ya va aparte)
+    prev_msgs = (
+        db.query(MensajeChatWhatsApp)
+        .filter(MensajeChatWhatsApp.sesion_id == sesion.id)
+        .order_by(MensajeChatWhatsApp.id.desc())
+        .limit(9)
+        .all()
+    )
+    history = [
+        {"de": m.remitente, "texto": (m.contenido or "")[:350]}
+        for m in reversed(prev_msgs[1:])
+    ]
+
+    ai_res = run_full_ai_order_turn(context_payload, history, texto)
+    if not ai_res:
+        return None
+
+    ai_used = ai_res.get("_provider") or "gemini"
+    reply_text = str(ai_res.get("respuesta") or "").strip()
+    acciones = ai_res.get("acciones") or {}
+    if not isinstance(acciones, dict):
+        acciones = {}
+
+    if acciones.get("vaciar_carrito"):
+        ped_keep = state.get("pedido_activo_id")
+        state.clear()
+        state.update(_empty_state())
+        if ped_keep:
+            state["pedido_activo_id"] = ped_keep
+
+    # Validar y aplicar ítems agregados por la IA contra la BD real
+    plato_map = {p.id: p for p in platos}
+    for it_in in acciones.get("agregar_items") or []:
+        if not isinstance(it_in, dict):
+            continue
+        pid = int(it_in.get("plato_id") or 0)
+        pl = plato_map.get(pid)
+        if not pl:
+            continue
+        qty = max(1, min(50, int(it_in.get("cantidad") or 1)))
+        sin_list = [str(s).strip() for s in (it_in.get("sin_ingredientes") or []) if str(s).strip()]
+        extras_sel: List[Dict[str, Any]] = []
+        raw_ex_ids = [int(x) for x in (it_in.get("extras_ids") or []) if str(x).isdigit()]
+        if raw_ex_ids:
+            opts = (
+                db.query(IngredienteOpcionPlato)
+                .filter(
+                    IngredienteOpcionPlato.id.in_(raw_ex_ids),
+                    IngredienteOpcionPlato.plato_id == pl.id,
+                    IngredienteOpcionPlato.disponible_global.is_(True),
+                )
+                .all()
+            )
+            for opt in opts:
+                extras_sel.append({"nombre": opt.nombre, "precio": float(opt.precio_adicional or 0.0)})
+        precio_ex = round(sum(e["precio"] for e in extras_sel), 2)
+        state["items"].append(
+            {
+                "plato_id": pl.id,
+                "nombre": pl.nombre,
+                "precio_base": float(pl.precio_base),
+                "cantidad": qty,
+                "sin_ingredientes": sin_list,
+                "extras": extras_sel,
+                "precio_extras": precio_ex,
+                "notas": str(it_in.get("notas") or "").strip(),
+            }
+        )
+
+    # Modalidad de entrega validada
+    t_ent = acciones.get("tipo_entrega")
+    if isinstance(t_ent, str) and t_ent.strip():
+        t_up = t_ent.upper().strip()
+        if t_up == "DOMICILIO" and sucursal.permite_domicilio:
+            state["tipo_entrega"] = "DOMICILIO"
+            if not state.get("zona_envio_id"):
+                state["costo_envio"] = float(sucursal.costo_envio_base or 0.0)
+        elif t_up == "RECOGER_LOCAL" and sucursal.permite_recoger_local:
+            state["tipo_entrega"] = "RECOGER_LOCAL"
+            state["direccion_entrega"] = f"Recoger en {sucursal.nombre_sucursal}"
+            state["costo_envio"] = 0.0
+        elif t_up == "MESA" and copy["uses_tables"]:
+            state["tipo_entrega"] = "MESA"
+            state["direccion_entrega"] = f"Consumo en mesa ({sucursal.nombre_sucursal})"
+            state["costo_envio"] = 0.0
+
+    # Zona de envío validada
+    z_id = acciones.get("zona_envio_id")
+    if z_id is not None and str(z_id).isdigit():
+        z_obj = next((z for z in zonas_act if z.id == int(z_id)), None)
+        if z_obj:
+            state["zona_envio_id"] = z_obj.id
+            state["zona_nombre"] = z_obj.nombre_zona
+            state["costo_envio"] = float(z_obj.costo_envio or 0.0)
+
+    # Dirección
+    dir_in = acciones.get("direccion_entrega")
+    if isinstance(dir_in, str) and len(dir_in.strip()) >= 5:
+        state["direccion_entrega"] = dir_in.strip()
+
+    # Método de pago validado
+    m_pago = acciones.get("metodo_pago")
+    if isinstance(m_pago, str) and m_pago.strip():
+        m_up = m_pago.upper().strip()
+        if m_up == "EFECTIVO" and comercio.acepta_efectivo:
+            state["metodo_pago"] = "EFECTIVO"
+        elif m_up == "TRANSFERENCIA" and comercio.acepta_transferencia:
+            state["metodo_pago"] = "TRANSFERENCIA"
+            state["paga_con"] = None
+
+    paga_in = acciones.get("paga_con")
+    if paga_in is not None:
+        try:
+            p_val = float(paga_in)
+            if p_val > 0:
+                state["paga_con"] = round(p_val, 2)
+        except Exception:
+            pass
+
+    pedido_creado = None
+    if acciones.get("transferir_humano"):
+        sesion.modo_atencion = "HUMANO_ACTIVO"
+        sesion.resumen_ia_chat = f"Atención humana solicitada (IA): {texto[:160]}"
+    elif acciones.get("confirmar_pedido"):
+        # Validación dura en servidor: solo crear pedido si están TODOS los datos obligatorios
+        has_items = bool(state.get("items"))
+        has_entrega = state.get("tipo_entrega") in ("DOMICILIO", "RECOGER_LOCAL", "MESA")
+        has_dir = (state.get("tipo_entrega") != "DOMICILIO") or bool(state.get("direccion_entrega"))
+        has_pago = state.get("metodo_pago") in ("EFECTIVO", "TRANSFERENCIA")
+
+        if has_items and has_entrega and has_dir and has_pago:
+            pedido = _create_order_from_session(db, sesion, comercio, sucursal, state, "SOLO_IA")
+            pedido_creado = {
+                "id": pedido.id,
+                "folio": pedido.folio,
+                "total": pedido.total,
+                "estado_pedido": pedido.estado_pedido,
+            }
+            state.clear()
+            state.update(_empty_state())
+            state["pedido_activo_id"] = pedido.id
+            sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
+            # Garantizar que el cliente reciba siempre el folio y total exacto calculado por BD
+            if pedido.folio not in reply_text:
+                reply_text = (
+                    f"¡Pedido confirmado! Folio: *#{pedido.folio}*\n"
+                    f"Total exacto: *{sym}{pedido.total:.2f}* ({pedido.metodo_pago})\n"
+                    f"Tiempo estimado: *{sucursal.tiempo_estimado_entrega_min} min*.\n"
+                    "Te avisaremos por este chat en cuanto vaya avanzando."
+                )
+
+    _save_session_state(sesion, state)
+    if reply_text:
+        db.add(
+            MensajeChatWhatsApp(
+                sesion_id=sesion.id,
+                tenant_id=comercio.id,
+                remitente="BOT",
+                tipo_contenido="TEXTO",
+                contenido=reply_text,
+            )
+        )
+    db.commit()
+
+    if pedido_creado:
+        publish_tenant_event(
+            comercio.id,
+            "NUEVO_PEDIDO",
+            {"pedido_id": pedido_creado["id"], "folio": pedido_creado["folio"]},
+        )
+    else:
+        publish_tenant_event(
+            comercio.id,
+            "NUEVO_MENSAJE",
+            {"sesion_id": sesion.id},
+        )
+
+    return {
+        "reply_text": reply_text,
+        "sesion_id": sesion.id,
+        "modo_atencion": sesion.modo_atencion,
+        "estado_conversacion": sesion.estado_conversacion,
+        "pedido_creado": pedido_creado,
+        "quick_replies": [],
+        "ai_used": ai_used,
+    }
+
+
 def process_incoming_whatsapp_message(
     db: Session,
     telefono_raw: str,
@@ -957,7 +1258,7 @@ def process_incoming_whatsapp_message(
         }
 
     modo = (modo_bot or "MENU_GUIADO").upper().strip()
-    if modo not in ("MENU_GUIADO", "HIBRIDO_IA"):
+    if modo not in ("MENU_GUIADO", "HIBRIDO_IA", "SOLO_IA"):
         modo = "MENU_GUIADO"
 
     sesion, prompt_seleccion = _resolve_or_create_session(
@@ -1013,6 +1314,14 @@ def process_incoming_whatsapp_message(
     state = _load_session_state(sesion)
     categorias, platos = _get_available_catalog(db, comercio.id, sucursal.id)
     cats_con_items = [c for c in categorias if any(p.categoria_id == c.id for p in platos)]
+
+    # MODO SOLO_IA: la IA maneja todo el flujo respetando restricciones y precios reales en BD
+    if modo == "SOLO_IA":
+        ia_turn = _handle_solo_ia_turn(
+            db, sesion, comercio, sucursal, categorias, platos, state, telefono, texto
+        )
+        if ia_turn is not None:
+            return ia_turn
 
     norm = _normalize_text(texto)
     upper = texto.upper().strip()

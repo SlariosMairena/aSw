@@ -66,7 +66,7 @@ class SimuladorMensajeRequest(BaseModel):
     mensaje: str
     telefono_simulado: str = "50588001234"
     nombre_cliente: str = "Cliente Prueba Panel"
-    modo_bot: str = "MENU_GUIADO"  # MENU_GUIADO | HIBRIDO_IA
+    modo_bot: str = "SOLO_IA"  # SOLO_IA | MENU_GUIADO | HIBRIDO_IA
 
 
 class SimuladorReiniciarRequest(BaseModel):
@@ -75,8 +75,8 @@ class SimuladorReiniciarRequest(BaseModel):
 
 
 def _default_webhook_mode() -> str:
-    """Si hay alguna API Key de IA configurada usa HIBRIDO_IA; si no, MENU_GUIADO."""
-    return "HIBRIDO_IA" if get_available_ai_providers() else "MENU_GUIADO"
+    """Si hay alguna API Key de IA configurada usa SOLO_IA (prueba activa); si no, MENU_GUIADO."""
+    return "SOLO_IA" if get_available_ai_providers() else "MENU_GUIADO"
 
 
 # =====================================================================

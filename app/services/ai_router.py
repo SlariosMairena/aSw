@@ -55,7 +55,7 @@ def _extract_json_block(text: str) -> Optional[Dict[str, Any]]:
 
 
 def _call_openai_compatible(
-    url: str, api_key: str, model: str, system_prompt: str, user_prompt: str
+    url: str, api_key: str, model: str, system_prompt: str, user_prompt: str, max_tokens: int = 350
 ) -> Optional[str]:
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -63,14 +63,14 @@ def _call_openai_compatible(
     }
     payload = {
         "model": model,
-        "temperature": 0.1,
-        "max_tokens": 350,
+        "temperature": 0.2,
+        "max_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
     }
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=14.0) as client:
         resp = client.post(url, headers=headers, json=payload)
         if 200 <= resp.status_code < 300:
             data = resp.json()
@@ -78,7 +78,9 @@ def _call_openai_compatible(
     return None
 
 
-def _call_gemini(api_key: str, model: str, system_prompt: str, user_prompt: str) -> Optional[str]:
+def _call_gemini(
+    api_key: str, model: str, system_prompt: str, user_prompt: str, max_tokens: int = 350
+) -> Optional[str]:
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent?key={api_key}"
@@ -86,9 +88,9 @@ def _call_gemini(api_key: str, model: str, system_prompt: str, user_prompt: str)
     payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 350},
+        "generationConfig": {"temperature": 0.2, "maxOutputTokens": max_tokens},
     }
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=14.0) as client:
         resp = client.post(url, json=payload)
         if 200 <= resp.status_code < 300:
             data = resp.json()
@@ -179,7 +181,9 @@ def interpret_natural_order_message(
     return None
 
 
-def _run_ai_json_prompt(system_prompt: str, user_prompt: str) -> Optional[Dict[str, Any]]:
+def _run_ai_json_prompt(
+    system_prompt: str, user_prompt: str, max_tokens: int = 350
+) -> Optional[Dict[str, Any]]:
     """Ejecuta un prompt estructurado en cascada por los proveedores IA configurados."""
     providers = get_available_ai_providers()
     if not providers:
@@ -193,6 +197,7 @@ def _run_ai_json_prompt(system_prompt: str, user_prompt: str) -> Optional[Dict[s
                     settings.GEMINI_MODEL,
                     system_prompt,
                     user_prompt,
+                    max_tokens=max_tokens,
                 )
             elif prov == "groq":
                 raw_text = _call_openai_compatible(
@@ -201,6 +206,7 @@ def _run_ai_json_prompt(system_prompt: str, user_prompt: str) -> Optional[Dict[s
                     settings.GROQ_MODEL,
                     system_prompt,
                     user_prompt,
+                    max_tokens=max_tokens,
                 )
             elif prov == "openrouter":
                 raw_text = _call_openai_compatible(
@@ -209,6 +215,7 @@ def _run_ai_json_prompt(system_prompt: str, user_prompt: str) -> Optional[Dict[s
                     settings.OPENROUTER_MODEL,
                     system_prompt,
                     user_prompt,
+                    max_tokens=max_tokens,
                 )
             elif prov == "openai":
                 raw_text = _call_openai_compatible(
@@ -217,6 +224,7 @@ def _run_ai_json_prompt(system_prompt: str, user_prompt: str) -> Optional[Dict[s
                     settings.OPENAI_MODEL,
                     system_prompt,
                     user_prompt,
+                    max_tokens=max_tokens,
                 )
             parsed = _extract_json_block(raw_text or "")
             if parsed:
@@ -279,6 +287,52 @@ def detect_escalation_or_complaint_ai(
     user_prompt = f"Mensaje del cliente: {user_message}"
     parsed = _run_ai_json_prompt(system_prompt, user_prompt)
     if parsed and "requiere_humano" in parsed:
+        return parsed
+    return None
+
+
+def run_full_ai_order_turn(
+    context_payload: Dict[str, Any],
+    history_messages: List[Dict[str, str]],
+    user_message: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Maneja un turno completo de conversación de pedidos 100% con IA (modo SOLO_IA),
+    manteniendo estrictamente el catálogo real, reglas de negocio y confirmación obligatoria.
+    """
+    system_prompt = (
+        "Eres el asistente de WhatsApp amable, natural y cercano del comercio descrito en CONTEXTO. "
+        "Hablas en español cálido y conciso (mensajes cortos, 3 a 7 líneas máximo, formato WhatsApp con *negritas*). "
+        "RESTRICCIONES ESTRICTAS:\n"
+        "1. NUNCA inventes productos, precios, ingredientes ni zonas que no estén en el CONTEXTO.\n"
+        "2. Sigue siempre el flujo ordenado: saludo + link del Menú Web (en el primer saludo) -> elegir categoría/producto "
+        "(si es comida y el producto trae ingredientes, menciónalos brevemente) -> cantidad y personalización (sin ingredientes/extras) "
+        "-> preguntar si desea agregar algo más -> modalidad de entrega permitida -> si es DOMICILIO pedir zona y dirección clara "
+        "(si es vaga como 'mi casa', pide referencia antes de avanzar) -> método de pago (si es EFECTIVO preguntar con cuánto paga para vuelto) "
+        "-> mostrar resumen claro y pedir CONFIRMACIÓN EXPLÍCITA del cliente.\n"
+        "3. SOLO pon confirmar_pedido=true cuando el cliente ya vio el resumen y confirmó explícitamente ('sí', 'confirmo', 'dale') "
+        "Y el carrito tiene productos, modalidad, dirección (si es DOMICILIO) y método de pago.\n"
+        "4. Si el cliente tiene un reclamo, queja, problema grave o pide hablar con una persona, pon transferir_humano=true.\n"
+        "5. Si el cliente escribe con errores de ortografía (ej: 'no quiero pepinillas', 'efektivo'), entiéndelo con naturalidad.\n"
+        "6. Responde EXCLUSIVAMENTE con un JSON válido (sin markdown ni texto fuera del JSON) con esta estructura exacta:\n"
+        '{"respuesta":"texto corto para el cliente","acciones":{'
+        '"agregar_items":[{"plato_id":0,"cantidad":1,"sin_ingredientes":[],"extras_ids":[],"notas":""}],'
+        '"vaciar_carrito":false,'
+        '"tipo_entrega":null,'
+        '"zona_envio_id":null,'
+        '"direccion_entrega":null,'
+        '"metodo_pago":null,'
+        '"paga_con":null,'
+        '"confirmar_pedido":false,'
+        '"transferir_humano":false}}'
+    )
+    user_prompt = (
+        f"CONTEXTO:\n{json.dumps(context_payload, ensure_ascii=False)}\n\n"
+        f"HISTORIAL RECIENTE:\n{json.dumps(history_messages[-8:], ensure_ascii=False)}\n\n"
+        f"NUEVO MENSAJE DEL CLIENTE:\n{user_message}"
+    )
+    parsed = _run_ai_json_prompt(system_prompt, user_prompt, max_tokens=750)
+    if parsed and isinstance(parsed.get("respuesta"), str):
         return parsed
     return None
 
