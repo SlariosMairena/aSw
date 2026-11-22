@@ -121,6 +121,68 @@ def send_whatsapp_text(telefono: str, texto: str) -> Dict[str, Any]:
     return {"sent": False, "provider": provider, "mode": "simulado", "detail": "Proveedor en modo simulado."}
 
 
+def send_whatsapp_media(
+    telefono: str, media_url: str, caption: str = ""
+) -> Dict[str, Any]:
+    """
+    Envía una imagen (con texto caption opcional) por WhatsApp vía Evolution API v2
+    o Meta Cloud API. Si falla el envío de media, hace fallback automático a texto.
+    """
+    phone = clean_whatsapp_phone(telefono)
+    if not phone or not media_url:
+        return send_whatsapp_text(telefono, caption)
+
+    provider = (settings.WHATSAPP_PROVIDER or "evolution_qr").strip().lower()
+    if provider == "evolution_qr":
+        api_key = (settings.WHATSAPP_EVOLUTION_API_KEY or "").strip()
+        base_url = (settings.WHATSAPP_EVOLUTION_BASE_URL or "").strip().rstrip("/")
+        instance = (settings.WHATSAPP_EVOLUTION_INSTANCE or "").strip()
+        if not api_key or not base_url or not instance:
+            return {"sent": False, "provider": "evolution_qr", "mode": "simulado"}
+        url = f"{base_url}/message/sendMedia/{instance}"
+        headers = {"apikey": api_key, "Content-Type": "application/json"}
+        payload = {
+            "number": phone,
+            "mediatype": "image",
+            "mimetype": "image/webp",
+            "media": media_url,
+            "caption": caption or "",
+        }
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(url, headers=headers, json=payload)
+                if 200 <= resp.status_code < 300:
+                    return {"sent": True, "provider": "evolution_qr", "media": True, "status_code": resp.status_code}
+        except Exception as exc:
+            logger.warning("Error enviando media por Evolution API, usando texto: %s", exc)
+        return send_whatsapp_text(telefono, caption)
+
+    if provider == "meta_cloud":
+        token = (settings.WHATSAPP_META_ACCESS_TOKEN or "").strip()
+        phone_id = (settings.WHATSAPP_META_PHONE_NUMBER_ID or "").strip()
+        if not token or not phone_id:
+            return {"sent": False, "provider": "meta_cloud", "mode": "simulado"}
+        url = f"https://graph.facebook.com/v20.0/{phone_id}/messages"
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone,
+            "type": "image",
+            "image": {"link": media_url, "caption": caption or ""},
+        }
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                resp = client.post(url, headers=headers, json=payload)
+                if 200 <= resp.status_code < 300:
+                    return {"sent": True, "provider": "meta_cloud", "media": True, "status_code": resp.status_code}
+        except Exception as exc:
+            logger.warning("Error enviando media por Meta Cloud API, usando texto: %s", exc)
+        return send_whatsapp_text(telefono, caption)
+
+    return send_whatsapp_text(telefono, caption)
+
+
 def get_evolution_connection_status() -> Dict[str, Any]:
     """Consulta el estado de conexión de la instancia en Evolution API (si está configurada)."""
     api_key = (settings.WHATSAPP_EVOLUTION_API_KEY or "").strip()

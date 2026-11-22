@@ -30,6 +30,7 @@ from app.models.saas_models import (
     MesaZona,
     PagoTransaccion,
     Pedido,
+    ProductoImagen,
     ProductoPlato,
     ReservacionMesa,
     SesionChatWhatsApp,
@@ -464,6 +465,22 @@ def _format_products_list(
     nav.append("*0.* Volver a categorías")
     lines.append("\n" + "  |  ".join(nav))
     return "\n".join(lines)
+
+
+def _get_product_public_image_url(db: Session, plato_id: Optional[int]) -> Optional[str]:
+    """Devuelve la URL pública WebP del producto si tiene imagen guardada en producto_imagenes."""
+    if not plato_id:
+        return None
+    row = (
+        db.query(ProductoImagen.actualizado_en)
+        .filter(ProductoImagen.plato_id == int(plato_id))
+        .first()
+    )
+    if not row:
+        return None
+    base_url = (settings.BASE_URL or "http://localhost:8000").rstrip("/")
+    ver = int(row[0].timestamp()) if row[0] else 1
+    return f"{base_url}/api/v1/public/img/{int(plato_id)}?v={ver}"
 
 
 def _format_product_selected_qty_prompt(
@@ -1445,6 +1462,10 @@ def _handle_solo_ia_turn(
 
     return {
         "reply_text": reply_text,
+        "reply_image_url": _get_product_public_image_url(
+            db,
+            (items_in[0].get("plato_id") if isinstance(items_in, list) and items_in and isinstance(items_in[0], dict) else None),
+        ),
         "sesion_id": sesion.id,
         "modo_atencion": sesion.modo_atencion,
         "estado_conversacion": sesion.estado_conversacion,
@@ -2394,8 +2415,13 @@ def process_incoming_whatsapp_message(
             {"sesion_id": sesion.id},
         )
 
+    reply_image_url: Optional[str] = None
+    if sesion.estado_conversacion == "PIDIENDO_CANTIDAD" and isinstance(state.get("pending_item"), dict):
+        reply_image_url = _get_product_public_image_url(db, state["pending_item"].get("plato_id"))
+
     return {
         "reply_text": reply_text,
+        "reply_image_url": reply_image_url,
         "sesion_id": sesion.id,
         "modo_atencion": sesion.modo_atencion,
         "estado_conversacion": sesion.estado_conversacion,

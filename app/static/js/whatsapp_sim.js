@@ -12,7 +12,7 @@ function formatWhatsappTextHtml(text) {
         .replace(/\n/g, '<br>');
 }
 
-function appendWaSimBubble(remitente, text, meta = '') {
+function appendWaSimBubble(remitente, text, meta = '', imageUrl = null) {
     const box = document.getElementById('waSimMessagesBox');
     if (!box) return;
     if (box.querySelector('.wa-sim-empty-placeholder')) {
@@ -22,6 +22,9 @@ function appendWaSimBubble(remitente, text, meta = '') {
     const hora = new Date().toLocaleTimeString('es-NI', { hour: '2-digit', minute: '2-digit' });
     const div = document.createElement('div');
     div.className = `flex ${isClient ? 'justify-end' : 'justify-start'}`;
+    const imgHtml = imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="Producto" class="w-full max-w-[210px] h-36 object-cover rounded-xl mb-2 border border-[#DFD5C3]">`
+        : '';
     div.innerHTML = `
         <div class="max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
             isClient
@@ -32,6 +35,7 @@ function appendWaSimBubble(remitente, text, meta = '') {
                 <span>${isClient ? '<i class="fa-solid fa-user mr-1"></i> Tu (Cliente)' : '<i class="fa-solid fa-robot mr-1"></i> Bot OrdenaPro'}${meta ? ` · ${escapeHtml(meta)}` : ''}</span>
                 <span>${hora}</span>
             </div>
+            ${imgHtml}
             <div>${formatWhatsappTextHtml(text)}</div>
         </div>
     `;
@@ -164,7 +168,7 @@ async function enviarMensajeSimulador(texto) {
             const meta = res.ai_used
                 ? `IA: ${res.ai_used}`
                 : (modoBot === 'SOLO_IA' ? `Fallback${errNote}` : (modoBot === 'MENU_GUIADO' ? 'Menu Guiado' : 'Hibrido'));
-            appendWaSimBubble('BOT', res.reply_text, meta);
+            appendWaSimBubble('BOT', res.reply_text, meta, res.reply_image_url || null);
             renderWaSimQuickReplies(res.quick_replies || []);
         }
 

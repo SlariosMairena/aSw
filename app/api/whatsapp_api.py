@@ -29,6 +29,7 @@ from app.services.whatsapp_provider import (
     create_or_connect_evolution_qr,
     get_evolution_connection_status,
     logout_evolution_instance,
+    send_whatsapp_media,
     send_whatsapp_text,
     verify_meta_signature,
 )
@@ -136,7 +137,9 @@ async def webhook_evolution_api(request: Request, db: Session = Depends(get_db))
     )
 
     delivery = None
-    if result.get("reply_text"):
+    if result.get("reply_image_url"):
+        delivery = send_whatsapp_media(telefono, result["reply_image_url"], result.get("reply_text") or "")
+    elif result.get("reply_text"):
         delivery = send_whatsapp_text(telefono, result["reply_text"])
 
     return {
