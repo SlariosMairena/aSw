@@ -129,6 +129,19 @@ def ver_ticket_termico(
         pedido.creado_en.strftime("%d/%m/%Y %H:%M") if pedido.creado_en else ""
     )
 
+    from app.models.saas_models import ComercioLogo
+
+    logo_row = (
+        db.query(ComercioLogo.actualizado_en)
+        .filter(ComercioLogo.tenant_id == comercio.id)
+        .first()
+    )
+    logo_url = (
+        f"/api/v1/public/logo/{comercio.id}?v={int(logo_row[0].timestamp()) if logo_row[0] else 1}"
+        if logo_row
+        else None
+    )
+
     return templates.TemplateResponse(
         request,
         "ticket.html",
@@ -139,6 +152,7 @@ def ver_ticket_termico(
             "items": items,
             "ancho_ticket": ancho_ticket,
             "fecha_formateada": fecha_formateada,
+            "logo_url": logo_url,
         },
     )
 

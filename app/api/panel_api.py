@@ -43,6 +43,7 @@ from app.core.security import (
 from app.models.saas_models import (
     AuditLog,
     CategoriaMenu,
+    ComercioLogo,
     DetallePedido,
     IngredienteOpcionPlato,
     ItemInventario,
@@ -1227,10 +1228,22 @@ def comercio_dashboard(
         .all()
     )
 
+    logo_row = (
+        db.query(ComercioLogo.actualizado_en)
+        .filter(ComercioLogo.tenant_id == tenant_id)
+        .first()
+    )
+    logo_url = (
+        f"/api/v1/public/logo/{tenant_id}?v={int(logo_row[0].timestamp()) if logo_row[0] else 1}"
+        if logo_row
+        else None
+    )
+
     return {
         "comercio": {
             "id": comercio.id,
             "nombre_comercial": comercio.nombre_comercial,
+            "logo_url": logo_url,
             "slug": comercio.slug,
             "giro": comercio.giro,
             "estado_suscripcion": comercio.estado_suscripcion,
@@ -2536,10 +2549,22 @@ def estadisticas_ventas_comercio(
     top_productos = sorted(productos_map.values(), key=lambda x: (-x["cantidad"], -x["ingresos"]))[:10]
     tendencia_diaria = [dias_map[k] for k in sorted(dias_map.keys())][-14:]
 
+    logo_row = (
+        db.query(ComercioLogo.actualizado_en)
+        .filter(ComercioLogo.tenant_id == tenant_id)
+        .first()
+    )
+    logo_url = (
+        f"/api/v1/public/logo/{tenant_id}?v={int(logo_row[0].timestamp()) if logo_row[0] else 1}"
+        if logo_row
+        else None
+    )
+
     return {
         "comercio": {
             "id": comercio.id,
             "nombre_comercial": comercio.nombre_comercial,
+            "logo_url": logo_url,
             "giro": comercio.giro,
             "moneda": comercio.moneda,
             "simbolo_moneda": comercio.simbolo_moneda,
@@ -2668,6 +2693,189 @@ def eliminar_imagen_producto(
     )
     db.commit()
     return {"status": "ok", "deleted": bool(deleted)}
+
+
+# =====================================================================
+# LOGO PROPIO DEL COMERCIO (256x256 WebP COMPRIMIDO EN NAVEGADOR)
+# =====================================================================
+@router.put("/comercio/{tenant_id}/logo")
+def subir_logo_comercio(
+    tenant_id: int,
+    payload: ProductoImagenUploadRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Guarda o reemplaza el logo WebP comprimido del comercio (máx 150 KB)."""
+    import base64
+
+    verify_tenant_isolation(current_user, tenant_id)
+    if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo el administrador del comercio puede cambiar el logo.")
+
+    raw = (payload.imagen_base64 or "").strip()
+    mime = "image/webp"
+    if "," in raw and raw.startswith("data:"):
+        header, b64_part = raw.split(",", 1)
+        if "image/jpeg" in header or "image/jpg" in header:
+            mime = "image/jpeg"
+        elif "image/png" in header:
+            mime = "image/png"
+    else:
+        b64_part = raw
+
+    try:
+        img_bytes = base64.b64decode(b64_part, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Logo Base64 inválido.")
+
+    if len(img_bytes) == 0 or len(img_bytes) > 150 * 1024:
+        raise HTTPException(status_code=400, detail="El logo comprimido supera el límite de 150 KB.")
+
+    existing = db.query(ComercioLogo).filter(ComercioLogo.tenant_id == tenant_id).first()
+    now_dt = datetime.now(timezone.utc)
+    if existing:
+        existing.mime_type = mime
+        existing.imagen_bytes = img_bytes
+        existing.actualizado_en = now_dt
+    else:
+        db.add(
+            ComercioLogo(
+                tenant_id=tenant_id,
+                mime_type=mime,
+                imagen_bytes=img_bytes,
+                actualizado_en=now_dt,
+            )
+        )
+    db.commit()
+    return {
+        "status": "ok",
+        "bytes": len(img_bytes),
+        "logo_url": f"/api/v1/public/logo/{tenant_id}?v={int(now_dt.timestamp())}",
+    }
+
+
+@router.delete("/comercio/{tenant_id}/logo")
+def eliminar_logo_comercio(
+    tenant_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Elimina el logo personalizado del comercio."""
+    verify_tenant_isolation(current_user, tenant_id)
+    if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo el administrador del comercio puede eliminar el logo.")
+    deleted = db.query(ComercioLogo).filter(ComercioLogo.tenant_id == tenant_id).delete()
+    db.commit()
+    return {"status": "ok", "deleted": bool(deleted)}
+
+
+# =====================================================================
+# CORTE / CIERRE DE CAJA DEL DÍA (LISTO PARA EFECTIVO, TRANSF. Y PAGADITO API)
+# =====================================================================
+@router.get("/comercio/{tenant_id}/corte-caja")
+def obtener_corte_caja_diario(
+    tenant_id: int,
+    sucursal_id: Optional[int] = None,
+    fecha: Optional[str] = None,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Resumen diario de cierre de caja separando Efectivo, Transferencias,
+    Pago Online (Simulador / Pagadito API), Anticipos de Reservas, Envíos y Cancelados.
+    """
+    verify_tenant_isolation(current_user, tenant_id)
+    if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo administradores pueden consultar el corte de caja.")
+
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    now_utc = datetime.now(timezone.utc)
+    if fecha:
+        try:
+            day_start = datetime.strptime(fecha.strip(), "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except Exception:
+            day_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    else:
+        day_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = day_start + timedelta(days=1)
+
+    q = db.query(Pedido).filter(
+        Pedido.tenant_id == tenant_id,
+        Pedido.creado_en >= day_start,
+        Pedido.creado_en < day_end,
+    )
+    if sucursal_id:
+        q = q.filter(Pedido.sucursal_id == sucursal_id)
+    pedidos = q.all()
+
+    efectivo_total = 0.0
+    transferencia_total = 0.0
+    online_api_total = 0.0
+    envios_total = 0.0
+    venta_bruta = 0.0
+    total_cobrado = 0.0
+    pedidos_validos = 0
+    pedidos_cancelados = 0
+    pedidos_esperando_pago = 0
+
+    for p in pedidos:
+        if p.estado_pedido == "CANCELADO":
+            pedidos_cancelados += 1
+            continue
+        if p.estado_pedido == "ESPERANDO_PAGO":
+            pedidos_esperando_pago += 1
+            continue
+
+        pedidos_validos += 1
+        tot = float(p.total or 0.0)
+        env = float(p.costo_envio or 0.0)
+        venta_bruta += tot
+        envios_total += env
+
+        met = (p.metodo_pago or "").upper()
+        if "PASARELA" in met or "PAGADITO" in met or "ONLINE" in met or "TARJETA" in met:
+            online_api_total += tot
+        elif "TRANSF" in met:
+            transferencia_total += tot
+        else:
+            efectivo_total += tot
+
+        if p.estado_pago == "PAGADO" or p.estado_pedido == "ENTREGADO":
+            total_cobrado += tot
+
+    # Anticipos de reservaciones pagadas hoy
+    rq = db.query(ReservacionMesa).filter(
+        ReservacionMesa.tenant_id == tenant_id,
+        ReservacionMesa.creado_en >= day_start,
+        ReservacionMesa.creado_en < day_end,
+        ReservacionMesa.estado_pago == "PAGADO",
+    )
+    if sucursal_id:
+        rq = rq.filter(ReservacionMesa.sucursal_id == sucursal_id)
+    reservas_pagadas = rq.all()
+    anticipos_reservas = sum(float(r.monto_pago_requerido or 0.0) for r in reservas_pagadas)
+
+    return {
+        "fecha": day_start.strftime("%Y-%m-%d"),
+        "simbolo_moneda": comercio.simbolo_moneda or "C$",
+        "nombre_comercial": comercio.nombre_comercial,
+        "resumen": {
+            "venta_bruta": round(venta_bruta, 2),
+            "total_cobrado": round(total_cobrado, 2),
+            "efectivo_en_caja": round(efectivo_total, 2),
+            "transferencias": round(transferencia_total, 2),
+            "pago_online_api": round(online_api_total, 2),
+            "anticipos_reservas": round(anticipos_reservas, 2),
+            "envios_total": round(envios_total, 2),
+            "pedidos_validos": pedidos_validos,
+            "pedidos_cancelados": pedidos_cancelados,
+            "pedidos_esperando_pago": pedidos_esperando_pago,
+            "reservas_pagadas_count": len(reservas_pagadas),
+        },
+    }
 
 
 

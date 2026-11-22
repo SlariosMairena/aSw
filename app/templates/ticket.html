@@ -131,6 +131,11 @@
     </div>
 
     <div class="ticket-paper">
+        {% if logo_url %}
+        <div class="center" style="margin-bottom: 6px;">
+            <img src="{{ logo_url }}" alt="Logo" style="max-width: 64px; max-height: 64px; border-radius: 8px; object-fit: contain; display: inline-block;">
+        </div>
+        {% endif %}
         <div class="center bold" style="font-size: 14px;">{{ comercio.nombre_comercial | upper }}</div>
         <div class="center">{{ sucursal.nombre_sucursal }}</div>
         {% if sucursal.direccion_fisica %}

@@ -17,12 +17,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.demo_seeds import normalize_giro_code
 from app.core.realtime import publish_tenant_event
 from app.models.saas_models import (
     CategoriaMenu,
     ClienteFrecuente,
+    ComercioLogo,
     DetallePedido,
     IngredienteOpcionPlato,
     MensajeChatWhatsApp,
@@ -36,6 +38,7 @@ from app.models.saas_models import (
     TenantComercio,
     ZonaEnvioSucursal,
 )
+from app.services.payment_service import simulated_gateway
 from app.services.whatsapp_provider import clean_whatsapp_phone, send_whatsapp_text
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -98,6 +101,23 @@ def ver_menu_publico_html(
             "prefill_tel": clean_whatsapp_phone(tel or ""),
             "prefill_nombre": (nombre or "").strip(),
         },
+    )
+
+
+@router.get("/api/v1/public/logo/{tenant_id}")
+def obtener_logo_comercio_publico(tenant_id: int, db: Session = Depends(get_db)):
+    """Sirve el logo WebP comprimido del comercio con caché agresiva de 7 días."""
+    logo = (
+        db.query(ComercioLogo)
+        .filter(ComercioLogo.tenant_id == tenant_id)
+        .first()
+    )
+    if not logo or not logo.imagen_bytes:
+        raise HTTPException(status_code=404, detail="Logo no encontrado.")
+    return Response(
+        content=logo.imagen_bytes,
+        media_type=logo.mime_type or "image/webp",
+        headers={"Cache-Control": "public, max-age=604800, immutable"},
     )
 
 
@@ -217,11 +237,23 @@ def obtener_menu_publico_json(
         if cli and cli.ultima_direccion:
             ultima_direccion = cli.ultima_direccion
 
+    logo_row = (
+        db.query(ComercioLogo.actualizado_en)
+        .filter(ComercioLogo.tenant_id == comercio.id)
+        .first()
+    )
+    logo_url = (
+        f"/api/v1/public/logo/{comercio.id}?v={int(logo_row[0].timestamp()) if logo_row[0] else 1}"
+        if logo_row
+        else None
+    )
+
     return {
         "comercio": {
             "nombre_comercial": comercio.nombre_comercial,
             "giro": giro_code,
             "simbolo_moneda": comercio.simbolo_moneda or "C$",
+            "logo_url": logo_url,
             "moneda": comercio.moneda or "NIO",
             "acepta_efectivo": bool(comercio.acepta_efectivo),
             "acepta_transferencia": bool(comercio.acepta_transferencia),
@@ -454,7 +486,7 @@ def crear_pedido_desde_menu_publico(
         nombre_cliente=nom_cli,
         tipo_entrega=tipo_ent,
         direccion_entrega=dir_final,
-        estado_pedido="RECIBIDO",
+        estado_pedido="ESPERANDO_PAGO",
         subtotal=round(subtotal, 2),
         costo_envio=round(costo_envio, 2),
         total=total,
@@ -462,7 +494,7 @@ def crear_pedido_desde_menu_publico(
         como_se_realizo_pedido=f"Menú Web Interactivo ({suc.nombre_sucursal})",
         notas_especiales=(payload.notas_especiales or "").strip() or None,
         metodo_pago=metodo_pago,
-        estado_pago="PENDIENTE",
+        estado_pago="PENDIENTE_PAGO_API",
         paga_con_monto=paga_con,
         cambio_a_entregar=cambio,
     )
@@ -473,31 +505,23 @@ def crear_pedido_desde_menu_publico(
         det.pedido_id = pedido.id
         db.add(det)
 
-    db.add(
-        PagoTransaccion(
-            tenant_id=comercio.id,
-            pedido_id=pedido.id,
-            modo_operacion="MODO_1_DIRECTO",
-            metodo=metodo_pago,
-            monto=total,
-            moneda=comercio.moneda or "NIO",
-            estado="PENDIENTE",
-            paga_con=paga_con,
-            cambio=cambio,
-        )
-    )
-
     comercio.pedidos_mes_actual = (comercio.pedidos_mes_actual or 0) + 1
     sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
     sesion.carrito_json = json.dumps({"items": [], "pedido_activo_id": pedido.id}, ensure_ascii=False)
 
+    # Generar enlace de pago obligatorio (hoy Simulador Sandbox, listo para Pagadito API)
+    checkout_data = simulated_gateway.create_checkout_session(db, pedido)
+    checkout_rel = checkout_data["checkout_url"]
+    base_url = (settings.BASE_URL or "http://localhost:8000").rstrip("/")
+    checkout_full = f"{base_url}{checkout_rel}"
+
     sym = comercio.simbolo_moneda or "C$"
     msg_wa = (
-        f"¡Recibimos tu pedido *#{folio}* desde el menú web de *{comercio.nombre_comercial}*!\n\n"
+        f"¡Recibimos tu solicitud *#{folio}* desde el menú web de *{comercio.nombre_comercial}*!\n\n"
         + "\n".join(f"- {l}" for l in resumen_lineas)
-        + f"\n\nTotal: *{sym}{total:.2f}* ({metodo_pago})\n"
-        f"Tiempo estimado: *{suc.tiempo_estimado_entrega_min} min*.\n"
-        "Te avisaremos por este chat en cuanto avance tu pedido hasta que lo recibas."
+        + f"\n\nTotal a pagar: *{sym}{total:.2f}*\n"
+        f"Estado: *PENDIENTE DE PAGO* _(aún no entra a cocina)_\n\n"
+        f"Completa tu pago aquí para confirmar tu pedido al instante:\n{checkout_full}"
     )
     db.add(
         MensajeChatWhatsApp(
@@ -510,13 +534,8 @@ def crear_pedido_desde_menu_publico(
     )
     db.commit()
 
-    # Enviar confirmación real al WhatsApp del cliente y notificar en tiempo real al tablero
+    # Enviar enlace de pago por WhatsApp (el pedido entrará al Kanban vía SSE cuando el pago sea aprobado)
     send_whatsapp_text(tel_clean, msg_wa)
-    publish_tenant_event(
-        comercio.id,
-        "NUEVO_PEDIDO",
-        {"pedido_id": pedido.id, "folio": folio},
-    )
 
     return {
         "status": "ok",
@@ -524,6 +543,9 @@ def crear_pedido_desde_menu_publico(
         "folio": folio,
         "total": total,
         "simbolo_moneda": sym,
+        "estado_pedido": pedido.estado_pedido,
+        "estado_pago": pedido.estado_pago,
+        "checkout_url": checkout_rel,
         "tiempo_estimado_min": suc.tiempo_estimado_entrega_min or 30,
     }
 

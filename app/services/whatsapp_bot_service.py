@@ -44,6 +44,7 @@ from app.services.ai_router import (
     run_full_ai_order_turn,
     validate_and_normalize_address_ai,
 )
+from app.services.payment_service import simulated_gateway
 from app.services.whatsapp_provider import clean_whatsapp_phone
 
 # Flag: habilitar pedidos completos en lenguaje libre con IA cuando cada cliente tenga número dedicado
@@ -905,14 +906,14 @@ def _create_order_from_session(
         tipo_entrega=tipo_entrega,
         direccion_entrega=state.get("direccion_entrega")
         or ("Consumo en mesa / local" if tipo_entrega == "MESA" else "Retiro en mostrador"),
-        estado_pedido="RECIBIDO",
+        estado_pedido="ESPERANDO_PAGO",
         subtotal=round(subtotal, 2),
         costo_envio=round(costo_envio, 2),
         total=total,
         resumen_chat_ia=resumen_texto,
         como_se_realizo_pedido=f"Bot WhatsApp ({sucursal.nombre_sucursal}) • {modo_bot}",
         metodo_pago=metodo_pago,
-        estado_pago="PENDIENTE",
+        estado_pago="PENDIENTE_PAGO_API",
         paga_con_monto=paga_con,
         cambio_a_entregar=cambio,
     )
@@ -922,20 +923,6 @@ def _create_order_from_session(
     for det in detalles:
         det.pedido_id = pedido.id
         db.add(det)
-
-    db.add(
-        PagoTransaccion(
-            tenant_id=comercio.id,
-            pedido_id=pedido.id,
-            modo_operacion="MODO_1_DIRECTO",
-            metodo=metodo_pago,
-            monto=total,
-            moneda=comercio.moneda or "NIO",
-            estado="PENDIENTE",
-            paga_con=paga_con,
-            cambio=cambio,
-        )
-    )
 
     comercio.pedidos_mes_actual = (comercio.pedidos_mes_actual or 0) + 1
     return pedido
@@ -1400,24 +1387,29 @@ def _handle_solo_ia_turn(
 
         if has_items and has_entrega and has_dir and has_pago:
             pedido = _create_order_from_session(db, sesion, comercio, sucursal, state, "SOLO_IA")
+            checkout_data = simulated_gateway.create_checkout_session(db, pedido)
+            checkout_rel = checkout_data["checkout_url"]
+            checkout_full = f"{base_url}{checkout_rel}"
             pedido_creado = {
                 "id": pedido.id,
                 "folio": pedido.folio,
                 "total": pedido.total,
                 "estado_pedido": pedido.estado_pedido,
+                "estado_pago": pedido.estado_pago,
+                "checkout_url": checkout_rel,
             }
             state.clear()
             state.update(_empty_state())
             state["pedido_activo_id"] = pedido.id
             sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
-            # Garantizar que el cliente reciba siempre el folio y total exacto calculado por BD
-            if pedido.folio not in reply_text:
-                reply_text = (
-                    f"¡Pedido confirmado! Folio: *#{pedido.folio}*\n"
-                    f"Total exacto: *{sym}{pedido.total:.2f}* ({pedido.metodo_pago})\n"
-                    f"Tiempo estimado: *{sucursal.tiempo_estimado_entrega_min} min*.\n"
-                    "Te avisaremos por este chat en cuanto vaya avanzando."
-                )
+            # Exigir pago previo antes de entrar al panel del comercio (listo para Pagadito API)
+            reply_text = (
+                f"*Pedido registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
+                f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
+                "Para confirmar tu pedido y enviarlo a cocina, realiza tu pago en este enlace seguro:\n"
+                f"{checkout_full}\n\n"
+                "_Tu pedido entrará automáticamente al panel en cuanto se confirme el pago._"
+            )
 
     _save_session_state(sesion, state)
     if reply_text:
@@ -1432,7 +1424,7 @@ def _handle_solo_ia_turn(
         )
     db.commit()
 
-    if pedido_creado:
+    if pedido_creado and pedido_creado.get("estado_pedido") != "ESPERANDO_PAGO":
         publish_tenant_event(
             comercio.id,
             "NUEVO_PEDIDO",
@@ -2196,6 +2188,10 @@ def process_incoming_whatsapp_message(
         elif est == "CONFIRMANDO_CARRITO":
             if upper == "1" or _fuzzy_contains_any(norm, ["si", "confirmar", "confirmo", "dale", "ok", "correcto"]):
                 pedido = _create_order_from_session(db, sesion, comercio, sucursal, state, modo)
+                checkout_data = simulated_gateway.create_checkout_session(db, pedido)
+                checkout_rel = checkout_data["checkout_url"]
+                base_url_cfg = (settings.BASE_URL or "http://localhost:8000").rstrip("/")
+                checkout_full = f"{base_url_cfg}{checkout_rel}"
                 sym = comercio.simbolo_moneda or "C$"
                 copy = _giro_copy(comercio.giro)
                 pedido_creado = {
@@ -2203,14 +2199,18 @@ def process_incoming_whatsapp_message(
                     "folio": pedido.folio,
                     "total": pedido.total,
                     "estado_pedido": pedido.estado_pedido,
+                    "estado_pago": pedido.estado_pago,
+                    "checkout_url": checkout_rel,
                 }
                 state = _empty_state()
                 state["pedido_activo_id"] = pedido.id
                 sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
                 reply_text = (
-                    f"¡Listo! Tu pedido *#{pedido.folio}* ya fue enviado a {copy['prep_word']}.\n"
-                    f"Total: *{sym}{pedido.total:.2f}* · Tiempo estimado: *{sucursal.tiempo_estimado_entrega_min} min*.\n\n"
-                    "Mantendré este chat pendiente de tu pedido y te avisaré en cuanto avance hasta que lo recibas. ¡Gracias!"
+                    f"*Pedido registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
+                    f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
+                    f"Para confirmarlo y enviarlo a {copy['prep_word']}, completa tu pago aquí:\n"
+                    f"{checkout_full}\n\n"
+                    "_Tu pedido entrará automáticamente al panel en cuanto se confirme el pago._"
                 )
                 quick_replies = ["1", "2", "3"]
             elif upper == "2" or _fuzzy_contains_any(norm, ["cambiar", "editar", "agregar"]):
@@ -2381,7 +2381,7 @@ def process_incoming_whatsapp_message(
 
     db.commit()
 
-    if pedido_creado:
+    if pedido_creado and pedido_creado.get("estado_pedido") != "ESPERANDO_PAGO":
         publish_tenant_event(
             comercio.id,
             "NUEVO_PEDIDO",

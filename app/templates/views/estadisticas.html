@@ -1,5 +1,32 @@
-<!-- PESTAÑA E: ESTADÍSTICAS DE VENTAS DEL NEGOCIO (SOLO COMERCIO_ADMIN / SUPER_ADMIN) -->
+<!-- PESTAÑA E: ESTADÍSTICAS DE VENTAS Y CORTE DE CAJA (SOLO COMERCIO_ADMIN / SUPER_ADMIN) -->
 <div id="tabContent_estadisticas" class="hidden space-y-6">
+    <!-- CORTE / CIERRE DE CAJA DEL DÍA (LISTO PARA EFECTIVO, TRANSFERENCIA Y PAGADITO API) -->
+    <div class="glass rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-cash-register text-[#D6402B]"></i>
+                    <span>Corte / Cierre de Caja del Día</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Cuadre diario separado por Efectivo, Transferencias, Pasarela Online (Pagadito API) y Anticipos de Reservas.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <input type="date" id="corteCajaFechaInput" onchange="cargarCorteCajaDiario()"
+                    class="px-3 py-1.5 rounded-xl border text-xs font-bold">
+                <button type="button" onclick="cargarCorteCajaDiario()"
+                    class="px-3 py-1.5 rounded-xl bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate"></i> <span>Actualizar</span>
+                </button>
+                <button type="button" onclick="imprimirCorteCaja()"
+                    class="px-3 py-1.5 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> <span>Imprimir Corte</span>
+                </button>
+            </div>
+        </div>
+        <div id="corteCajaResumenGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs"></div>
+        <div id="corteCajaExtraBar" class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-[11px] text-slate-400"></div>
+    </div>
+
     <!-- Barra de Filtros por Período -->
     <div class="glass rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
         <div>

@@ -876,3 +876,20 @@ class ProductoImagen(Base):
     imagen_bytes = Column(LargeBinary, nullable=False)
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
+
+class ComercioLogo(Base):
+    """
+    Almacena el logo WebP comprimido (~8-15 KB) de cada comercio (multi-tenant)
+    sin modificar tenants_comercios ni requerir almacenamiento externo.
+    """
+
+    __tablename__ = "comercio_logos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    mime_type = Column(String(40), default="image/webp", nullable=False)
+    imagen_bytes = Column(LargeBinary, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+

@@ -560,6 +560,9 @@ function escapeHtml(str) {
                 if (typeof cargarEstadisticasComercio === 'function') {
                     cargarEstadisticasComercio();
                 }
+                if (typeof cargarCorteCajaDiario === 'function') {
+                    cargarCorteCajaDiario();
+                }
             }
         }
         window.switchComercioTab = switchComercioTab;
@@ -679,6 +682,16 @@ function escapeHtml(str) {
                 const profile = getGiroProfile(c.giro);
 
                 document.getElementById('comercioTitle').innerHTML = `<i class="fa-solid ${profile.icon} text-emerald-400 mr-2"></i>${escapeHtml(c.nombre_comercial)}`;
+                const hdrLogo = document.getElementById('comercioHeaderLogo');
+                if (hdrLogo) {
+                    if (c.logo_url) {
+                        hdrLogo.src = c.logo_url;
+                        hdrLogo.classList.remove('hidden');
+                    } else {
+                        hdrLogo.src = '';
+                        hdrLogo.classList.add('hidden');
+                    }
+                }
                 document.getElementById('comercioPlanBadge').textContent = `${c.plan_nombre} • ${c.estado_suscripcion}`;
                 document.getElementById('comercioSubInfo').textContent = isComercioAdminOrSuper()
                     ? `Pedidos del mes: ${c.pedidos_mes_actual} • Datos transferencia Modo 1: ${c.datos_bancarios_texto}`
@@ -2090,12 +2103,59 @@ function escapeHtml(str) {
             renderIngredientBuilderUI();
         }
 
+        let pendingComercioLogoBase64 = null;
+        let pendingComercioEliminarLogo = false;
+
+        function setComercioLogoPreviewUI(srcUrl, metaText = 'WebP ligero (~10 KB) • Panel, Menú Web y Ticket') {
+            const img = document.getElementById('cfgLogoPreview');
+            const ph = document.getElementById('cfgLogoPlaceholder');
+            const btnDel = document.getElementById('btnQuitarLogoComercio');
+            const meta = document.getElementById('cfgLogoMeta');
+            if (meta) meta.textContent = metaText;
+            if (srcUrl) {
+                if (img) { img.src = srcUrl; img.classList.remove('hidden'); }
+                if (ph) ph.classList.add('hidden');
+                if (btnDel) btnDel.classList.remove('hidden');
+            } else {
+                if (img) { img.src = ''; img.classList.add('hidden'); }
+                if (ph) ph.classList.remove('hidden');
+                if (btnDel) btnDel.classList.add('hidden');
+            }
+        }
+
+        async function handleComercioLogoSeleccionado(input) {
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+            try {
+                const { dataUrl, approxKb } = await compressImageToWebP(file, 256, 0.78);
+                pendingComercioLogoBase64 = dataUrl;
+                pendingComercioEliminarLogo = false;
+                setComercioLogoPreviewUI(dataUrl, `Listo: ~${approxKb} KB (WebP 256px)`);
+            } catch (err) {
+                showToast(err.message || 'No se pudo procesar el logo.', true);
+            } finally {
+                if (input) input.value = '';
+            }
+        }
+        window.handleComercioLogoSeleccionado = handleComercioLogoSeleccionado;
+
+        function quitarLogoComercioModal() {
+            pendingComercioLogoBase64 = null;
+            pendingComercioEliminarLogo = true;
+            setComercioLogoPreviewUI(null, 'El logo se eliminará al guardar');
+        }
+        window.quitarLogoComercioModal = quitarLogoComercioModal;
+
         function openConfigComercioModal() {
             if (!currentComercioData || !currentComercioData.comercio) {
                 showToast('Cargando información del restaurante...', true);
                 return;
             }
             const c = currentComercioData.comercio;
+            pendingComercioLogoBase64 = null;
+            pendingComercioEliminarLogo = false;
+            setComercioLogoPreviewUI(c.logo_url || null, c.logo_url ? 'Logo actual guardado' : 'WebP ligero (~10 KB) • Panel, Menú Web y Ticket');
+
             document.getElementById('cfgSimboloMoneda').value = c.simbolo_moneda || 'C$';
             document.getElementById('cfgMonedaIso').value = c.moneda || 'NIO';
             document.getElementById('cfgNombreComercial').value = c.nombre_comercial || '';
@@ -2138,13 +2198,131 @@ function escapeHtml(str) {
                     method: 'PATCH',
                     body
                 });
+                if (pendingComercioLogoBase64) {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/logo`, {
+                        method: 'PUT',
+                        body: { imagen_base64: pendingComercioLogoBase64 }
+                    });
+                } else if (pendingComercioEliminarLogo) {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/logo`, {
+                        method: 'DELETE'
+                    });
+                }
+                pendingComercioLogoBase64 = null;
+                pendingComercioEliminarLogo = false;
                 closeConfigComercioModal();
-                showToast(`¡Configuración y moneda (${body.simbolo_moneda}) actualizadas con éxito!`);
+                showToast(`¡Configuración y logo actualizados con éxito!`);
                 await reloadComercioDashboard();
             } catch (err) {
                 showToast(err.message, true);
             }
         }
+
+        // =========================================================
+        // CORTE / CIERRE DE CAJA DEL DÍA (LISTO PARA PAGADITO API)
+        // =========================================================
+        let ultimoCorteCajaData = null;
+
+        async function cargarCorteCajaDiario() {
+            if (!activeTenantId || !isComercioAdminOrSuper()) return;
+            const grid = document.getElementById('corteCajaResumenGrid');
+            const bar = document.getElementById('corteCajaExtraBar');
+            const fechaIn = document.getElementById('corteCajaFechaInput');
+            if (!grid) return;
+
+            if (fechaIn && !fechaIn.value) {
+                const hoy = new Date();
+                fechaIn.value = hoy.toISOString().slice(0, 10);
+            }
+            const fechaVal = fechaIn ? fechaIn.value : '';
+            const sucId = document.getElementById('filtroSucursalSelect')?.value || '';
+            const params = new URLSearchParams();
+            if (fechaVal) params.set('fecha', fechaVal);
+            if (sucId) params.set('sucursal_id', sucId);
+
+            try {
+                const data = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/corte-caja?${params.toString()}`);
+                ultimoCorteCajaData = data;
+                const r = data.resumen || {};
+                const s = data.simbolo_moneda || 'C$';
+
+                grid.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3]">
+                        <div class="text-[11px] font-bold text-[#5C6B62] uppercase">Efectivo en Caja</div>
+                        <div class="text-xl font-extrabold text-[#1B4332] mt-1">${s}${Number(r.efectivo_en_caja || 0).toFixed(2)}</div>
+                        <div class="text-[11px] text-[#5C6B62] mt-0.5">Cobros en efectivo del día</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3]">
+                        <div class="text-[11px] font-bold text-[#5C6B62] uppercase">Transferencias</div>
+                        <div class="text-xl font-extrabold text-[#1A241E] mt-1">${s}${Number(r.transferencias || 0).toFixed(2)}</div>
+                        <div class="text-[11px] text-[#5C6B62] mt-0.5">Depósitos / transferencias directas</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3]">
+                        <div class="text-[11px] font-bold text-[#5C6B62] uppercase">Pasarela Online (Pagadito)</div>
+                        <div class="text-xl font-extrabold text-[#D6402B] mt-1">${s}${Number(r.pago_online_api || 0).toFixed(2)}</div>
+                        <div class="text-[11px] text-[#5C6B62] mt-0.5">Pagos aprobados vía API</div>
+                    </div>
+                    <div class="p-3.5 rounded-xl bg-[#E4EFE9] border border-[#B7D4C5]">
+                        <div class="text-[11px] font-bold text-[#1B4332] uppercase">Total Ventas del Día</div>
+                        <div class="text-xl font-extrabold text-[#1B4332] mt-1">${s}${Number(r.venta_bruta || 0).toFixed(2)}</div>
+                        <div class="text-[11px] text-[#39483F] mt-0.5">Cobrado: <strong>${s}${Number(r.total_cobrado || 0).toFixed(2)}</strong> • Envíos: ${s}${Number(r.envios_total || 0).toFixed(2)}</div>
+                    </div>
+                `;
+                if (bar) {
+                    bar.innerHTML = `
+                        <div class="flex flex-wrap items-center gap-3">
+                            <span><strong class="text-[#1A241E]">${r.pedidos_validos || 0}</strong> pedidos confirmados</span>
+                            <span>•</span>
+                            <span>Anticipos reservas pagadas (${r.reservas_pagadas_count || 0}): <strong class="text-[#1B4332]">${s}${Number(r.anticipos_reservas || 0).toFixed(2)}</strong></span>
+                            <span>•</span>
+                            <span>Esperando pago: <strong class="text-[#92400E]">${r.pedidos_esperando_pago || 0}</strong></span>
+                            <span>•</span>
+                            <span>Cancelados: <strong class="text-[#B8321F]">${r.pedidos_cancelados || 0}</strong></span>
+                        </div>
+                        <span class="font-semibold">Fecha corte: ${escapeHtml(data.fecha)}</span>
+                    `;
+                }
+            } catch (err) {
+                grid.innerHTML = `<div class="col-span-full text-rose-400">${escapeHtml(err.message)}</div>`;
+            }
+        }
+        window.cargarCorteCajaDiario = cargarCorteCajaDiario;
+
+        function imprimirCorteCaja() {
+            if (!ultimoCorteCajaData) {
+                showToast('Primero carga el corte de caja.', true);
+                return;
+            }
+            const d = ultimoCorteCajaData;
+            const r = d.resumen || {};
+            const s = d.simbolo_moneda || 'C$';
+            const w = window.open('', '_blank', 'width=420,height=640');
+            if (!w) return;
+            w.document.write(`
+                <html><head><title>Corte de Caja ${d.fecha}</title>
+                <style>body{font-family:monospace;padding:20px;color:#111}h2{margin:0 0 4px}hr{border:none;border-top:1px dashed #333;margin:10px 0}.row{display:flex;justify-content:space-between;margin:5px 0}</style>
+                </head><body>
+                <h2>${escapeHtml(d.nombre_comercial)}</h2>
+                <div>CORTE DE CAJA DIARIO — ${escapeHtml(d.fecha)}</div>
+                <hr>
+                <div class="row"><span>Pedidos confirmados:</span><strong>${r.pedidos_validos || 0}</strong></div>
+                <div class="row"><span>Esperando pago:</span><span>${r.pedidos_esperando_pago || 0}</span></div>
+                <div class="row"><span>Cancelados:</span><span>${r.pedidos_cancelados || 0}</span></div>
+                <hr>
+                <div class="row"><span>Efectivo en caja:</span><strong>${s}${Number(r.efectivo_en_caja || 0).toFixed(2)}</strong></div>
+                <div class="row"><span>Transferencias:</span><strong>${s}${Number(r.transferencias || 0).toFixed(2)}</strong></div>
+                <div class="row"><span>Pasarela Online (API):</span><strong>${s}${Number(r.pago_online_api || 0).toFixed(2)}</strong></div>
+                <div class="row"><span>Anticipos reservas:</span><strong>${s}${Number(r.anticipos_reservas || 0).toFixed(2)}</strong></div>
+                <div class="row"><span>Total envios:</span><span>${s}${Number(r.envios_total || 0).toFixed(2)}</span></div>
+                <hr>
+                <div class="row" style="font-size:16px"><span>VENTA BRUTA:</span><strong>${s}${Number(r.venta_bruta || 0).toFixed(2)}</strong></div>
+                <div class="row" style="font-size:15px"><span>TOTAL COBRADO:</span><strong>${s}${Number(r.total_cobrado || 0).toFixed(2)}</strong></div>
+                <script>window.print();<\/script>
+                </body></html>
+            `);
+            w.document.close();
+        }
+        window.imprimirCorteCaja = imprimirCorteCaja;
 
         // =========================================================
         // SUCURSALES, QR DE WHATSAPP Y RESERVACIONES DE MESA

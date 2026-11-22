@@ -12,8 +12,10 @@ import time
 import json
 from sqlalchemy.orm import Session
 
-from app.models.saas_models import Pedido, AuditLog, PagoTransaccion
+from app.models.saas_models import Pedido, AuditLog, PagoTransaccion, MensajeChatWhatsApp, TenantComercio
 from app.core.config import settings
+from app.core.realtime import publish_tenant_event
+from app.services.whatsapp_provider import send_whatsapp_text
 
 
 class BasePaymentGateway(ABC):
@@ -110,8 +112,11 @@ class SimulatedPaymentGateway(BasePaymentGateway):
             db.add(trans)
 
         if resultado == "EXITOSO":
+            estaba_esperando = pedido.estado_pedido == "ESPERANDO_PAGO"
             pedido.estado_pago = "PAGADO"
             pedido.metodo_pago = "PASARELA_DIGITAL_SIMULADA"
+            if estaba_esperando:
+                pedido.estado_pedido = "RECIBIDO"
 
             trans.estado = "APROBADO"
             trans.referencia_externa_api = tx_code
@@ -127,18 +132,56 @@ class SimulatedPaymentGateway(BasePaymentGateway):
                 detalles_json=json.dumps({
                     "monto": pedido.total,
                     "tx_id": tx_code,
-                    "metodo": "Tarjeta Simulada (Aprobada)"
+                    "metodo": "Pasarela Simulada (Listo para Pagadito API)",
+                    "promovido_a_recibido": estaba_esperando,
                 })
             )
             db.add(log)
+
+            comercio_obj = db.query(TenantComercio).filter(TenantComercio.id == pedido.tenant_id).first()
+            sym = (comercio_obj.simbolo_moneda if comercio_obj else "C$") or "C$"
+
+            # Notificar al cliente en el historial de chat si tiene sesión activa
+            if pedido.sesion_chat_id:
+                msg_ok = (
+                    f"¡Pago confirmado! Tu pedido *#{pedido.folio}* ({sym}{pedido.total:.2f}) "
+                    "ya entró al panel de preparación. Te avisaremos en cuanto esté listo."
+                )
+                db.add(
+                    MensajeChatWhatsApp(
+                        sesion_id=pedido.sesion_chat_id,
+                        tenant_id=pedido.tenant_id,
+                        remitente="BOT",
+                        tipo_contenido="TEXTO",
+                        contenido=msg_ok,
+                    )
+                )
             db.commit()
             db.refresh(pedido)
+
+            # Notificar en tiempo real al Kanban del comercio (ahora sí entra al panel)
+            publish_tenant_event(
+                pedido.tenant_id,
+                "NUEVO_PEDIDO" if estaba_esperando else "PEDIDO_ACTUALIZADO",
+                {"pedido_id": pedido.id, "folio": pedido.folio, "estado_pago": "PAGADO"},
+            )
+
+            # Enviar confirmación real a WhatsApp si tiene teléfono
+            if pedido.telefono_cliente:
+                try:
+                    send_whatsapp_text(
+                        pedido.telefono_cliente,
+                        f"¡Pago recibido! Tu pedido *#{pedido.folio}* ({sym}{pedido.total:.2f}) ya entró a cocina.",
+                    )
+                except Exception:
+                    pass
 
             return {
                 "success": True,
                 "estado_pago": "PAGADO",
+                "estado_pedido": pedido.estado_pedido,
                 "tx_id": tx_code,
-                "mensaje": "Pago procesado y comanda confirmada exitosamente"
+                "mensaje": "Pago procesado y pedido enviado al panel del comercio exitosamente"
             }
         else:
             pedido.estado_pago = "RECHAZADO"

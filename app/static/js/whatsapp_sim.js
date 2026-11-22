@@ -172,7 +172,11 @@ async function enviarMensajeSimulador(texto) {
             const banner = document.getElementById('waSimPedidoBanner');
             const bannerTxt = document.getElementById('waSimPedidoBannerText');
             if (banner && bannerTxt) {
-                bannerTxt.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i> Pedido <strong>#${escapeHtml(res.pedido_creado.folio)}</strong> creado y enviado a tu tablero Kanban.`;
+                if (res.pedido_creado.estado_pedido === 'ESPERANDO_PAGO' && res.pedido_creado.checkout_url) {
+                    bannerTxt.innerHTML = `<i class="fa-solid fa-clock mr-1.5 text-amber-400"></i> Pedido <strong>#${escapeHtml(res.pedido_creado.folio)}</strong> esperando pago (no entra al Kanban hasta pagar). <a href="${escapeHtml(res.pedido_creado.checkout_url)}" target="_blank" class="ml-2 underline font-extrabold text-emerald-300">Simular Pago Ahora &rarr;</a>`;
+                } else {
+                    bannerTxt.innerHTML = `<i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i> Pedido <strong>#${escapeHtml(res.pedido_creado.folio)}</strong> creado y enviado a tu tablero Kanban.`;
+                }
                 banner.classList.remove('hidden');
             }
             if (typeof reloadComercioDashboard === 'function') {

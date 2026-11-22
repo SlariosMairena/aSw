@@ -36,9 +36,13 @@
     <!-- Header del Comercio (Verde Abeto 30%) -->
     <header class="ui-navbar sticky top-0 z-30 px-4 py-3 shadow-sm">
         <div class="max-w-2xl mx-auto flex items-center justify-between gap-3">
-            <div class="min-w-0">
-                <h1 id="pubComercioNombre" class="font-extrabold text-base text-white truncate">{{ comercio_nombre }}</h1>
-                <p id="pubSucursalSub" class="text-xs text-[#B2CABD] truncate">{{ sucursal_nombre }}</p>
+            <div class="flex items-center gap-2.5 min-w-0">
+                <img id="pubComercioLogo" src="" alt="Logo"
+                    class="hidden w-9 h-9 rounded-xl object-cover border border-white/25 shrink-0">
+                <div class="min-w-0">
+                    <h1 id="pubComercioNombre" class="font-extrabold text-base text-white truncate">{{ comercio_nombre }}</h1>
+                    <p id="pubSucursalSub" class="text-xs text-[#B2CABD] truncate">{{ sucursal_nombre }}</p>
+                </div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
                 <button type="button" onclick="togglePublicTheme()" title="Cambiar modo Claro / Oscuro"
@@ -244,6 +248,15 @@
 
             document.getElementById('pubComercioNombre').textContent = c.nombre_comercial;
             document.getElementById('pubSucursalSub').textContent = `${s.nombre_sucursal} · ~${s.tiempo_estimado_entrega_min} min`;
+            const pubLogo = document.getElementById('pubComercioLogo');
+            if (pubLogo) {
+                if (c.logo_url) {
+                    pubLogo.src = c.logo_url;
+                    pubLogo.classList.remove('hidden');
+                } else {
+                    pubLogo.classList.add('hidden');
+                }
+            }
             const badge = document.getElementById('pubEstadoBadge');
             if (s.abierto_ahora) {
                 badge.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0';
@@ -554,8 +567,17 @@
                 if (!res.ok) throw new Error(data.detail || 'No se pudo enviar tu pedido.');
 
                 cerrarCheckout();
-                document.getElementById('exitoTexto').innerHTML =
-                    `Tu pedido <strong class="text-emerald-400">#${esc(data.folio)}</strong> por <strong>${esc(data.simbolo_moneda)}${Number(data.total).toFixed(2)}</strong> fue recibido.<br><br>Tiempo estimado: <strong>${data.tiempo_estimado_min} min</strong>.<br>Te enviamos la confirmación y seguimiento a tu WhatsApp.`;
+                const exitoBox = document.getElementById('exitoTexto');
+                if (data.estado_pedido === 'ESPERANDO_PAGO' && data.checkout_url) {
+                    exitoBox.innerHTML =
+                        `Tu solicitud <strong class="text-emerald-400">#${esc(data.folio)}</strong> por <strong>${esc(data.simbolo_moneda)}${Number(data.total).toFixed(2)}</strong> está <strong class="text-amber-400">Pendiente de Pago</strong>.<br><br>` +
+                        `Para confirmar tu pedido y enviarlo a cocina, realiza el pago ahora:<br><br>` +
+                        `<a href="${esc(data.checkout_url)}" class="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-[#D6402B] hover:bg-[#B8321F] text-white font-extrabold text-sm shadow-md transition">` +
+                        `<i class="fa-solid fa-lock"></i> Ir a Pagar Ahora (${esc(data.simbolo_moneda)}${Number(data.total).toFixed(2)})</a>`;
+                } else {
+                    exitoBox.innerHTML =
+                        `Tu pedido <strong class="text-emerald-400">#${esc(data.folio)}</strong> por <strong>${esc(data.simbolo_moneda)}${Number(data.total).toFixed(2)}</strong> fue recibido.<br><br>Tiempo estimado: <strong>${data.tiempo_estimado_min} min</strong>.<br>Te enviamos la confirmación y seguimiento a tu WhatsApp.`;
+                }
                 document.getElementById('modalExito').classList.remove('hidden');
             } catch (err) {
                 errBox.textContent = err.message;

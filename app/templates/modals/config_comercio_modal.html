@@ -18,6 +18,33 @@
             </button>
         </div>
         <form onsubmit="handleGuardarConfigComercio(event)" class="space-y-4 text-xs">
+            <!-- Logo propio del comercio (256x256 WebP comprimido en navegador) -->
+            <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                    <label class="text-slate-300 font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-image text-emerald-400"></i>
+                        <span>Logo del Negocio</span>
+                    </label>
+                    <span id="cfgLogoMeta" class="text-[10px] text-slate-400">WebP ligero (~10 KB) • Panel, Menú Web y Ticket</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-14 h-14 rounded-xl bg-slate-950 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                        <img id="cfgLogoPreview" src="" alt="Logo del comercio" class="hidden w-full h-full object-cover">
+                        <i id="cfgLogoPlaceholder" class="fa-solid fa-store text-slate-500 text-lg"></i>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <label class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs cursor-pointer transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-upload"></i> <span>Subir Logo</span>
+                            <input id="cfgLogoInput" type="file" accept="image/*" class="hidden" onchange="handleComercioLogoSeleccionado(this)">
+                        </label>
+                        <button id="btnQuitarLogoComercio" type="button" onclick="quitarLogoComercioModal()"
+                            class="hidden px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs transition flex items-center gap-1">
+                            <i class="fa-solid fa-trash-can"></i> <span>Quitar</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Selector rápido de moneda -->
             <div>
                 <label class="block text-slate-300 font-semibold mb-1">Preajustes Rápidos de Moneda:</label>

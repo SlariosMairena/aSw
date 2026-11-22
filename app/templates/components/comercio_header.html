@@ -1,16 +1,20 @@
 <!-- Encabezado del Comercio y Filtro Multi-Sucursal (Crema Papel 60% + Verde Abeto 30% + Rojo Tomate 10%) -->
 <div class="glass rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
-    <div>
-        <div class="flex items-center gap-2.5 flex-wrap">
-            <h2 id="comercioTitle" class="text-xl sm:text-2xl font-extrabold text-[#1A241E]">Cargando Comercio...</h2>
-            <span class="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] font-bold">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span> WhatsApp Activo
-            </span>
-            <span id="comercioPlanBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold"></span>
-            <span id="comercioGiroBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold"></span>
+    <div class="flex items-center gap-3 min-w-0">
+        <img id="comercioHeaderLogo" src="" alt="Logo"
+            class="hidden w-12 h-12 rounded-xl object-cover border border-[#DFD5C3] shadow-sm shrink-0">
+        <div class="min-w-0">
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <h2 id="comercioTitle" class="text-xl sm:text-2xl font-extrabold text-[#1A241E]">Cargando Comercio...</h2>
+                <span class="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0] font-bold">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#22C55E]"></span> WhatsApp Activo
+                </span>
+                <span id="comercioPlanBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold"></span>
+                <span id="comercioGiroBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold"></span>
+            </div>
+            <p id="comercioSubInfo" class="text-xs text-slate-400 mt-1"></p>
+            <p id="giroOperationalHint" class="hidden text-[11px] text-indigo-300/90 mt-1.5 flex items-center gap-1.5"></p>
         </div>
-        <p id="comercioSubInfo" class="text-xs text-slate-400 mt-1"></p>
-        <p id="giroOperationalHint" class="hidden text-[11px] text-indigo-300/90 mt-1.5 flex items-center gap-1.5"></p>
     </div>
 
     <div class="flex flex-wrap items-center gap-2.5">
