@@ -1,0 +1,33 @@
+<!-- ========================================================= -->
+<!-- MODAL: DETALLE EXPANDIDO DE PEDIDO DEL KANBAN             -->
+<!-- ========================================================= -->
+<div id="pedidoDetalleModal" onclick="if(event.target === this) closePedidoDetalleModal()"
+    class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-[#FFFDF8] border border-[#DFD5C3] rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-4 flex flex-col max-h-[90vh]">
+        <!-- Cabecera Verde Abeto (30%) -->
+        <div class="keep-dark bg-[#1B4332] text-white px-5 py-4 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <h3 id="detPedidoFolio" class="text-lg font-extrabold text-white keep-white">#PED-0000</h3>
+                    <span id="detPedidoEstadoBadge" class="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-white/15 text-[#F5EFE4] border border-white/25">RECIBIDO</span>
+                    <span id="detPedidoChatBadge" class="text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-white/15 text-[#86EFAC] border border-white/20">BOT ACTIVO</span>
+                </div>
+                <p id="detPedidoSub" class="text-xs text-[#B2CABD] mt-0.5 truncate">Sucursal • Fecha</p>
+            </div>
+            <button type="button" onclick="closePedidoDetalleModal()"
+                class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white keep-white flex items-center justify-center transition">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Cuerpo desplazable en Crema Clásica / Papel (60%) -->
+        <div id="detPedidoBody" class="p-5 overflow-y-auto space-y-4 bg-[#F5EFE4] text-[#1A241E] text-xs flex-1">
+            <!-- Rellenado dinámicamente por openPedidoDetalleModal(pedidoId) -->
+        </div>
+
+        <!-- Pie con acciones rápidas -->
+        <div id="detPedidoFooter" class="px-5 py-3.5 bg-[#FFFDF8] border-t border-[#DFD5C3] flex flex-wrap items-center justify-between gap-2">
+            <!-- Rellenado dinámicamente -->
+        </div>
+    </div>
+</div>

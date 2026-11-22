@@ -778,24 +778,135 @@ function escapeHtml(str) {
 
         function buildPedidoCardHTML(p, moneda) {
             const profile = getGiroProfile(currentComercioData?.comercio?.giro);
-            const itemsHTML = p.items.map(it => `
-                <div class="p-2 rounded-lg bg-slate-950/80 border border-slate-800 text-xs">
-                    <div class="flex justify-between font-bold text-white">
-                        <span>${it.cantidad}x ${it.nombre_plato}</span>
-                        <span>${moneda}${it.subtotal_linea.toFixed(2)}</span>
+            const totalQty = (p.items || []).reduce((acc, it) => acc + (Number(it.cantidad) || 1), 0);
+            const resumenItems = (p.items || [])
+                .slice(0, 2)
+                .map(it => `${it.cantidad}x ${it.nombre_plato}`)
+                .join(', ') + ((p.items || []).length > 2 ? ` +${p.items.length - 2} más` : '');
+
+            const entregaMap = {
+                'DOMICILIO': { lbl: 'Domicilio', icon: 'fa-motorcycle', cls: 'bg-[#FDECE9] text-[#B8321F] border-[#F6C2B9]' },
+                'RECOGER_LOCAL': { lbl: 'Retiro', icon: 'fa-bag-shopping', cls: 'bg-[#E4EFE9] text-[#1B4332] border-[#B7D4C5]' },
+                'MESA': { lbl: 'Mesa', icon: 'fa-utensils', cls: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]' }
+            };
+            const ent = entregaMap[p.tipo_entrega] || { lbl: p.tipo_entrega || 'Local', icon: 'fa-box', cls: 'bg-[#EDE5D7] text-[#1A241E] border-[#DFD5C3]' };
+
+            let nextActionBtn = '';
+            if (p.estado_pedido === 'RECIBIDO') {
+                nextActionBtn = `
+                    <button type="button" onclick="event.stopPropagation(); cambiarEstadoPedido(${p.id}, 'EN_PROCESO')"
+                        class="px-3 py-1.5 rounded-lg bg-[#D6402B] hover:bg-[#B8321F] text-white keep-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid ${profile.col2Icon}"></i> <span>${profile.col2ActionBtn}</span>
+                    </button>`;
+            } else if (p.estado_pedido === 'EN_PROCESO') {
+                nextActionBtn = `
+                    <button type="button" onclick="event.stopPropagation(); cambiarEstadoPedido(${p.id}, 'LISTO')"
+                        class="px-3 py-1.5 rounded-lg bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-circle-check"></i> <span>Marcar Listo</span>
+                    </button>`;
+            } else if (p.estado_pedido === 'LISTO') {
+                nextActionBtn = `
+                    <button type="button" onclick="event.stopPropagation(); cambiarEstadoPedido(${p.id}, 'ENTREGADO')"
+                        class="px-3 py-1.5 rounded-lg bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm">
+                        <i class="fa-solid fa-handshake"></i> <span>Entregar</span>
+                    </button>`;
+            } else if (p.estado_pedido === 'CANCELADO') {
+                nextActionBtn = `
+                    <button type="button" onclick="event.stopPropagation(); cambiarEstadoPedido(${p.id}, 'RECIBIDO')"
+                        class="px-3 py-1.5 rounded-lg bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] font-bold text-xs transition">
+                        <i class="fa-solid fa-rotate-left mr-1"></i> Reabrir
+                    </button>`;
+            }
+
+            const humanPill = p.modo_atencion_chat === 'HUMANO_ACTIVO'
+                ? `<span class="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-[10px] font-bold"><i class="fa-solid fa-hand mr-1"></i> Humano</span>`
+                : '';
+
+            return `
+                <div id="cardPedido_${p.id}" onclick="openPedidoDetalleModal(${p.id})"
+                    class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3] hover:border-[#1B4332]/50 space-y-2.5 shadow-sm hover:shadow-md transition-all duration-200 relative overflow-hidden cursor-pointer">
+                    <!-- Fila 1: Cliente + Folio + Modalidad -->
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                            <div class="font-extrabold text-sm text-[#1A241E] truncate">
+                                ${escapeHtml(p.nombre_cliente || 'Cliente')}
+                                <span class="font-semibold text-xs text-[#5C6B62]">(#${escapeHtml(p.folio)})</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            ${humanPill}
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${ent.cls}">
+                                <i class="fa-solid ${ent.icon} mr-1"></i>${ent.lbl}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Fila 2: Resumen compacto de productos + Total -->
+                    <div class="flex items-center justify-between gap-2 text-xs text-[#5C6B62]">
+                        <div class="truncate" title="${escapeHtml(resumenItems)}">
+                            <i class="fa-solid fa-bag-shopping text-[#1B4332] mr-1 text-[11px]"></i>
+                            <strong class="text-[#1A241E]">${totalQty} art.</strong> · ${escapeHtml(resumenItems || 'Ver detalle')}
+                        </div>
+                        <span class="font-extrabold text-sm text-[#1B4332] shrink-0">${moneda}${Number(p.total || 0).toFixed(2)}</span>
+                    </div>
+
+                    <!-- Fila 3: Acciones limpias (Siguiente paso + Ver Detalle + Chat) -->
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#EDE5D7]">
+                        ${nextActionBtn}
+                        <button type="button" onclick="event.stopPropagation(); openPedidoDetalleModal(${p.id})"
+                            class="px-2.5 py-1.5 rounded-lg bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] font-bold text-xs transition flex items-center gap-1">
+                            <i class="fa-solid fa-eye text-[#1B4332]"></i> <span>Detalle</span>
+                        </button>
+                        <button type="button" onclick="event.stopPropagation(); openChatModal(${p.id})"
+                            title="Abrir chat de WhatsApp de este pedido"
+                            class="px-2.5 py-1.5 rounded-lg bg-[#E4EFE9] hover:bg-[#D2E6DC] border border-[#B7D4C5] text-[#1B4332] font-bold text-xs transition flex items-center gap-1 ml-auto">
+                            <i class="fa-solid fa-comments"></i> <span>Chat</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function openPedidoDetalleModal(pedidoId) {
+            const pedidos = currentComercioData?.pedidos || [];
+            const p = pedidos.find(x => Number(x.id) === Number(pedidoId));
+            if (!p) {
+                showToast('No se encontró el detalle de este pedido.', true);
+                return;
+            }
+            const moneda = currentComercioData?.comercio?.simbolo_moneda || 'C$';
+            const profile = getGiroProfile(currentComercioData?.comercio?.giro);
+
+            document.getElementById('detPedidoFolio').textContent = `#${p.folio}`;
+            document.getElementById('detPedidoEstadoBadge').textContent = p.estado_pedido;
+            const chatBadge = document.getElementById('detPedidoChatBadge');
+            if (p.modo_atencion_chat === 'HUMANO_ACTIVO') {
+                chatBadge.innerHTML = '<i class="fa-solid fa-hand mr-1"></i> CONTROL HUMANO';
+                chatBadge.className = 'text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]';
+            } else {
+                chatBadge.innerHTML = '<i class="fa-solid fa-robot mr-1"></i> BOT ACTIVO';
+                chatBadge.className = 'text-[11px] px-2.5 py-0.5 rounded-full font-bold bg-white/15 text-[#86EFAC] border border-white/25';
+            }
+            document.getElementById('detPedidoSub').textContent = `${p.sucursal_nombre || 'Sucursal'} • Pago: ${p.metodo_pago || 'EFECTIVO'}`;
+
+            const itemsHTML = (p.items || []).map(it => `
+                <div class="p-3 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3]">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-bold text-[#1A241E] text-xs">${it.cantidad}x ${escapeHtml(it.nombre_plato)}</span>
+                        <span class="font-extrabold text-[#1B4332] text-xs">${moneda}${Number(it.subtotal_linea || 0).toFixed(2)}</span>
                     </div>
                     ${it.sin_ingredientes && it.sin_ingredientes.length > 0 ? `
-                        <div class="mt-1">
-                            <span class="inline-block px-2 py-0.5 rounded bg-rose-500/25 border border-rose-500/50 text-rose-200 font-bold text-[11px]">
-                                <i class="fa-solid fa-circle-xmark mr-1"></i> SIN: ${it.sin_ingredientes.join(', ')}
+                        <div class="mt-1.5">
+                            <span class="inline-block px-2 py-0.5 rounded bg-[#FDECE9] border border-[#F6C2B9] text-[#B8321F] font-bold text-[11px]">
+                                <i class="fa-solid fa-circle-xmark mr-1"></i> SIN: ${escapeHtml(it.sin_ingredientes.join(', '))}
                             </span>
                         </div>
                     ` : ''}
                     ${it.extras && it.extras.length > 0 ? `
-                        <div class="mt-1">
+                        <div class="mt-1.5 flex flex-wrap gap-1">
                             ${it.extras.map(ex => `
-                                <span class="inline-block mr-1 px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 font-semibold text-[11px]">
-                                    <i class="fa-solid fa-circle-plus mr-1"></i> ${ex.nombre} (+${moneda}${Number(ex.precio).toFixed(2)})
+                                <span class="inline-block px-2 py-0.5 rounded bg-[#E4EFE9] border border-[#B7D4C5] text-[#1B4332] font-semibold text-[11px]">
+                                    <i class="fa-solid fa-circle-plus mr-1"></i> ${escapeHtml(ex.nombre)} (+${moneda}${Number(ex.precio).toFixed(2)})
                                 </span>
                             `).join('')}
                         </div>
@@ -803,108 +914,114 @@ function escapeHtml(str) {
                 </div>
             `).join('');
 
-            const chatModeBadge = p.modo_atencion_chat === 'HUMANO_ACTIVO'
-                ? `<span class="px-2 py-0.5 rounded bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[10px] font-bold"><i class="fa-solid fa-hand mr-1"></i> CONTROL HUMANO ACTIVO</span>`
-                : `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold"><i class="fa-solid fa-robot mr-1"></i> BOT ACTIVO</span>`;
-
-            return `
-                <div id="cardPedido_${p.id}" class="p-4 rounded-xl bg-slate-900 border border-slate-700/80 space-y-3 shadow-lg transition-all duration-300 relative overflow-hidden group">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="font-extrabold text-base text-white">#${p.folio}</span>
-                            <span class="text-[11px] text-slate-400 ml-1">• ${p.sucursal_nombre}</span>
+            document.getElementById('detPedidoBody').innerHTML = `
+                <!-- Cliente y Entrega -->
+                <div class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3] space-y-1.5">
+                    <div class="font-bold text-[#1B4332] uppercase text-[10px] tracking-wider">Cliente y Entrega</div>
+                    <div class="text-[#1A241E]"><i class="fa-solid fa-user text-[#1B4332] w-4"></i> <strong>${escapeHtml(p.nombre_cliente || 'Cliente')}</strong> <span class="text-[#5C6B62]">(+${escapeHtml(p.telefono_cliente || '')})</span></div>
+                    <div class="text-[#1A241E]"><i class="fa-solid fa-motorcycle text-[#1B4332] w-4"></i> <strong>${escapeHtml(p.tipo_entrega || 'LOCAL')}:</strong> ${escapeHtml(p.direccion_entrega || 'Recoger en sucursal')}</div>
+                    ${p.google_maps_link ? `
+                        <div class="pt-1">
+                            <a href="${p.google_maps_link}" target="_blank" class="inline-flex items-center gap-1.5 text-[#D6402B] hover:underline font-bold">
+                                <i class="fa-solid fa-location-dot"></i> Abrir ubicación GPS en Google Maps <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
                         </div>
-                        ${chatModeBadge}
+                    ` : ''}
+                </div>
+
+                <!-- Productos -->
+                <div class="space-y-2">
+                    <div class="font-bold text-[#1B4332] uppercase text-[10px] tracking-wider px-1">Productos del Pedido</div>
+                    ${itemsHTML || '<div class="text-[#5C6B62] italic">Sin detalles registrados.</div>'}
+                </div>
+
+                <!-- Resumen IA -->
+                ${p.resumen_chat_ia ? `
+                    <div class="p-3 rounded-xl bg-[#E4EFE9] border border-[#B7D4C5] text-[#1A241E]">
+                        <div class="font-bold text-[#1B4332] mb-0.5"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Resumen del Chat</div>
+                        <p class="text-[#39483F] leading-relaxed">${escapeHtml(p.resumen_chat_ia)}</p>
                     </div>
+                ` : ''}
 
-                    <div class="text-xs text-slate-300 space-y-0.5">
-                        <div><i class="fa-solid fa-user text-slate-400 mr-1 text-[11px]"></i> <strong>${p.nombre_cliente}</strong> (+${p.telefono_cliente})</div>
-                        <div><i class="fa-solid fa-motorcycle text-slate-400 mr-1 text-[11px]"></i> <strong>${p.tipo_entrega}:</strong> ${p.direccion_entrega || 'Recoger en sucursal'}</div>
-                        ${p.google_maps_link ? `
-                            <div>
-                                <a href="${p.google_maps_link}" target="_blank" class="text-sky-400 hover:underline font-semibold">
-                                    <i class="fa-solid fa-location-dot text-rose-400 mr-1"></i> Abrir Pin GPS de WhatsApp en Google Maps <i class="fa-solid fa-arrow-right text-[10px] ml-1"></i>
-                                </a>
-                            </div>
-                        ` : ''}
+                <!-- Totales y Pago -->
+                <div class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3] flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <div class="font-bold text-[#1A241E]">Método de pago: <span class="text-[#1B4332]">${escapeHtml(p.metodo_pago || 'EFECTIVO')}</span></div>
+                        ${p.paga_con_monto ? `<div class="text-[#92400E] font-semibold mt-0.5">Paga con ${moneda}${p.paga_con_monto} • Cambio: ${moneda}${p.cambio_a_entregar}</div>` : ''}
                     </div>
-
-                    <div class="space-y-1.5">${itemsHTML}</div>
-
-                    <!-- Resumen del Chat con IA directo en la tarjeta -->
-                    <div class="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-[11px] text-indigo-200">
-                        <strong><i class="fa-solid fa-wand-magic-sparkles text-indigo-400 mr-1"></i> Resumen del Chat (IA):</strong> ${p.resumen_chat_ia}
+                    <div class="text-right">
+                        <div class="text-[11px] text-[#5C6B62]">Envío: ${moneda}${Number(p.costo_envio || 0).toFixed(2)}</div>
+                        <div class="text-lg font-extrabold text-[#1B4332]">Total: ${moneda}${Number(p.total || 0).toFixed(2)}</div>
                     </div>
+                </div>
 
-                    <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
-                        <div>
-                            <div class="font-bold text-slate-300">Pago: ${p.metodo_pago}</div>
-                            ${p.paga_con_monto ? `<div class="text-[11px] text-amber-300">Paga con ${moneda}${p.paga_con_monto} | Cambio: ${moneda}${p.cambio_a_entregar}</div>` : ''}
-                        </div>
-                        <div class="text-right">
-                            <div class="text-[11px] text-slate-400">Total (+Envío ${moneda}${p.costo_envio})</div>
-                            <div class="text-base font-extrabold text-emerald-400">${moneda}${p.total.toFixed(2)}</div>
-                        </div>
-                    </div>
-
-                    <!-- Botones para cambiar estado del pedido (notifica al WhatsApp del cliente) -->
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
-                        <button onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO')"
-                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'RECIBIDO' ? 'bg-sky-500 text-slate-950 border-sky-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                <!-- Cambiar estado desde el modal -->
+                <div class="p-3.5 rounded-xl bg-[#FFFDF8] border border-[#DFD5C3] space-y-2">
+                    <div class="font-bold text-[#1B4332] uppercase text-[10px] tracking-wider">Cambiar Estado del Pedido</div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                        <button type="button" onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO').then(() => closePedidoDetalleModal())"
+                            class="py-2 rounded-lg text-[11px] font-bold border transition ${p.estado_pedido === 'RECIBIDO' ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-[#EDE5D7] text-[#1A241E] border-[#DFD5C3] hover:bg-[#E2D6C1]'}">
                             <i class="fa-solid fa-inbox mr-1"></i> Recibido
                         </button>
-                        <button onclick="cambiarEstadoPedido(${p.id}, 'EN_PROCESO')"
-                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'EN_PROCESO' ? 'bg-amber-500 text-slate-950 border-amber-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                        <button type="button" onclick="cambiarEstadoPedido(${p.id}, 'EN_PROCESO').then(() => closePedidoDetalleModal())"
+                            class="py-2 rounded-lg text-[11px] font-bold border transition ${p.estado_pedido === 'EN_PROCESO' ? 'bg-[#D6402B] text-white keep-white border-[#D6402B]' : 'bg-[#EDE5D7] text-[#1A241E] border-[#DFD5C3] hover:bg-[#E2D6C1]'}">
                             <i class="fa-solid ${profile.col2Icon} mr-1"></i> ${profile.col2ActionBtn}
                         </button>
-                        <button onclick="cambiarEstadoPedido(${p.id}, 'LISTO')"
-                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'LISTO' ? 'bg-emerald-500 text-slate-950 border-emerald-400' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'}">
+                        <button type="button" onclick="cambiarEstadoPedido(${p.id}, 'LISTO').then(() => closePedidoDetalleModal())"
+                            class="py-2 rounded-lg text-[11px] font-bold border transition ${p.estado_pedido === 'LISTO' ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-[#EDE5D7] text-[#1A241E] border-[#DFD5C3] hover:bg-[#E2D6C1]'}">
                             <i class="fa-solid fa-circle-check mr-1"></i> Listo
                         </button>
-                        <button onclick="cambiarEstadoPedido(${p.id}, 'ENTREGADO')"
-                            class="py-1.5 rounded-lg text-[11px] font-bold border ${p.estado_pedido === 'ENTREGADO' ? 'bg-teal-500 text-slate-950 border-teal-400' : 'bg-slate-800 text-teal-300 border-slate-700 hover:bg-teal-500/20'}">
+                        <button type="button" onclick="cambiarEstadoPedido(${p.id}, 'ENTREGADO').then(() => closePedidoDetalleModal())"
+                            class="py-2 rounded-lg text-[11px] font-bold border transition ${p.estado_pedido === 'ENTREGADO' ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-[#EDE5D7] text-[#1A241E] border-[#DFD5C3] hover:bg-[#E2D6C1]'}">
                             <i class="fa-solid fa-handshake mr-1"></i> Entregado
                         </button>
                     </div>
-                    ${p.estado_pedido === 'CANCELADO' ? `
-                        <div class="text-[11px] font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-lg px-2.5 py-1 flex items-center justify-between">
-                            <span><i class="fa-solid fa-ban mr-1"></i> Pedido CANCELADO</span>
-                            <button onclick="cambiarEstadoPedido(${p.id}, 'RECIBIDO')" class="underline text-sky-300 hover:text-white">Reabrir</button>
-                        </div>
-                    ` : ''}
-
-                    <!-- Botones de Comanda Térmica, Pago Online, Chat y Cancelar -->
-                    <div class="flex flex-wrap gap-2 pt-1">
-                        <button onclick="openChatModal(${p.id})"
-                            class="flex-1 py-2 px-3 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 font-bold text-xs transition whitespace-nowrap">
-                            <i class="fa-solid fa-comments mr-1"></i> Chat
-                        </button>
-                        ${p.estado_pago === 'PAGADO' ? `
-                            <span class="py-2 px-3 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1.5">
-                                <i class="fa-solid fa-circle-check"></i> Pagado Online
-                            </span>
-                        ` : `
-                            <button onclick="iniciarCheckoutSimulado(${p.id})"
-                                title="Abrir link de pago online simulado de este pedido"
-                                class="py-2 px-3 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 font-bold text-xs transition flex items-center gap-1.5">
-                                <i class="fa-solid fa-credit-card"></i> Pagar Online
-                            </button>
-                        `}
-                        <a href="/ticket/${p.id}" target="_blank"
-                            class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs transition flex items-center gap-1">
-                            <i class="fa-solid fa-print mr-1"></i> Ticket
-                        </a>
-                        ${(p.estado_pedido !== 'ENTREGADO' && p.estado_pedido !== 'CANCELADO') ? `
-                            <button onclick="if(confirm('¿Cancelar el pedido #${p.folio}?')) cambiarEstadoPedido(${p.id}, 'CANCELADO')"
-                                title="Cancelar este pedido"
-                                class="px-2.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs transition">
-                                <i class="fa-solid fa-ban"></i>
-                            </button>
-                        ` : ''}
-                    </div>
                 </div>
             `;
+
+            document.getElementById('detPedidoFooter').innerHTML = `
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" onclick="closePedidoDetalleModal(); openChatModal(${p.id})"
+                        class="px-3.5 py-2 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-comments"></i> <span>Chat WhatsApp</span>
+                    </button>
+                    ${p.estado_pago === 'PAGADO' ? `
+                        <span class="px-3 py-2 rounded-xl bg-[#E4EFE9] text-[#1B4332] border border-[#B7D4C5] font-bold text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle-check"></i> Pagado Online
+                        </span>
+                    ` : `
+                        <button type="button" onclick="iniciarCheckoutSimulado(${p.id})"
+                            class="px-3 py-2 rounded-xl bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] font-bold text-xs transition flex items-center gap-1.5">
+                            <i class="fa-solid fa-credit-card text-[#1B4332]"></i> <span>Pagar Online</span>
+                        </button>
+                    `}
+                    <a href="/ticket/${p.id}" target="_blank"
+                        class="px-3 py-2 rounded-xl bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] font-bold text-xs transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-print text-[#1B4332]"></i> <span>Ticket</span>
+                    </a>
+                </div>
+                <div class="flex items-center gap-2">
+                    ${(p.estado_pedido !== 'ENTREGADO' && p.estado_pedido !== 'CANCELADO') ? `
+                        <button type="button" onclick="if(confirm('¿Cancelar el pedido #${p.folio}?')) cambiarEstadoPedido(${p.id}, 'CANCELADO').then(() => closePedidoDetalleModal())"
+                            class="px-3 py-2 rounded-xl bg-[#FDECE9] hover:bg-[#F9D7D0] border border-[#F6C2B9] text-[#B8321F] font-bold text-xs transition flex items-center gap-1">
+                            <i class="fa-solid fa-ban"></i> <span>Cancelar</span>
+                        </button>
+                    ` : ''}
+                    <button type="button" onclick="closePedidoDetalleModal()"
+                        class="px-3.5 py-2 rounded-xl bg-[#EDE5D7] hover:bg-[#E2D6C1] text-[#1A241E] font-bold text-xs transition">
+                        Cerrar
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('pedidoDetalleModal').classList.remove('hidden');
         }
+        window.openPedidoDetalleModal = openPedidoDetalleModal;
+
+        function closePedidoDetalleModal() {
+            document.getElementById('pedidoDetalleModal')?.classList.add('hidden');
+        }
+        window.closePedidoDetalleModal = closePedidoDetalleModal;
 
         async function iniciarCheckoutSimulado(pedidoId) {
             try {
