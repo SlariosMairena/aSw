@@ -23,11 +23,7 @@
             });
             document.querySelectorAll('.sa-tab-btn').forEach(btn => {
                 const active = btn.getAttribute('data-sa-tab') === saCurrentTab;
-                btn.classList.toggle('bg-indigo-600', active);
-                btn.classList.toggle('text-white', active);
-                btn.classList.toggle('shadow-sm', active);
-                btn.classList.toggle('text-slate-300', !active);
-                btn.classList.toggle('hover:bg-slate-800/80', !active);
+                btn.classList.toggle('is-active', active);
             });
         }
 
@@ -35,9 +31,10 @@
             saEstadoFilter = estado || 'ALL';
             document.querySelectorAll('.sa-estado-chip').forEach(chip => {
                 const isSelected = chip.getAttribute('data-estado') === saEstadoFilter;
-                chip.classList.toggle('bg-indigo-600', isSelected);
+                chip.classList.toggle('bg-[#D6402B]', isSelected);
                 chip.classList.toggle('text-white', isSelected);
-                chip.classList.toggle('bg-slate-800', !isSelected);
+                chip.classList.toggle('keep-white', isSelected);
+                chip.classList.toggle('bg-[#EDE5D7]', !isSelected);
             });
             renderSuperAdminComercios();
         }
@@ -287,7 +284,7 @@
 
                     <!-- Acciones Operativas sobre el Comercio -->
                     <div class="flex flex-wrap gap-2 pt-1">
-                        <button type="button" onclick="inspectComercioAsSuperAdmin(${c.id}, '${escapeHtml(c.nombre_comercial).replace(/'/g, "\\'")}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                        <button type="button" onclick="inspectComercioAsSuperAdmin(${c.id}, '${escapeHtml(c.nombre_comercial).replace(/'/g, "\\'")}')" class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm">
                             <i class="fa-solid fa-eye"></i>
                             <span>Entrar al Panel</span>
                         </button>
