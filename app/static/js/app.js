@@ -447,6 +447,10 @@ function escapeHtml(str) {
 
             const bloqueIng = document.getElementById('bloqueIngBaseForm');
             if (bloqueIng) bloqueIng.classList.toggle('hidden', !profile.usesRemovableIngredients);
+            const tabBtnIng = document.getElementById('btnPlatoTab_ingredientes');
+            if (tabBtnIng) tabBtnIng.classList.toggle('hidden', !profile.usesRemovableIngredients);
+            const btnNuevoLbl = document.getElementById('btnNuevoPlatoLabel');
+            if (btnNuevoLbl) btnNuevoLbl.textContent = `Nuevo ${profile.itemSingular}`;
             const bloqueMesas = document.getElementById('bloqueReservacionMesas');
             if (bloqueMesas) bloqueMesas.classList.toggle('hidden', !profile.usesTables);
         }
@@ -1061,17 +1065,111 @@ function escapeHtml(str) {
         let allPlatosCache = [];
         let activeCatalogSearch = '';
         let activeCatalogCategory = '';
+        let expandedPlatoIds = new Set();
+
+        function openModalNuevoPlato() {
+            resetFormularioPlato();
+            switchPlatoModalTab('basico');
+            document.getElementById('modalPlatoForm')?.classList.remove('hidden');
+        }
+        window.openModalNuevoPlato = openModalNuevoPlato;
+
+        function closeModalPlatoForm() {
+            document.getElementById('modalPlatoForm')?.classList.add('hidden');
+        }
+        window.closeModalPlatoForm = closeModalPlatoForm;
+
+        function switchPlatoModalTab(tab) {
+            ['basico', 'ingredientes', 'extras'].forEach(t => {
+                const panel = document.getElementById(`platoTab_${t}`);
+                const btn = document.getElementById(`btnPlatoTab_${t}`);
+                if (panel) panel.classList.toggle('hidden', t !== tab);
+                if (btn) {
+                    const isHiddenByGiro = btn.classList.contains('hidden') && t === 'ingredientes';
+                    btn.className = (t === tab
+                        ? 'px-3.5 py-2 rounded-t-xl font-bold bg-slate-800 text-emerald-300 border-t border-x border-slate-700 transition flex items-center gap-1.5'
+                        : 'px-3.5 py-2 rounded-t-xl font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5') + (isHiddenByGiro ? ' hidden' : '');
+                }
+            });
+        }
+        window.switchPlatoModalTab = switchPlatoModalTab;
+
+        function togglePlatoCardDetails(platoId) {
+            if (expandedPlatoIds.has(platoId)) expandedPlatoIds.delete(platoId);
+            else expandedPlatoIds.add(platoId);
+            const box = document.getElementById(`platoDetails_${platoId}`);
+            const chev = document.getElementById(`platoChev_${platoId}`);
+            if (box) box.classList.toggle('hidden', !expandedPlatoIds.has(platoId));
+            if (chev) chev.className = `fa-solid fa-chevron-${expandedPlatoIds.has(platoId) ? 'up' : 'down'} text-[10px]`;
+        }
+        window.togglePlatoCardDetails = togglePlatoCardDetails;
+
+        function selectMenuCategoryChip(cat) {
+            activeCatalogCategory = cat || '';
+            const sel = document.getElementById('filterCategoryMenuSelect');
+            if (sel) sel.value = activeCatalogCategory;
+            renderMenuCategoryChips();
+            filterCatalogCards();
+        }
+        window.selectMenuCategoryChip = selectMenuCategoryChip;
+
+        function onMenuCategorySelectChange() {
+            const sel = document.getElementById('filterCategoryMenuSelect');
+            activeCatalogCategory = sel ? sel.value : '';
+            renderMenuCategoryChips();
+            filterCatalogCards();
+        }
+        window.onMenuCategorySelectChange = onMenuCategorySelectChange;
+
+        function renderMenuCategoryChips() {
+            const bar = document.getElementById('menuCategoriasChipsBar');
+            if (!bar) return;
+            const counts = {};
+            allPlatosCache.forEach(p => {
+                const c = p.categoria || 'General';
+                counts[c] = (counts[c] || 0) + 1;
+            });
+            const cats = Object.keys(counts);
+            let html = `
+                <button type="button" onclick="selectMenuCategoryChip('')"
+                    class="px-3 py-1 rounded-xl text-xs font-bold border transition ${
+                        !activeCatalogCategory
+                            ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                    }">
+                    Todas <span class="text-[10px] opacity-75">(${allPlatosCache.length})</span>
+                </button>
+            `;
+            cats.forEach(c => {
+                const active = activeCatalogCategory === c;
+                html += `
+                    <button type="button" onclick="selectMenuCategoryChip('${c.replace(/'/g, "\\'")}')"
+                        class="px-2.5 py-1 rounded-xl text-xs font-semibold border transition ${
+                            active
+                                ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
+                                : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                        }">
+                        ${escapeHtml(c)} <span class="text-[10px] opacity-75">(${counts[c]})</span>
+                    </button>
+                `;
+            });
+            bar.innerHTML = html;
+        }
 
         function renderMenuPlatos(platos, moneda) {
             allPlatosCache = platos || [];
             
-            // Poblar selector de categorías
+            // Poblar selector de categorías y datalist del modal
             const categories = [...new Set(allPlatosCache.map(p => p.categoria || 'General'))].filter(Boolean);
             const catSelect = document.getElementById('filterCategoryMenuSelect');
             if (catSelect) {
-                const currentVal = catSelect.value;
+                const currentVal = activeCatalogCategory || catSelect.value;
                 catSelect.innerHTML = `<option value="">Todas las categorías (${categories.length})</option>` +
-                    categories.map(c => `<option value="${c}" ${c === currentVal ? 'selected' : ''}>${c}</option>`).join('');
+                    categories.map(c => `<option value="${escapeHtml(c)}" ${c === currentVal ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+            }
+            const catDatalist = document.getElementById('menuCategoriasDatalist');
+            if (catDatalist) {
+                catDatalist.innerHTML = categories.map(c => `<option value="${escapeHtml(c)}">`).join('');
             }
 
             // Estadísticas rápidas
@@ -1089,6 +1187,7 @@ function escapeHtml(str) {
             const elCat = document.getElementById('statCategoriasCount');
             if (elCat) elCat.textContent = categories.length;
 
+            renderMenuCategoryChips();
             filterCatalogCards(moneda);
         }
 
@@ -1124,152 +1223,181 @@ function escapeHtml(str) {
             const profile = getGiroProfile(currentComercioData?.comercio?.giro);
             const activeSucFilterId = Number(document.getElementById('filtroSucursalSelect')?.value || (currentUser && currentUser.sucursal_id) || 0);
 
-            grid.innerHTML = filtered.map(pl => {
-                const agotadoEnSuc = activeSucFilterId > 0 && Array.isArray(pl.agotado_sucursal_ids) && pl.agotado_sucursal_ids.includes(activeSucFilterId);
-                const isAgotado = !pl.disponible_global || agotadoEnSuc;
-                return `
-                    <div class="p-4 rounded-2xl transition-all duration-200 border ${
-                        isAgotado
-                            ? 'bg-slate-950/70 border-rose-900/40 opacity-80'
-                            : 'bg-slate-900/90 hover:bg-slate-900 border-slate-800 hover:border-slate-700 shadow-md'
-                    }">
-                        <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                            <!-- Datos principales del producto -->
-                            <div class="space-y-2 flex-1">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                                        ${escapeHtml(pl.categoria || 'General')}
-                                    </span>
-                                    <h4 class="font-bold text-base text-white">${escapeHtml(pl.nombre)}</h4>
-                                    ${esAdmin ? `
-                                        <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${pl.nombre.replace(/'/g, "\\'")}', '${sym}')"
-                                            title="Clic para editar el precio rápidamente"
-                                            class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-0.5 rounded-lg border border-emerald-500/30 transition flex items-center gap-1 group cursor-pointer shadow-sm">
-                                            <span>${sym}${pl.precio_base.toFixed(2)}</span>
-                                            <span class="text-[10px] text-emerald-300 opacity-60 group-hover:opacity-100"><i class="fa-solid fa-pen-to-square"></i></span>
-                                        </button>
-                                    ` : `
-                                        <span class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-lg border border-emerald-500/30">
-                                            ${sym}${pl.precio_base.toFixed(2)}
-                                        </span>
-                                    `}
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                        pl.disponible_global
-                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                                            : 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
-                                    }">
-                                        ${pl.disponible_global ? '<i class="fa-solid fa-circle text-[8px] mr-1 text-emerald-400"></i> DISPONIBLE' : '<i class="fa-solid fa-ban text-[9px] mr-1 text-rose-400"></i> AGOTADO GLOBAL'}
-                                    </span>
-                                    ${agotadoEnSuc ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40"><i class="fa-solid fa-store-slash mr-1"></i> AGOTADO EN SUCURSAL</span>` : ''}
-                                </div>
+            // Agrupar productos por categoría para una vista limpia y ordenada
+            const grupos = {};
+            filtered.forEach(pl => {
+                const c = pl.categoria || 'General';
+                if (!grupos[c]) grupos[c] = [];
+                grupos[c].push(pl);
+            });
 
-                                ${pl.descripcion ? `<p class="text-xs text-slate-400 leading-relaxed">${escapeHtml(pl.descripcion)}</p>` : ''}
-
-                                ${profile.usesRemovableIngredients ? `
-                                <!-- Bloque 1: Ingredientes base removibles (C$ 0) -->
-                                <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
-                                    <div class="flex items-center justify-between text-[11px]">
-                                        <span class="text-emerald-300 font-semibold flex items-center gap-1">
-                                            <span><i class="fa-solid fa-leaf text-emerald-400 mr-1"></i></span> Ingredientes Base Removibles (${sym}0 en WhatsApp):
-                                        </span>
-                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar</span>
-                                    </div>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        ${(pl.ingredientes_removibles || []).length > 0 ? (pl.ingredientes_removibles || []).map(ing => `
-                                            <button type="button" onclick="toggleIngredienteDisponibilidad(${ing.id})"
-                                                title="Clic para alternar entre Disponible y Agotado"
-                                                class="text-[11px] px-2.5 py-1 rounded-lg border font-medium transition flex items-center gap-1 ${
-                                                    ing.disponible
-                                                        ? 'bg-slate-800/90 hover:bg-slate-700 text-slate-200 border-slate-700 shadow-sm'
-                                                        : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
-                                                }">
-                                                <span>${ing.disponible ? '<i class="fa-solid fa-check text-[9px] text-emerald-400"></i>' : '<i class="fa-solid fa-xmark text-[9px] text-rose-400"></i>'}</span>
-                                                <span>${escapeHtml(ing.nombre)}</span>
-                                                ${!ing.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
-                                            </button>
-                                        `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin ingredientes base definidos</span>'}
-                                    </div>
-                                </div>
-                                ` : ''}
-
-                                <!-- Bloque 2: Extras y Variantes con precio -->
-                                <div class="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-1.5">
-                                    <div class="flex items-center justify-between text-[11px]">
-                                        <span class="text-amber-300 font-semibold flex items-center gap-1">
-                                            <span><i class="fa-solid fa-circle-plus text-amber-400 mr-1"></i></span> ${profile.usesRemovableIngredients ? 'Extras y Variantes con Costo:' : 'Presentaciones, Tallas o Variantes:'}
-                                        </span>
-                                        <span class="text-[10px] text-slate-500">Toca para agotar/habilitar</span>
-                                    </div>
-                                    <div class="flex flex-wrap gap-1.5">
-                                        ${(pl.extras_y_variantes || []).length > 0 ? (pl.extras_y_variantes || []).map(ex => `
-                                            <div class="inline-flex items-center rounded-lg border transition ${
-                                                ex.disponible
-                                                    ? 'bg-amber-500/10 text-amber-200 border-amber-500/30'
-                                                    : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
-                                            }">
-                                                <button type="button" onclick="toggleIngredienteDisponibilidad(${ex.id})"
-                                                    title="Clic para alternar entre Disponible y Agotado"
-                                                    class="text-[11px] px-2 py-1 font-medium hover:bg-amber-500/20 ${esAdmin ? 'rounded-l-lg' : 'rounded-lg'} flex items-center gap-1">
-                                                    <span>${ex.disponible ? '<i class="fa-solid fa-plus text-[9px] text-amber-400"></i>' : '<i class="fa-solid fa-xmark text-[9px] text-rose-400"></i>'}</span>
-                                                    <span>${escapeHtml(ex.nombre)}</span>
-                                                    <span class="font-bold text-emerald-400">(+${sym}${ex.precio_adicional.toFixed(2)})</span>
-                                                    ${!ex.disponible ? '<span class="text-[9px] font-bold uppercase ml-0.5 text-rose-400">(Agotado)</span>' : ''}
-                                                </button>
-                                                ${esAdmin ? `
-                                                    <button type="button" onclick="editarPrecioRapidoExtra(${ex.id}, ${ex.precio_adicional}, '${ex.nombre.replace(/'/g, "\\'")}', '${sym}')"
-                                                        title="Cambiar precio de esta opción"
-                                                        class="px-1.5 py-1 text-[11px] text-amber-300 hover:text-white hover:bg-amber-500/30 border-l border-amber-500/20 rounded-r-lg transition font-bold">
-                                                        <i class="fa-solid fa-pen-to-square text-[10px]"></i>
-                                                    </button>
-                                                ` : ''}
-                                            </div>
-                                        `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin variantes configuradas</span>'}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Botones de Acción Rápida -->
-                            <div class="flex lg:flex-col gap-2 shrink-0 pt-1 lg:pt-0">
-                                ${esAdmin ? `
-                                    <button onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
-                                        class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center justify-center gap-1.5">
-                                        <span><i class="fa-solid fa-pen-to-square mr-1"></i></span> <span>Editar</span>
-                                    </button>
-                                ` : ''}
-                                <button onclick="togglePlatoDisponibilidad(${pl.id})"
-                                    class="flex-1 lg:flex-none px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                                        pl.disponible_global
-                                            ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
-                                            : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold shadow-md'
-                                    }">
-                                    <span><i class="fa-solid fa-${pl.disponible_global ? 'pause' : 'play'} mr-1"></i></span>
-                                    <span>${pl.disponible_global ? 'Agotar Global' : 'Habilitar'}</span>
-                                </button>
-                                <button type="button" onclick="toggleAgotadoEnSucursal(${pl.id})"
-                                    class="flex-1 lg:flex-none px-3 py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5 ${
-                                        agotadoEnSuc
-                                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40'
-                                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                                    }" title="Agotar o habilitar solo en la sucursal filtrada">
-                                    <i class="fa-solid fa-store-slash text-[11px]"></i>
-                                    <span>${agotadoEnSuc ? 'Habilitar Sucursal' : 'Agotar Sucursal'}</span>
-                                </button>
-                                ${esAdmin ? `
-                                    <button type="button" onclick="openModalRecetaProducto(${pl.id}, '${pl.nombre.replace(/'/g, "\\'")}')"
-                                        class="px-3 py-2 rounded-xl text-xs font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center justify-center gap-1.5"
-                                        title="Vincular insumos de inventario para descuento automatico">
-                                        <i class="fa-solid fa-link"></i> <span>Stock / Receta</span>
-                                    </button>
-                                    <button onclick="eliminarPlato(${pl.id})"
-                                        class="px-3 py-2 rounded-xl text-xs font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center justify-center gap-1">
-                                        <span><i class="fa-solid fa-trash mr-1"></i></span> <span class="hidden sm:inline">Borrar</span>
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </div>
+            grid.innerHTML = Object.entries(grupos).map(([catName, itemsCat]) => `
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between px-1">
+                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-indigo-300 flex items-center gap-2">
+                            <i class="fa-solid fa-folder-open text-indigo-400"></i>
+                            <span>${escapeHtml(catName)}</span>
+                            <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold">${itemsCat.length}</span>
+                        </h4>
                     </div>
-                `;
-            }).join('');
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        ${itemsCat.map(pl => {
+                            const agotadoEnSuc = activeSucFilterId > 0 && Array.isArray(pl.agotado_sucursal_ids) && pl.agotado_sucursal_ids.includes(activeSucFilterId);
+                            const isAgotado = !pl.disponible_global || agotadoEnSuc;
+                            const ingCount = (pl.ingredientes_removibles || []).length;
+                            const exCount = (pl.extras_y_variantes || []).length;
+                            const isOpen = expandedPlatoIds.has(pl.id);
+                            const safeName = pl.nombre.replace(/'/g, "\\'");
+
+                            return `
+                                <div class="p-4 rounded-2xl transition border flex flex-col justify-between gap-3 ${
+                                    isAgotado
+                                        ? 'bg-slate-950/70 border-rose-900/40 opacity-85'
+                                        : 'bg-slate-900/90 hover:border-slate-700 border-slate-800 shadow-sm'
+                                }">
+                                    <!-- Fila superior: Nombre, Precio y Estado -->
+                                    <div class="space-y-1.5">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-1.5">
+                                                    <h5 class="font-bold text-sm text-white leading-snug">${escapeHtml(pl.nombre)}</h5>
+                                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                        pl.disponible_global
+                                                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                                                            : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                                                    }">
+                                                        ${pl.disponible_global ? 'Disponible' : 'Agotado'}
+                                                    </span>
+                                                    ${agotadoEnSuc ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">Agotado Sucursal</span>` : ''}
+                                                </div>
+                                                ${pl.descripcion ? `<p class="text-xs text-slate-400 truncate mt-0.5" title="${escapeHtml(pl.descripcion)}">${escapeHtml(pl.descripcion)}</p>` : ''}
+                                            </div>
+                                            ${esAdmin ? `
+                                                <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${safeName}', '${sym}')"
+                                                    title="Clic para editar precio rápido"
+                                                    class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-1 rounded-xl border border-emerald-500/30 transition flex items-center gap-1 shrink-0 cursor-pointer">
+                                                    <span>${sym}${pl.precio_base.toFixed(2)}</span>
+                                                    <i class="fa-solid fa-pen text-[9px] opacity-70"></i>
+                                                </button>
+                                            ` : `
+                                                <span class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/30 shrink-0">
+                                                    ${sym}${pl.precio_base.toFixed(2)}
+                                                </span>
+                                            `}
+                                        </div>
+                                    </div>
+
+                                    <!-- Barra compacta de acciones principales -->
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                                        <button type="button" onclick="togglePlatoCardDetails(${pl.id})"
+                                            class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold transition flex items-center gap-1.5">
+                                            <i class="fa-solid fa-sliders text-indigo-400"></i>
+                                            <span>Opciones (${profile.usesRemovableIngredients ? `${ingCount} ing. · ` : ''}${exCount} ext.)</span>
+                                            <i id="platoChev_${pl.id}" class="fa-solid fa-chevron-${isOpen ? 'up' : 'down'} text-[10px]"></i>
+                                        </button>
+
+                                        <div class="flex items-center gap-1.5">
+                                            <button type="button" onclick="togglePlatoDisponibilidad(${pl.id})"
+                                                class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 ${
+                                                    pl.disponible_global
+                                                        ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30'
+                                                        : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold'
+                                                }">
+                                                <i class="fa-solid fa-${pl.disponible_global ? 'pause' : 'play'} text-[10px]"></i>
+                                                <span>${pl.disponible_global ? 'Agotar' : 'Habilitar'}</span>
+                                            </button>
+                                            ${esAdmin ? `
+                                                <button type="button" onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
+                                                    class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center gap-1">
+                                                    <i class="fa-solid fa-pen-to-square"></i> <span>Editar</span>
+                                                </button>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+
+                                    <!-- Detalle desplegable bajo demanda (ingredientes, extras, sucursal, receta, borrar) -->
+                                    <div id="platoDetails_${pl.id}" class="${isOpen ? '' : 'hidden'} pt-2.5 border-t border-slate-800 space-y-2.5">
+                                        ${profile.usesRemovableIngredients ? `
+                                            <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                                                <div class="flex items-center justify-between text-[11px]">
+                                                    <span class="text-emerald-300 font-semibold"><i class="fa-solid fa-leaf mr-1"></i> Ingredientes Base (${sym}0)</span>
+                                                    <span class="text-[10px] text-slate-500">Toca para apagar/encender</span>
+                                                </div>
+                                                <div class="flex flex-wrap gap-1.5">
+                                                    ${ingCount > 0 ? (pl.ingredientes_removibles || []).map(ing => `
+                                                        <button type="button" onclick="toggleIngredienteDisponibilidad(${ing.id})"
+                                                            class="text-[11px] px-2 py-1 rounded-lg border font-medium transition flex items-center gap-1 ${
+                                                                ing.disponible
+                                                                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                                                                    : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
+                                                            }">
+                                                            <i class="fa-solid fa-${ing.disponible ? 'check text-emerald-400' : 'xmark text-rose-400'} text-[9px]"></i>
+                                                            <span>${escapeHtml(ing.nombre)}</span>
+                                                        </button>
+                                                    `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin ingredientes base</span>'}
+                                                </div>
+                                            </div>
+                                        ` : ''}
+
+                                        <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                                            <div class="flex items-center justify-between text-[11px]">
+                                                <span class="text-amber-300 font-semibold"><i class="fa-solid fa-circle-plus mr-1"></i> ${profile.usesRemovableIngredients ? 'Extras y Variantes' : 'Presentaciones / Variantes'}</span>
+                                                <span class="text-[10px] text-slate-500">Toca para apagar o editar precio</span>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1.5">
+                                                ${exCount > 0 ? (pl.extras_y_variantes || []).map(ex => `
+                                                    <div class="inline-flex items-center rounded-lg border transition ${
+                                                        ex.disponible
+                                                            ? 'bg-amber-500/10 text-amber-200 border-amber-500/30'
+                                                            : 'bg-rose-950/60 text-rose-300 border-rose-500/50 line-through opacity-75'
+                                                    }">
+                                                        <button type="button" onclick="toggleIngredienteDisponibilidad(${ex.id})"
+                                                            class="text-[11px] px-2 py-1 font-medium hover:bg-amber-500/20 flex items-center gap-1">
+                                                            <span>${escapeHtml(ex.nombre)}</span>
+                                                            <span class="font-bold text-emerald-400">(+${sym}${ex.precio_adicional.toFixed(2)})</span>
+                                                        </button>
+                                                        ${esAdmin ? `
+                                                            <button type="button" onclick="editarPrecioRapidoExtra(${ex.id}, ${ex.precio_adicional}, '${ex.nombre.replace(/'/g, "\\'")}', '${sym}')"
+                                                                class="px-1.5 py-1 text-[10px] text-amber-300 hover:text-white border-l border-amber-500/20">
+                                                                <i class="fa-solid fa-pen"></i>
+                                                            </button>
+                                                        ` : ''}
+                                                    </div>
+                                                `).join('') : '<span class="text-[11px] text-slate-500 italic">Sin extras ni variantes</span>'}
+                                            </div>
+                                        </div>
+
+                                        <!-- Acciones avanzadas dentro del desplegable -->
+                                        <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                                            <button type="button" onclick="toggleAgotadoEnSucursal(${pl.id})"
+                                                class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition flex items-center gap-1.5 ${
+                                                    agotadoEnSuc
+                                                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40'
+                                                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                                                }">
+                                                <i class="fa-solid fa-store-slash text-[10px]"></i>
+                                                <span>${agotadoEnSuc ? 'Habilitar en Sucursal' : 'Agotar solo en Sucursal'}</span>
+                                            </button>
+                                            ${esAdmin ? `
+                                                <div class="flex items-center gap-1.5">
+                                                    <button type="button" onclick="openModalRecetaProducto(${pl.id}, '${safeName}')"
+                                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1">
+                                                        <i class="fa-solid fa-link"></i> <span>Stock / Receta</span>
+                                                    </button>
+                                                    <button type="button" onclick="eliminarPlato(${pl.id})"
+                                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center gap-1">
+                                                        <i class="fa-solid fa-trash"></i> <span>Borrar</span>
+                                                    </button>
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
         }
 
         // =========================================================
@@ -1506,14 +1634,11 @@ function escapeHtml(str) {
             document.getElementById('formPlatoIcon').className = 'w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center font-bold text-sm';
             document.getElementById('formPlatoTitle').textContent = `Editando: ${pl.nombre}`;
             document.getElementById('formPlatoSubtitle').textContent = 'Modifica los ingredientes, precios o extras y guarda los cambios';
-            document.getElementById('btnSubmitPlatoText').textContent = 'Guardar Cambios del Plato';
+            document.getElementById('btnSubmitPlatoText').textContent = 'Guardar Cambios';
             document.getElementById('btnSubmitPlato').className =
-                'w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/20 transition flex items-center justify-center gap-2';
-            document.getElementById('btnCancelarEdicionPlato').classList.remove('hidden');
-            
-            // Scroll suave hacia el formulario en pantallas móviles
-            document.getElementById('formPlatoTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
-            showToast(`Editando "${pl.nombre}". Modifica los datos y presiona Guardar.`);
+                'px-6 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/20 transition flex items-center gap-2';
+            switchPlatoModalTab('basico');
+            document.getElementById('modalPlatoForm')?.classList.remove('hidden');
         }
 
         function resetFormularioPlato() {
@@ -1537,10 +1662,9 @@ function escapeHtml(str) {
             document.getElementById('formPlatoSubtitle').textContent = profile.usesRemovableIngredients
                 ? 'Configura nombre, precio, ingredientes removibles y extras'
                 : 'Configura nombre, precio y variantes o presentaciones';
-            document.getElementById('btnSubmitPlatoText').textContent = `Guardar ${profile.itemSingular} en Catálogo`;
+            document.getElementById('btnSubmitPlatoText').textContent = `Guardar ${profile.itemSingular}`;
             document.getElementById('btnSubmitPlato').className =
-                'w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2';
-            document.getElementById('btnCancelarEdicionPlato').classList.add('hidden');
+                'px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-2';
         }
 
         async function togglePlatoDisponibilidad(platoId) {
@@ -1574,6 +1698,7 @@ function escapeHtml(str) {
                 });
                 showToast('Plato eliminado del menú.');
                 resetFormularioPlato();
+                closeModalPlatoForm();
                 await reloadComercioDashboard();
             } catch (err) {
                 showToast(err.message, true);
@@ -1608,6 +1733,7 @@ function escapeHtml(str) {
                     showToast('¡Nuevo plato e ingredientes guardados!');
                 }
                 resetFormularioPlato();
+                closeModalPlatoForm();
                 await reloadComercioDashboard();
             } catch (err) {
                 showToast(err.message, true);
