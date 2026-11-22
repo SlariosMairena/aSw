@@ -459,6 +459,21 @@ def _format_products_list(
     return "\n".join(lines)
 
 
+def _format_product_selected_qty_prompt(
+    db: Session, comercio: TenantComercio, pl: ProductoPlato
+) -> str:
+    sym = comercio.simbolo_moneda or "C$"
+    lines = [f"¡Buena elección! *{pl.nombre}* ({sym}{pl.precio_base:.2f})."]
+    if normalize_giro_code(comercio.giro) in ("RESTAURANTE", "CAFETERIA"):
+        removibles, _ = _get_item_customization_options(db, pl.id)
+        if removibles:
+            ing_txt = ", ".join(r.nombre for r in removibles)
+            lines.append(f"Trae: _{ing_txt}_.")
+    lines.append("\n¿Cuántas unidades te gustaría llevar?")
+    lines.append("_Responde *0* si prefieres cancelar este producto y elegir otro._")
+    return "\n".join(lines)
+
+
 def _format_ask_more(comercio: TenantComercio, state: Dict[str, Any], just_added_text: str) -> str:
     sym = comercio.simbolo_moneda or "C$"
     sub = _calc_subtotal(state["items"])
@@ -1175,8 +1190,8 @@ def process_incoming_whatsapp_message(
                         "cantidad": 1,
                     }
                     sesion.estado_conversacion = "PIDIENDO_CANTIDAD"
-                    reply_text = f"¡Buena elección! *{pl.nombre}* ({sym}{pl.precio_base:.2f}).\n\n¿Cuántas unidades te gustaría llevar?"
-                    quick_replies = ["1", "2", "3"]
+                    reply_text = _format_product_selected_qty_prompt(db, comercio, pl)
+                    quick_replies = ["1", "2", "3", "0"]
                 elif ENABLE_AI_NATURAL_ORDER and modo == "HIBRIDO_IA":
                     catalogo_resumido = [
                         {
@@ -1283,11 +1298,7 @@ def process_incoming_whatsapp_message(
                         "cantidad": 1,
                     }
                     sesion.estado_conversacion = "PIDIENDO_CANTIDAD"
-                    reply_text = (
-                        f"¡Buena elección! *{pl.nombre}* ({sym}{pl.precio_base:.2f}).\n\n"
-                        "¿Cuántas unidades te gustaría llevar?\n"
-                        "_Responde *0* si prefieres cancelar este producto y elegir otro._"
-                    )
+                    reply_text = _format_product_selected_qty_prompt(db, comercio, pl)
                     quick_replies = ["1", "2", "3", "0"]
                 else:
                     reply_text = _format_products_list(comercio, cat_obj, platos_cat, page=cur_page)
