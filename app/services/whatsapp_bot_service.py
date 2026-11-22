@@ -430,9 +430,8 @@ def _format_welcome_categories(
         lines.append(f"\nLlevas *{qty} art.* ({sym}{_calc_subtotal(state['items']):.2f}). Escribe *Listo* cuando quieras finalizar.")
     elif not is_returning:
         if copy["uses_tables"] and comercio.reservaciones_habilitadas and any(m.activa for m in sucursal.mesas):
-            lines.append("\n_Para apartar una mesa escribe *reservar*, o *asesor* para hablar con alguien._")
-        else:
-            lines.append("\n_Si prefieres hablar con una persona, escribe *asesor*._")
+            lines.append("\n*Opción 3 — Reservar una mesa:* escribe *reservar*")
+        lines.append("\n_Si prefieres hablar con una persona, escribe *asesor*._")
 
     return "\n".join(lines)
 
@@ -1596,6 +1595,8 @@ def process_incoming_whatsapp_message(
             comercio, sucursal, categorias, platos, state, sesion.nombre_cliente, is_returning=False, telefono_cliente=telefono
         )
         quick_replies = [str(i) for i in range(1, min(len(cats_con_items), 4) + 1)]
+        if _giro_copy(comercio.giro)["uses_tables"] and comercio.reservaciones_habilitadas and any(m.activa for m in sucursal.mesas):
+            quick_replies.append("Reservar mesa")
     elif norm in ("ver", "carrito", "mi pedido"):
         sesion.estado_conversacion = "PREGUNTANDO_MAS" if state["items"] else "EXPLORANDO_MENU"
         reply_text = _format_cart_view(comercio, state)
