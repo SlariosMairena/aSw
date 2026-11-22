@@ -27,8 +27,12 @@ def _clean_key(raw: str) -> str:
 def get_available_ai_providers() -> List[str]:
     """Devuelve la lista ordenada de proveedores IA que tienen API Key configurada."""
     key_map = {
-        "gemini": _clean_key(settings.GEMINI_API_KEY),
         "groq": _clean_key(settings.GROQ_API_KEY),
+        "cerebras": _clean_key(settings.CEREBRAS_API_KEY),
+        "gemini": _clean_key(settings.GEMINI_API_KEY),
+        "sambanova": _clean_key(settings.SAMBANOVA_API_KEY),
+        "mistral": _clean_key(settings.MISTRAL_API_KEY),
+        "github": _clean_key(settings.GITHUB_MODELS_TOKEN),
         "openrouter": _clean_key(settings.OPENROUTER_API_KEY),
         "openai": _clean_key(settings.OPENAI_API_KEY),
     }
@@ -158,7 +162,7 @@ def _call_gemini(
             },
         }
         try:
-            with httpx.Client(timeout=15.0) as client:
+            with httpx.Client(timeout=22.0) as client:
                 resp = client.post(url, json=payload)
                 if 200 <= resp.status_code < 300:
                     data = resp.json()
@@ -268,6 +272,41 @@ def interpret_natural_order_message(
     return None
 
 
+def _dispatch_provider_call(
+    prov: str, system_prompt: str, user_prompt: str, max_tokens: int
+) -> Optional[str]:
+    global _LAST_AI_ERROR
+    if prov == "gemini":
+        return _call_gemini(
+            settings.GEMINI_API_KEY,
+            settings.GEMINI_MODEL,
+            system_prompt,
+            user_prompt,
+            max_tokens=max_tokens,
+        )
+
+    openai_endpoints = {
+        "groq": ("https://api.groq.com/openai/v1/chat/completions", settings.GROQ_API_KEY, settings.GROQ_MODEL),
+        "cerebras": ("https://api.cerebras.ai/v1/chat/completions", settings.CEREBRAS_API_KEY, settings.CEREBRAS_MODEL),
+        "sambanova": ("https://api.sambanova.ai/v1/chat/completions", settings.SAMBANOVA_API_KEY, settings.SAMBANOVA_MODEL),
+        "mistral": ("https://api.mistral.ai/v1/chat/completions", settings.MISTRAL_API_KEY, settings.MISTRAL_MODEL),
+        "github": ("https://models.inference.ai.azure.com/chat/completions", settings.GITHUB_MODELS_TOKEN, settings.GITHUB_MODELS_MODEL),
+        "openrouter": ("https://openrouter.ai/api/v1/chat/completions", settings.OPENROUTER_API_KEY, settings.OPENROUTER_MODEL),
+        "openai": ("https://api.openai.com/v1/chat/completions", settings.OPENAI_API_KEY, settings.OPENAI_MODEL),
+    }
+    cfg = openai_endpoints.get(prov)
+    if not cfg:
+        return None
+    url, raw_key, model = cfg
+    clean_api = _clean_key(raw_key)
+    if not clean_api:
+        return None
+    out = _call_openai_compatible(url, clean_api, model, system_prompt, user_prompt, max_tokens=max_tokens)
+    if out:
+        _LAST_AI_ERROR = ""
+    return out
+
+
 def _run_ai_json_prompt(
     system_prompt: str, user_prompt: str, max_tokens: int = 350
 ) -> Optional[Dict[str, Any]]:
@@ -277,42 +316,7 @@ def _run_ai_json_prompt(
         return None
     for prov in providers:
         try:
-            raw_text = None
-            if prov == "gemini":
-                raw_text = _call_gemini(
-                    settings.GEMINI_API_KEY.strip(),
-                    settings.GEMINI_MODEL,
-                    system_prompt,
-                    user_prompt,
-                    max_tokens=max_tokens,
-                )
-            elif prov == "groq":
-                raw_text = _call_openai_compatible(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    settings.GROQ_API_KEY.strip(),
-                    settings.GROQ_MODEL,
-                    system_prompt,
-                    user_prompt,
-                    max_tokens=max_tokens,
-                )
-            elif prov == "openrouter":
-                raw_text = _call_openai_compatible(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    settings.OPENROUTER_API_KEY.strip(),
-                    settings.OPENROUTER_MODEL,
-                    system_prompt,
-                    user_prompt,
-                    max_tokens=max_tokens,
-                )
-            elif prov == "openai":
-                raw_text = _call_openai_compatible(
-                    "https://api.openai.com/v1/chat/completions",
-                    settings.OPENAI_API_KEY.strip(),
-                    settings.OPENAI_MODEL,
-                    system_prompt,
-                    user_prompt,
-                    max_tokens=max_tokens,
-                )
+            raw_text = _dispatch_provider_call(prov, system_prompt, user_prompt, max_tokens=max_tokens)
             parsed = _extract_json_block(raw_text or "")
             if parsed:
                 parsed["_provider"] = prov

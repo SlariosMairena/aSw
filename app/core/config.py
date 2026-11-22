@@ -45,7 +45,7 @@ class Settings:
         )
         self.JWT_ALGORITHM: str = "HS256"
         self.ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-            os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
+            os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480")
         )
         self.REFRESH_TOKEN_EXPIRE_DAYS: int = int(
             os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")
@@ -66,9 +66,10 @@ class Settings:
             "SUPERADMIN_NAME", "Administrador General SaaS"
         )
 
-        # 4. Enrutador Multi-IA (Varias IAs Gratis + Opción Empresarial de Pago)
+        # 4. Enrutador Multi-IA (Varias IAs Gratis en Cascada + Opción Empresarial de Pago)
         priority_raw = os.getenv(
-            "AI_PROVIDER_PRIORITY", "gemini,groq,openrouter,openai"
+            "AI_PROVIDER_PRIORITY",
+            "groq,cerebras,gemini,sambanova,mistral,github,openrouter,openai",
         )
         self.AI_PROVIDER_PRIORITY: List[str] = [
             p.strip().lower() for p in priority_raw.split(",") if p.strip()
@@ -78,6 +79,22 @@ class Settings:
         self.GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
         self.GROQ_MODEL: str = os.getenv(
             "GROQ_MODEL", "llama-3.3-70b-versatile"
+        )
+        self.CEREBRAS_API_KEY: str = os.getenv("CEREBRAS_API_KEY", "")
+        self.CEREBRAS_MODEL: str = os.getenv(
+            "CEREBRAS_MODEL", "llama-3.3-70b"
+        )
+        self.SAMBANOVA_API_KEY: str = os.getenv("SAMBANOVA_API_KEY", "")
+        self.SAMBANOVA_MODEL: str = os.getenv(
+            "SAMBANOVA_MODEL", "Meta-Llama-3.3-70B-Instruct"
+        )
+        self.MISTRAL_API_KEY: str = os.getenv("MISTRAL_API_KEY", "")
+        self.MISTRAL_MODEL: str = os.getenv(
+            "MISTRAL_MODEL", "mistral-small-latest"
+        )
+        self.GITHUB_MODELS_TOKEN: str = os.getenv("GITHUB_MODELS_TOKEN", "")
+        self.GITHUB_MODELS_MODEL: str = os.getenv(
+            "GITHUB_MODELS_MODEL", "gpt-4o-mini"
         )
         self.OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
         self.OPENROUTER_MODEL: str = os.getenv(
