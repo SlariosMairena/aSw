@@ -1460,12 +1460,15 @@ def _handle_solo_ia_turn(
             {"sesion_id": sesion.id},
         )
 
+    _added_items = acciones.get("agregar_items") if isinstance(acciones, dict) else None
+    _first_pid = (
+        _added_items[0].get("plato_id")
+        if isinstance(_added_items, list) and _added_items and isinstance(_added_items[0], dict)
+        else None
+    )
     return {
         "reply_text": reply_text,
-        "reply_image_url": _get_product_public_image_url(
-            db,
-            (items_in[0].get("plato_id") if isinstance(items_in, list) and items_in and isinstance(items_in[0], dict) else None),
-        ),
+        "reply_image_url": _get_product_public_image_url(db, _first_pid),
         "sesion_id": sesion.id,
         "modo_atencion": sesion.modo_atencion,
         "estado_conversacion": sesion.estado_conversacion,
