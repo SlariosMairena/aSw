@@ -107,7 +107,7 @@ body.theme-crema ::-webkit-scrollbar-thumb:hover { background: var(--c30-soft); 
 
 @media (min-width: 1024px) {
   .ui-sidebar {
-    width: 232px;
+    width: 244px;
     flex-shrink: 0;
     border-radius: 1rem;
     padding: 0.9rem;
@@ -130,11 +130,15 @@ body.theme-crema ::-webkit-scrollbar-thumb:hover { background: var(--c30-soft); 
   cursor: pointer;
   white-space: nowrap;
   text-align: left;
+  min-width: 0;
+  max-width: 100%;
 }
 
 @media (min-width: 1024px) {
   .ui-nav-btn {
     width: 100%;
+    white-space: normal;
+    line-height: 1.25;
   }
 }
 
@@ -445,5 +449,42 @@ body.theme-crema textarea:focus {
 
 .ui-bubble-in .ui-bubble-meta {
   color: var(--text-muted) !important;
+}
+
+/* ============================================================================
+   TABLAS SIN LÍNEAS (ALTERNANCIA DE TONOS CEBRA — 0 BORDES INTERNOS)
+   ============================================================================ */
+.ui-zebra-table,
+.ui-zebra-table thead,
+.ui-zebra-table tbody,
+.ui-zebra-table tr,
+.ui-zebra-table th,
+.ui-zebra-table td {
+  border: 0 !important;
+  border-top: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+.ui-zebra-table thead tr {
+  background-color: var(--c30-main) !important;
+}
+
+.ui-zebra-table thead th {
+  color: var(--c30-text-on) !important;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ui-zebra-table tbody tr:nth-child(odd) {
+  background-color: var(--c60-card) !important;
+}
+
+.ui-zebra-table tbody tr:nth-child(even) {
+  background-color: #EFE8DA !important;
+}
+
+.ui-zebra-table tbody tr:hover {
+  background-color: var(--c30-tint) !important;
 }
 

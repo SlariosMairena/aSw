@@ -15,7 +15,7 @@
                 <input type="text" id="clientesSearchInput" oninput="cargarClientesComercio()" placeholder="Buscar por nombre o telefono..."
                     class="bg-slate-950 border border-slate-700 rounded-xl pl-8 pr-3 py-2 text-xs text-white focus:border-cyan-500 outline-none w-60">
             </div>
-            <button type="button" onclick="toggleNuevoClienteForm()" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5">
+            <button type="button" onclick="toggleNuevoClienteForm()" class="px-3.5 py-2 rounded-xl bg-[#D6402B] hover:bg-[#B8321F] text-white keep-white text-xs font-bold flex items-center gap-1.5 shadow-sm">
                 <i class="fa-solid fa-user-plus"></i> Nuevo Cliente
             </button>
         </div>
@@ -45,19 +45,19 @@
         </div>
     </form>
 
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+    <div class="rounded-2xl overflow-hidden shadow-sm">
         <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse text-xs">
-                <thead class="bg-slate-950 text-slate-400 uppercase">
+            <table class="ui-zebra-table w-full text-left border-collapse text-xs">
+                <thead class="uppercase">
                     <tr>
-                        <th class="px-4 py-3">Cliente</th>
-                        <th class="px-4 py-3">WhatsApp</th>
-                        <th class="px-4 py-3">Ultima Direccion / Zona</th>
-                        <th class="px-4 py-3 text-center">Pedidos</th>
-                        <th class="px-4 py-3 text-right">Acciones</th>
+                        <th class="px-4 py-3.5">Cliente</th>
+                        <th class="px-4 py-3.5">WhatsApp</th>
+                        <th class="px-4 py-3.5">Ultima Direccion / Zona</th>
+                        <th class="px-4 py-3.5 text-center">Pedidos</th>
+                        <th class="px-4 py-3.5 text-right">Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="clientesTableBody" class="divide-y divide-slate-800"></tbody>
+                <tbody id="clientesTableBody"></tbody>
             </table>
         </div>
     </div>
