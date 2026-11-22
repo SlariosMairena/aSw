@@ -455,7 +455,7 @@ function escapeHtml(str) {
             if (bloqueMesas) bloqueMesas.classList.toggle('hidden', !profile.usesTables);
 
             // Módulo Inventario opcional (oculto por defecto salvo que el SuperAdmin lo active para este comercio)
-            const invEnabled = Boolean(comercioObj && comercioObj.inventario_habilitado);
+            const invEnabled = Boolean(comercio && comercio.inventario_habilitado);
             const tabBtnInv = document.getElementById('tabBtn_inventario');
             if (tabBtnInv) tabBtnInv.classList.toggle('hidden', !invEnabled);
             const tabContentInv = document.getElementById('tabContent_inventario');
