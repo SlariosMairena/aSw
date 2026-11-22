@@ -21,6 +21,7 @@ from app.models.saas_models import (
     ReservacionMesa,
     PagoTransaccion,
     AuditLog,
+    ProductoImagen,
 )
 
 __all__ = [
@@ -45,5 +46,6 @@ __all__ = [
     "ReservacionMesa",
     "PagoTransaccion",
     "AuditLog",
+    "ProductoImagen",
 ]
 

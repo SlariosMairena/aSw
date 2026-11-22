@@ -19,6 +19,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
     Index,
@@ -851,4 +852,27 @@ class ModuloComercio(Base):
     )
     inventario_habilitado = Column(Boolean, default=False, nullable=False)
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+# =====================================================================
+# 11. IMÁGENES LIGERAS DE PRODUCTOS (WebP COMPRIMIDO EN NAVEGADOR)
+# =====================================================================
+class ProductoImagen(Base):
+    """
+    Almacena miniaturas WebP comprimidas (~15-30 KB) separadas de productos_platos
+    para no alterar tablas existentes ni ralentizar listados del catálogo.
+    """
+
+    __tablename__ = "producto_imagenes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    plato_id = Column(
+        Integer, ForeignKey("productos_platos.id"), nullable=False, unique=True, index=True
+    )
+    mime_type = Column(String(40), default="image/webp", nullable=False)
+    imagen_bytes = Column(LargeBinary, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 

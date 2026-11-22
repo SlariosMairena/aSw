@@ -11,7 +11,7 @@ import random
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -28,6 +28,7 @@ from app.models.saas_models import (
     MensajeChatWhatsApp,
     PagoTransaccion,
     Pedido,
+    ProductoImagen,
     ProductoPlato,
     SesionChatWhatsApp,
     StockSucursal,
@@ -100,6 +101,23 @@ def ver_menu_publico_html(
     )
 
 
+@router.get("/api/v1/public/img/{plato_id}")
+def obtener_imagen_producto_publica(plato_id: int, db: Session = Depends(get_db)):
+    """Sirve la miniatura WebP comprimida del producto con caché agresiva de 7 días."""
+    img = (
+        db.query(ProductoImagen)
+        .filter(ProductoImagen.plato_id == plato_id)
+        .first()
+    )
+    if not img or not img.imagen_bytes:
+        raise HTTPException(status_code=404, detail="Imagen no encontrada.")
+    return Response(
+        content=img.imagen_bytes,
+        media_type=img.mime_type or "image/webp",
+        headers={"Cache-Control": "public, max-age=604800, immutable"},
+    )
+
+
 @router.get("/api/v1/public/menu/{codigo_whatsapp}")
 def obtener_menu_publico_json(
     codigo_whatsapp: str,
@@ -141,6 +159,16 @@ def obtener_menu_publico_json(
         .all()
     )
 
+    img_rows = (
+        db.query(ProductoImagen.plato_id, ProductoImagen.actualizado_en)
+        .filter(ProductoImagen.tenant_id == comercio.id)
+        .all()
+    )
+    img_map = {
+        pid: f"/api/v1/public/img/{pid}?v={int(ts.timestamp()) if ts else 1}"
+        for pid, ts in img_rows
+    }
+
     platos_data = []
     for p in platos:
         if p.id in agotados_ids:
@@ -163,6 +191,7 @@ def obtener_menu_publico_json(
                 "nombre": p.nombre,
                 "descripcion": p.descripcion or "",
                 "precio_base": float(p.precio_base),
+                "imagen_url": img_map.get(p.id),
                 "ingredientes_removibles": removibles,
                 "extras": extras,
             }

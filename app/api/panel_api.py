@@ -52,6 +52,7 @@ from app.models.saas_models import (
     ModuloComercio,
     Pedido,
     PlanSaaS,
+    ProductoImagen,
     ProductoPlato,
     ReservacionMesa,
     SesionChatWhatsApp,
@@ -1127,6 +1128,16 @@ def comercio_dashboard(
     for row in agotados_rows:
         agotados_por_plato.setdefault(row.plato_id, []).append(row.sucursal_id)
 
+    img_rows = (
+        db.query(ProductoImagen.plato_id, ProductoImagen.actualizado_en)
+        .filter(ProductoImagen.tenant_id == tenant_id)
+        .all()
+    )
+    img_map = {
+        pid: f"/api/v1/public/img/{pid}?v={int(ts.timestamp()) if ts else 1}"
+        for pid, ts in img_rows
+    }
+
     platos_data = []
     for pl in platos:
         platos_data.append(
@@ -1138,6 +1149,7 @@ def comercio_dashboard(
                 "precio_base": pl.precio_base,
                 "tiempo_preparacion_min": pl.tiempo_preparacion_min,
                 "disponible_global": pl.disponible_global,
+                "imagen_url": img_map.get(pl.id),
                 "agotado_sucursal_ids": agotados_por_plato.get(pl.id, []),
                 "ingredientes_removibles": [
                     {"id": ing.id, "nombre": ing.nombre, "disponible": ing.disponible_global}
@@ -2556,5 +2568,106 @@ def estadisticas_ventas_comercio(
         "top_productos": top_productos,
         "tendencia_diaria": tendencia_diaria,
     }
+
+
+class ProductoImagenUploadRequest(BaseModel):
+    imagen_base64: str
+
+
+@router.put("/comercio/{tenant_id}/platos/{plato_id}/imagen")
+def subir_imagen_producto(
+    tenant_id: int,
+    plato_id: int,
+    payload: ProductoImagenUploadRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Guarda o reemplaza la miniatura WebP/JPEG comprimida del producto (máx 180 KB)."""
+    import base64
+
+    verify_tenant_isolation(current_user, tenant_id)
+    if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN", "SUCURSAL_STAFF"):
+        raise HTTPException(status_code=403, detail="Sin permiso para editar imágenes.")
+
+    plato = (
+        db.query(ProductoPlato)
+        .filter(ProductoPlato.id == plato_id, ProductoPlato.tenant_id == tenant_id)
+        .first()
+    )
+    if not plato:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+
+    raw = (payload.imagen_base64 or "").strip()
+    mime = "image/webp"
+    if "," in raw and raw.startswith("data:"):
+        header, b64_part = raw.split(",", 1)
+        if "image/jpeg" in header or "image/jpg" in header:
+            mime = "image/jpeg"
+        elif "image/png" in header:
+            mime = "image/png"
+    else:
+        b64_part = raw
+
+    try:
+        img_bytes = base64.b64decode(b64_part, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Imagen Base64 inválida.")
+
+    if len(img_bytes) == 0 or len(img_bytes) > 180 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="La imagen comprimida supera el límite de 180 KB. Intenta con otra imagen.",
+        )
+
+    existing = (
+        db.query(ProductoImagen)
+        .filter(ProductoImagen.plato_id == plato.id)
+        .first()
+    )
+    now_dt = datetime.now(timezone.utc)
+    if existing:
+        existing.mime_type = mime
+        existing.imagen_bytes = img_bytes
+        existing.actualizado_en = now_dt
+    else:
+        db.add(
+            ProductoImagen(
+                tenant_id=tenant_id,
+                plato_id=plato.id,
+                mime_type=mime,
+                imagen_bytes=img_bytes,
+                actualizado_en=now_dt,
+            )
+        )
+    db.commit()
+    return {
+        "status": "ok",
+        "plato_id": plato.id,
+        "bytes": len(img_bytes),
+        "mime_type": mime,
+        "imagen_url": f"/api/v1/public/img/{plato.id}?v={int(now_dt.timestamp())}",
+    }
+
+
+@router.delete("/comercio/{tenant_id}/platos/{plato_id}/imagen")
+def eliminar_imagen_producto(
+    tenant_id: int,
+    plato_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Elimina la foto de un producto."""
+    verify_tenant_isolation(current_user, tenant_id)
+    deleted = (
+        db.query(ProductoImagen)
+        .filter(
+            ProductoImagen.tenant_id == tenant_id,
+            ProductoImagen.plato_id == plato_id,
+        )
+        .delete()
+    )
+    db.commit()
+    return {"status": "ok", "deleted": bool(deleted)}
+
 
 

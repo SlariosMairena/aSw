@@ -1434,9 +1434,13 @@ function escapeHtml(str) {
                                         ? 'bg-slate-950/70 border-rose-900/40 opacity-85'
                                         : 'bg-slate-900/90 hover:border-slate-700 border-slate-800 shadow-sm'
                                 }">
-                                    <!-- Fila superior: Nombre, Precio y Estado -->
+                                    <!-- Fila superior: Miniatura (si tiene), Nombre, Precio y Estado -->
                                     <div class="space-y-1.5">
-                                        <div class="flex items-start justify-between gap-2">
+                                        <div class="flex items-start justify-between gap-2.5">
+                                            ${pl.imagen_url ? `
+                                                <img src="${pl.imagen_url}" alt="${escapeHtml(pl.nombre)}" loading="lazy"
+                                                    class="w-11 h-11 rounded-lg object-cover border border-[#DFD5C3] shrink-0">
+                                            ` : ''}
                                             <div class="min-w-0 flex-1">
                                                 <div class="flex flex-wrap items-center gap-1.5">
                                                     <h5 class="font-bold text-sm text-white leading-snug">${escapeHtml(pl.nombre)}</h5>
@@ -1793,6 +1797,93 @@ function escapeHtml(str) {
             renderIngredientBuilderUI();
         }
 
+        let pendingPlatoImagenBase64 = null;
+        let pendingPlatoEliminarImagen = false;
+
+        function setPlatoImgPreviewUI(srcUrl, metaText = 'Se comprime automático a WebP (~20 KB)') {
+            const img = document.getElementById('platoImgPreview');
+            const ph = document.getElementById('platoImgPlaceholder');
+            const btnDel = document.getElementById('btnQuitarFotoPlato');
+            const meta = document.getElementById('platoImgMeta');
+            if (meta) meta.textContent = metaText;
+            if (srcUrl) {
+                if (img) { img.src = srcUrl; img.classList.remove('hidden'); }
+                if (ph) ph.classList.add('hidden');
+                if (btnDel) btnDel.classList.remove('hidden');
+            } else {
+                if (img) { img.src = ''; img.classList.add('hidden'); }
+                if (ph) ph.classList.remove('hidden');
+                if (btnDel) btnDel.classList.add('hidden');
+            }
+        }
+
+        function compressImageToWebP(file, maxSize = 480, quality = 0.72) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onerror = () => reject(new Error('Archivo de imagen no válido.'));
+                    img.onload = () => {
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxSize || h > maxSize) {
+                            if (w >= h) {
+                                h = Math.round((h * maxSize) / w);
+                                w = maxSize;
+                            } else {
+                                w = Math.round((w * maxSize) / h);
+                                h = maxSize;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        let dataUrl = canvas.toDataURL('image/webp', quality);
+                        if (!dataUrl.startsWith('data:image/webp')) {
+                            dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        }
+                        // Si aún pesara > 120 KB, recomprimir ligeramente
+                        if (dataUrl.length > 160000) {
+                            dataUrl = canvas.toDataURL('image/webp', 0.55);
+                            if (!dataUrl.startsWith('data:image/webp')) {
+                                dataUrl = canvas.toDataURL('image/jpeg', 0.55);
+                            }
+                        }
+                        const approxKb = Math.max(1, Math.round((dataUrl.length * 0.75) / 1024));
+                        resolve({ dataUrl, approxKb });
+                    };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handlePlatoImagenSeleccionada(input) {
+            const file = input && input.files && input.files[0];
+            if (!file) return;
+            try {
+                const { dataUrl, approxKb } = await compressImageToWebP(file, 480, 0.72);
+                pendingPlatoImagenBase64 = dataUrl;
+                pendingPlatoEliminarImagen = false;
+                setPlatoImgPreviewUI(dataUrl, `Lista: ~${approxKb} KB (WebP optimizado)`);
+            } catch (err) {
+                showToast(err.message || 'No se pudo procesar la imagen.', true);
+            } finally {
+                if (input) input.value = '';
+            }
+        }
+        window.handlePlatoImagenSeleccionada = handlePlatoImagenSeleccionada;
+
+        function quitarFotoPlatoModal() {
+            pendingPlatoImagenBase64 = null;
+            pendingPlatoEliminarImagen = true;
+            setPlatoImgPreviewUI(null, 'La foto se eliminará al guardar');
+        }
+        window.quitarFotoPlatoModal = quitarFotoPlatoModal;
+
         function cargarPlatoEnFormularioParaEditar(platoId) {
             const pl = (currentComercioData.platos || []).find(x => x.id === platoId);
             if (!pl) return;
@@ -1802,6 +1893,10 @@ function escapeHtml(str) {
             document.getElementById('platoNombre').value = pl.nombre;
             document.getElementById('platoPrecio').value = pl.precio_base;
             document.getElementById('platoDesc').value = pl.descripcion || '';
+
+            pendingPlatoImagenBase64 = null;
+            pendingPlatoEliminarImagen = false;
+            setPlatoImgPreviewUI(pl.imagen_url || null, pl.imagen_url ? 'Foto actual guardada' : 'Se comprime automático a WebP (~20 KB)');
 
             formIngredientesBaseList = (pl.ingredientes_removibles || []).map(i => i.nombre);
             formExtrasList = (pl.extras_y_variantes || []).map(e => ({
@@ -1828,6 +1923,9 @@ function escapeHtml(str) {
             document.getElementById('platoNombre').value = '';
             document.getElementById('platoPrecio').value = '';
             document.getElementById('platoDesc').value = '';
+            pendingPlatoImagenBase64 = null;
+            pendingPlatoEliminarImagen = false;
+            setPlatoImgPreviewUI(null);
             formIngredientesBaseList = profile.usesRemovableIngredients
                 ? ['Cebolla', 'Tomate', 'Lechuga', 'Mayonesa'].slice(0, 4)
                 : [];
@@ -1900,19 +1998,32 @@ function escapeHtml(str) {
             };
 
             try {
+                let savedPlatoId = editId ? Number(editId) : null;
                 if (editId) {
                     await apiFetch(`/api/v1/panel/comercio/platos/${editId}`, {
                         method: 'PUT',
                         body: bodyPayload
                     });
-                    showToast('¡Cambios del plato e ingredientes guardados correctamente!');
                 } else {
-                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos`, {
+                    const created = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos`, {
                         method: 'POST',
                         body: bodyPayload
                     });
-                    showToast('¡Nuevo plato e ingredientes guardados!');
+                    savedPlatoId = created?.plato_id || null;
                 }
+
+                if (savedPlatoId && pendingPlatoImagenBase64) {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos/${savedPlatoId}/imagen`, {
+                        method: 'PUT',
+                        body: { imagen_base64: pendingPlatoImagenBase64 }
+                    });
+                } else if (savedPlatoId && pendingPlatoEliminarImagen) {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/platos/${savedPlatoId}/imagen`, {
+                        method: 'DELETE'
+                    });
+                }
+
+                showToast(editId ? '¡Cambios del producto guardados correctamente!' : '¡Nuevo producto guardado correctamente!');
                 resetFormularioPlato();
                 closeModalPlatoForm();
                 await reloadComercioDashboard();
