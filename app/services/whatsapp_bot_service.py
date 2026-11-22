@@ -418,8 +418,8 @@ def _format_welcome_categories(
             qs_parts.append(f"nombre={quote(nombre_cliente.strip())}")
         qs = ("?" + "&".join(qs_parts)) if qs_parts else ""
         menu_link = f"{base_url}/m/{quote(sucursal.codigo_whatsapp or '')}{qs}"
-        lines.append(f"\n*Pide más rápido tocando nuestro menú interactivo:*\n{menu_link}")
-        lines.append("\nO si prefieres pedir por aquí, responde con el número:")
+        lines.append(f"\n*Opción 1 — Menú Web Interactivo* (ver menú, seleccionar y enviar tu pedido directo):\n{menu_link}")
+        lines.append("\n*Opción 2 — Pedir aquí por chat:* responde con el número de la categoría:")
 
     for idx, cat in enumerate(cats, start=1):
         lines.append(f"*{idx}.* {cat.nombre}")
