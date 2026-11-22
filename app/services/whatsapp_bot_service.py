@@ -35,8 +35,31 @@ from app.models.saas_models import (
     TenantComercio,
     ZonaEnvioSucursal,
 )
-from app.services.ai_router import interpret_natural_order_message
+from app.services.ai_router import (
+    detect_escalation_or_complaint_ai,
+    interpret_natural_order_message,
+    validate_and_normalize_address_ai,
+)
 from app.services.whatsapp_provider import clean_whatsapp_phone
+
+# Flag: habilitar pedidos completos en lenguaje libre con IA cuando cada cliente tenga número dedicado
+ENABLE_AI_NATURAL_ORDER = False
+
+# Palabras disparadoras para consultar a la IA solo ante posibles reclamos o casos especiales
+# (evita consumir cuota de Gemini en respuestas simples como "1", "2", "Hola", etc.)
+_COMPLAINT_TRIGGER_WORDS = [
+    "reclamo", "queja", "molesto", "enojado", "pesimo", "horrible",
+    "incompleto", "equivocado", "frio", "malo", "danado", "roto",
+    "cobraron", "cobro", "reembolso", "devolucion", "devolver",
+    "factura", "ruc", "cotizacion", "evento", "encargado", "gerente",
+    "problema", "no llego", "nunca llego", "tardo mucho",
+]
+
+
+def _looks_like_complaint_or_special_case(norm_text: str) -> bool:
+    if not norm_text or len(norm_text) < 10:
+        return False
+    return _fuzzy_contains_any(norm_text, _COMPLAINT_TRIGGER_WORDS, cutoff=0.82)
 
 # Tiempo máximo de inactividad (en minutos) antes de dar por terminada
 # una conversación abandonada (sin pedido en curso) para ahorrar memoria y BD.
@@ -1020,6 +1043,54 @@ def process_incoming_whatsapp_message(
                 "ai_used": None,
             }
 
+    # Detección IA de reclamos / casos especiales (antes de los comandos normales, solo si dispara pre-filtro)
+    if (
+        not _fuzzy_contains_any(norm, ["humano", "asesor", "agente", "persona"])
+        and _looks_like_complaint_or_special_case(norm)
+        and sesion.estado_conversacion != "PIDIENDO_DIRECCION"
+    ):
+        escalate = False
+        motivo_esc = "Caso especial / reclamo detectado"
+        empatica = (
+            f"Lamento mucho el inconveniente. Ya pasé tu mensaje directamente al equipo de *{comercio.nombre_comercial}* "
+            "para que una persona te atienda de inmediato por este chat."
+        )
+        if modo == "HIBRIDO_IA":
+            ai_esc = detect_escalation_or_complaint_ai(texto, comercio.nombre_comercial)
+            if ai_esc:
+                ai_used = ai_esc.get("_provider")
+                escalate = bool(ai_esc.get("requiere_humano"))
+                if ai_esc.get("motivo"):
+                    motivo_esc = str(ai_esc["motivo"])
+                if ai_esc.get("respuesta_empatica"):
+                    empatica = str(ai_esc["respuesta_empatica"])
+        else:
+            escalate = True
+
+        if escalate:
+            sesion.modo_atencion = "HUMANO_ACTIVO"
+            sesion.resumen_ia_chat = f"Atención humana requerida ({motivo_esc}): {texto[:160]}"
+            _save_session_state(sesion, state)
+            db.add(
+                MensajeChatWhatsApp(
+                    sesion_id=sesion.id,
+                    tenant_id=comercio.id,
+                    remitente="BOT",
+                    tipo_contenido="TEXTO",
+                    contenido=empatica,
+                )
+            )
+            db.commit()
+            return {
+                "reply_text": empatica,
+                "sesion_id": sesion.id,
+                "modo_atencion": sesion.modo_atencion,
+                "estado_conversacion": sesion.estado_conversacion,
+                "pedido_creado": None,
+                "quick_replies": [],
+                "ai_used": ai_used,
+            }
+
     # Comandos globales naturales (con tolerancia a typos)
     if _fuzzy_contains_any(norm, ["humano", "asesor", "agente", "persona"]):
         sesion.modo_atencion = "HUMANO_ACTIVO"
@@ -1089,7 +1160,7 @@ def process_incoming_whatsapp_message(
                     sesion.estado_conversacion = "PIDIENDO_CANTIDAD"
                     reply_text = f"¡Buena elección! *{pl.nombre}* ({sym}{pl.precio_base:.2f}).\n\n¿Cuántas unidades te gustaría llevar?"
                     quick_replies = ["1", "2", "3"]
-                elif modo == "HIBRIDO_IA":
+                elif ENABLE_AI_NATURAL_ORDER and modo == "HIBRIDO_IA":
                     catalogo_resumido = [
                         {
                             "plato_id": p.id,
@@ -1391,8 +1462,9 @@ def process_incoming_whatsapp_message(
                     reply_text = "Ahora escríbeme tu *dirección exacta* (casa, calle o referencia)."
                     quick_replies = []
 
-        # 8. PIDIENDO_DIRECCION
+        # 8. PIDIENDO_DIRECCION (con validación inteligente de Gemini para evitar direcciones vagas)
         elif est == "PIDIENDO_DIRECCION":
+            reused_prev = False
             direccion = texto
             if upper == "1" or norm in ("si", "misma", "la misma", "usar", "esa misma"):
                 cli_prev = (
@@ -1402,9 +1474,52 @@ def process_incoming_whatsapp_message(
                 )
                 if cli_prev and cli_prev.ultima_direccion:
                     direccion = cli_prev.ultima_direccion
-            state["direccion_entrega"] = direccion
-            sesion.estado_conversacion = "PIDIENDO_PAGO"
-            reply_text, quick_replies = _format_payment_options(comercio)
+                    reused_prev = True
+
+            dir_valida = True
+            pregunta_dir = ""
+            if not reused_prev:
+                # Filtro rápido local (0 tokens) para respuestas obviamente demasiado vagas
+                palabras_vagas = {"casa", "mi casa", "aqui", "aca", "centro", "parque", "donde siempre", "no se"}
+                if len(norm) < 6 or norm in palabras_vagas:
+                    dir_valida = False
+                    pregunta_dir = (
+                        "Para que el repartidor llegue sin problema, ¿me compartes un poco más de detalle? "
+                        "(Por ejemplo: barrio o colonia, número de casa y alguna referencia cercana)."
+                    )
+                elif modo == "HIBRIDO_IA":
+                    zonas_act = [z for z in sucursal.zonas_envio if z.activa]
+                    zonas_payload = [
+                        {"zona_id": z.id, "nombre": z.nombre_zona, "costo": float(z.costo_envio or 0.0)}
+                        for z in zonas_act
+                    ]
+                    ai_dir = validate_and_normalize_address_ai(texto, zonas_payload, sucursal.nombre_sucursal)
+                    if ai_dir:
+                        ai_used = ai_dir.get("_provider")
+                        dir_valida = bool(ai_dir.get("valida", True))
+                        if dir_valida:
+                            if ai_dir.get("direccion_limpia"):
+                                direccion = str(ai_dir["direccion_limpia"]).strip()
+                            # Si el cliente aún no tenía zona asignada y Gemini detectó una zona válida, aplicarla
+                            if not state.get("zona_envio_id") and ai_dir.get("zona_id"):
+                                z_match = next((z for z in zonas_act if z.id == int(ai_dir["zona_id"])), None)
+                                if z_match:
+                                    state["zona_envio_id"] = z_match.id
+                                    state["zona_nombre"] = z_match.nombre_zona
+                                    state["costo_envio"] = float(z_match.costo_envio)
+                        else:
+                            pregunta_dir = (
+                                str(ai_dir.get("pregunta_aclaracion") or "").strip()
+                                or "¿Me podrías dar una referencia más exacta (barrio, calle o color de casa) para el repartidor?"
+                            )
+
+            if not dir_valida:
+                reply_text = pregunta_dir
+                quick_replies = []
+            else:
+                state["direccion_entrega"] = direccion
+                sesion.estado_conversacion = "PIDIENDO_PAGO"
+                reply_text, quick_replies = _format_payment_options(comercio)
 
         # 9. PIDIENDO_PAGO -> Tolerante a "efektivo", "tranferencia"
         elif est == "PIDIENDO_PAGO":
