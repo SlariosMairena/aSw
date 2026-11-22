@@ -14,6 +14,9 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 _LAST_AI_ERROR: str = ""
+_LAST_HTTP_STATUS: int = 0
+_CACHED_PROVIDER_MODELS: Dict[str, List[str]] = {}
+_PREFERRED_OPENAI_TARGET: Dict[str, tuple] = {}
 
 
 def get_last_ai_error() -> str:
@@ -76,7 +79,8 @@ def _call_openai_compatible(
     max_tokens: int = 750,
     provider_label: str = "openai",
 ) -> Optional[str]:
-    global _LAST_AI_ERROR
+    global _LAST_AI_ERROR, _LAST_HTTP_STATUS
+    _LAST_HTTP_STATUS = 0
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -94,6 +98,7 @@ def _call_openai_compatible(
     try:
         with httpx.Client(timeout=18.0) as client:
             resp = client.post(url, headers=headers, json=payload)
+            _LAST_HTTP_STATUS = resp.status_code
             if 200 <= resp.status_code < 300:
                 data = resp.json()
                 return data["choices"][0]["message"]["content"]
@@ -101,6 +106,7 @@ def _call_openai_compatible(
             if resp.status_code == 400 and "response_format" in resp.text.lower():
                 payload.pop("response_format", None)
                 resp2 = client.post(url, headers=headers, json=payload)
+                _LAST_HTTP_STATUS = resp2.status_code
                 if 200 <= resp2.status_code < 300:
                     return resp2.json()["choices"][0]["message"]["content"]
                 resp = resp2
@@ -108,13 +114,61 @@ def _call_openai_compatible(
             try:
                 msg = (resp.json().get("error") or {}).get("message") or ""
             except Exception:
-                msg = resp.text[:90]
-            _LAST_AI_ERROR = f"{provider_label}({model}):{resp.status_code} {msg[:60]}"
+                msg = resp.text[:80]
+            _LAST_AI_ERROR = f"{provider_label}({model}):{resp.status_code} {msg[:45]}"
             logger.warning("IA %s falló: %s", provider_label, _LAST_AI_ERROR)
     except Exception as exc:
-        _LAST_AI_ERROR = f"{provider_label}:net {str(exc)[:60]}"
+        _LAST_HTTP_STATUS = 0
+        _LAST_AI_ERROR = f"{provider_label}:net {str(exc)[:45]}"
         logger.warning("IA %s error red: %s", provider_label, exc)
     return None
+
+
+def _discover_openai_models(
+    models_url: str, clean_api: str, cache_key: str
+) -> List[str]:
+    """Consulta /models en proveedores OpenAI-compatibles (ej. Groq) para descubrir modelos chat activos."""
+    if _CACHED_PROVIDER_MODELS.get(cache_key):
+        return _CACHED_PROVIDER_MODELS[cache_key]
+    try:
+        headers = {"Authorization": f"Bearer {clean_api}"}
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(models_url, headers=headers)
+            if 200 <= resp.status_code < 300:
+                items = resp.json().get("data") or []
+                excluded = (
+                    "whisper", "tts", "guard", "embed", "rerank", "moderation",
+                    "audio", "speech", "transcribe", "playai", "orpheus", "vision",
+                    "safeguard", "allam",
+                )
+                candidates: List[str] = []
+                for m in items:
+                    if m.get("active") is False:
+                        continue
+                    mid = str(m.get("id") or "").strip()
+                    low = mid.lower()
+                    if not mid or any(bad in low for bad in excluded):
+                        continue
+                    candidates.append(mid)
+
+                def _score(n: str) -> int:
+                    nl = n.lower()
+                    if "llama-3.3" in nl or "llama-4" in nl:
+                        return 0
+                    if "gpt-oss" in nl or "qwen" in nl or "kimi" in nl:
+                        return 1
+                    if "llama-3" in nl or "llama" in nl:
+                        return 2
+                    if "mistral" in nl or "gemma" in nl or "deepseek" in nl:
+                        return 3
+                    return 5
+
+                candidates.sort(key=_score)
+                _CACHED_PROVIDER_MODELS[cache_key] = candidates[:4]
+                return _CACHED_PROVIDER_MODELS[cache_key]
+    except Exception as exc:
+        logger.warning("No se pudo listar modelos en %s: %s", cache_key, exc)
+    return []
 
 
 _CACHED_GEMINI_MODELS: List[str] = []
@@ -254,39 +308,7 @@ def interpret_natural_order_message(
 
     for prov in providers:
         try:
-            raw_text = None
-            if prov == "gemini":
-                raw_text = _call_gemini(
-                    settings.GEMINI_API_KEY.strip(),
-                    settings.GEMINI_MODEL,
-                    system_prompt,
-                    user_prompt,
-                )
-            elif prov == "groq":
-                raw_text = _call_openai_compatible(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    settings.GROQ_API_KEY.strip(),
-                    settings.GROQ_MODEL,
-                    system_prompt,
-                    user_prompt,
-                )
-            elif prov == "openrouter":
-                raw_text = _call_openai_compatible(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    settings.OPENROUTER_API_KEY.strip(),
-                    settings.OPENROUTER_MODEL,
-                    system_prompt,
-                    user_prompt,
-                )
-            elif prov == "openai":
-                raw_text = _call_openai_compatible(
-                    "https://api.openai.com/v1/chat/completions",
-                    settings.OPENAI_API_KEY.strip(),
-                    settings.OPENAI_MODEL,
-                    system_prompt,
-                    user_prompt,
-                )
-
+            raw_text = _dispatch_provider_call(prov, system_prompt, user_prompt, max_tokens=450)
             parsed = _extract_json_block(raw_text or "")
             if parsed and "accion" in parsed:
                 parsed["_provider"] = prov
@@ -312,31 +334,101 @@ def _dispatch_provider_call(
         )
 
     openai_endpoints = {
-        "groq": ("https://api.groq.com/openai/v1/chat/completions", settings.GROQ_API_KEY, settings.GROQ_MODEL),
-        "cerebras": ("https://api.cerebras.ai/v1/chat/completions", settings.CEREBRAS_API_KEY, settings.CEREBRAS_MODEL),
-        "sambanova": ("https://api.sambanova.ai/v1/chat/completions", settings.SAMBANOVA_API_KEY, settings.SAMBANOVA_MODEL),
-        "mistral": ("https://api.mistral.ai/v1/chat/completions", settings.MISTRAL_API_KEY, settings.MISTRAL_MODEL),
-        "github": ("https://models.inference.ai.azure.com/chat/completions", settings.GITHUB_MODELS_TOKEN, settings.GITHUB_MODELS_MODEL),
-        "openrouter": ("https://openrouter.ai/api/v1/chat/completions", settings.OPENROUTER_API_KEY, settings.OPENROUTER_MODEL),
-        "openai": ("https://api.openai.com/v1/chat/completions", settings.OPENAI_API_KEY, settings.OPENAI_MODEL),
+        "groq": (
+            "https://api.groq.com/openai/v1/chat/completions",
+            "https://api.groq.com/openai/v1/models",
+            settings.GROQ_API_KEY,
+            settings.GROQ_MODEL,
+        ),
+        "cerebras": (
+            "https://api.cerebras.ai/v1/chat/completions",
+            "https://api.cerebras.ai/v1/models",
+            settings.CEREBRAS_API_KEY,
+            settings.CEREBRAS_MODEL,
+        ),
+        "sambanova": (
+            "https://api.sambanova.ai/v1/chat/completions",
+            "https://api.sambanova.ai/v1/models",
+            settings.SAMBANOVA_API_KEY,
+            settings.SAMBANOVA_MODEL,
+        ),
+        "mistral": (
+            "https://api.mistral.ai/v1/chat/completions",
+            "https://api.mistral.ai/v1/models",
+            settings.MISTRAL_API_KEY,
+            settings.MISTRAL_MODEL,
+        ),
+        "github": (
+            "https://models.github.ai/inference/chat/completions",
+            "",
+            settings.GITHUB_MODELS_TOKEN,
+            settings.GITHUB_MODELS_MODEL,
+        ),
+        "openrouter": (
+            "https://openrouter.ai/api/v1/chat/completions",
+            "",
+            settings.OPENROUTER_API_KEY,
+            settings.OPENROUTER_MODEL,
+        ),
+        "openai": (
+            "https://api.openai.com/v1/chat/completions",
+            "",
+            settings.OPENAI_API_KEY,
+            settings.OPENAI_MODEL,
+        ),
     }
     cfg = openai_endpoints.get(prov)
     if not cfg:
         return None
-    url, raw_key, model = cfg
+    url, models_url, raw_key, model = cfg
     clean_api = _clean_key(raw_key)
     if not clean_api:
         return None
-    models_to_try = [model]
-    if prov == "groq" and "llama-3.1-8b-instant" not in models_to_try:
-        models_to_try.append("llama-3.1-8b-instant")
-    for mdl in models_to_try:
+
+    targets: List[tuple] = []
+    if prov in _PREFERRED_OPENAI_TARGET:
+        targets.append(_PREFERRED_OPENAI_TARGET[prov])
+
+    if prov == "github":
+        gh_model = model if "/" in model else f"openai/{model}"
+        for cand in [
+            ("https://models.github.ai/inference/chat/completions", gh_model),
+            ("https://models.github.ai/inference/chat/completions", "openai/gpt-4.1-mini"),
+            ("https://models.inference.ai.azure.com/chat/completions", model.split("/")[-1]),
+        ]:
+            if cand not in targets:
+                targets.append(cand)
+    else:
+        if (url, model) not in targets:
+            targets.append((url, model))
+
+    discovered_checked = False
+    idx = 0
+    while idx < len(targets):
+        t_url, t_mdl = targets[idx]
+        idx += 1
         out = _call_openai_compatible(
-            url, clean_api, mdl, system_prompt, user_prompt, max_tokens=max_tokens, provider_label=prov
+            t_url,
+            clean_api,
+            t_mdl,
+            system_prompt,
+            user_prompt,
+            max_tokens=max_tokens,
+            provider_label=prov,
         )
         if out:
             _LAST_AI_ERROR = ""
+            _PREFERRED_OPENAI_TARGET[prov] = (t_url, t_mdl)
             return out
+        # Si es 401/403 (API key invalida o sin permisos), saltar al siguiente proveedor inmediatamente
+        if _LAST_HTTP_STATUS in (401, 403):
+            break
+        # Si es 404/400/429 y el proveedor soporta /models, descubrir modelos reales disponibles
+        if models_url and _LAST_HTTP_STATUS in (400, 404, 429) and not discovered_checked:
+            discovered_checked = True
+            for dm in _discover_openai_models(models_url, clean_api, prov):
+                if (url, dm) not in targets:
+                    targets.append((url, dm))
     return None
 
 
