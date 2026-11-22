@@ -85,10 +85,18 @@ def _call_gemini(
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model}:generateContent?key={api_key}"
     )
+    gen_cfg: Dict[str, Any] = {
+        "temperature": 0.2,
+        "maxOutputTokens": max_tokens,
+        "responseMimeType": "application/json",
+    }
+    # En gemini-2.5-flash desactivamos thinkingBudget para respuestas rápidas y JSON sin truncar
+    if "2.5" in (model or ""):
+        gen_cfg["thinkingConfig"] = {"thinkingBudget": 0}
     payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": max_tokens},
+        "generationConfig": gen_cfg,
     }
     with httpx.Client(timeout=14.0) as client:
         resp = client.post(url, json=payload)
@@ -99,6 +107,8 @@ def _call_gemini(
                 parts = candidates[0].get("content", {}).get("parts") or []
                 if parts:
                     return parts[0].get("text", "")
+        else:
+            logger.warning("Gemini HTTP %s: %s", resp.status_code, resp.text[:250])
     return None
 
 

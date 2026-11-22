@@ -160,7 +160,9 @@ async function enviarMensajeSimulador(texto) {
             appendWaSimBubble('BOT', 'Chat en modo HUMANO ACTIVO: el bot esta pausado para esta conversacion. Puedes responder desde el modal de chat del pedido o reiniciar el simulador.', 'Pausado');
             renderWaSimQuickReplies([]);
         } else if (res.reply_text) {
-            const meta = res.ai_used ? `IA: ${res.ai_used}` : (modoBot === 'MENU_GUIADO' ? 'Menu Guiado' : 'Hibrido');
+            const meta = res.ai_used
+                ? `IA: ${res.ai_used}`
+                : (modoBot === 'SOLO_IA' ? 'Fallback (Gemini no respondió)' : (modoBot === 'MENU_GUIADO' ? 'Menu Guiado' : 'Hibrido'));
             appendWaSimBubble('BOT', res.reply_text, meta);
             renderWaSimQuickReplies(res.quick_replies || []);
         }
