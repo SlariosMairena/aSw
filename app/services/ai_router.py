@@ -68,26 +68,52 @@ def _extract_json_block(text: str) -> Optional[Dict[str, Any]]:
 
 
 def _call_openai_compatible(
-    url: str, api_key: str, model: str, system_prompt: str, user_prompt: str, max_tokens: int = 350
+    url: str,
+    api_key: str,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    max_tokens: int = 750,
+    provider_label: str = "openai",
 ) -> Optional[str]:
+    global _LAST_AI_ERROR
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
-    payload = {
+    payload: Dict[str, Any] = {
         "model": model,
         "temperature": 0.2,
         "max_tokens": max_tokens,
+        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
     }
-    with httpx.Client(timeout=14.0) as client:
-        resp = client.post(url, headers=headers, json=payload)
-        if 200 <= resp.status_code < 300:
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+    try:
+        with httpx.Client(timeout=18.0) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            if 200 <= resp.status_code < 300:
+                data = resp.json()
+                return data["choices"][0]["message"]["content"]
+            # Si el proveedor rechaza response_format, reintentar sin response_format
+            if resp.status_code == 400 and "response_format" in resp.text.lower():
+                payload.pop("response_format", None)
+                resp2 = client.post(url, headers=headers, json=payload)
+                if 200 <= resp2.status_code < 300:
+                    return resp2.json()["choices"][0]["message"]["content"]
+                resp = resp2
+            msg = ""
+            try:
+                msg = (resp.json().get("error") or {}).get("message") or ""
+            except Exception:
+                msg = resp.text[:90]
+            _LAST_AI_ERROR = f"{provider_label}({model}):{resp.status_code} {msg[:60]}"
+            logger.warning("IA %s falló: %s", provider_label, _LAST_AI_ERROR)
+    except Exception as exc:
+        _LAST_AI_ERROR = f"{provider_label}:net {str(exc)[:60]}"
+        logger.warning("IA %s error red: %s", provider_label, exc)
     return None
 
 
@@ -301,29 +327,43 @@ def _dispatch_provider_call(
     clean_api = _clean_key(raw_key)
     if not clean_api:
         return None
-    out = _call_openai_compatible(url, clean_api, model, system_prompt, user_prompt, max_tokens=max_tokens)
-    if out:
-        _LAST_AI_ERROR = ""
-    return out
+    models_to_try = [model]
+    if prov == "groq" and "llama-3.1-8b-instant" not in models_to_try:
+        models_to_try.append("llama-3.1-8b-instant")
+    for mdl in models_to_try:
+        out = _call_openai_compatible(
+            url, clean_api, mdl, system_prompt, user_prompt, max_tokens=max_tokens, provider_label=prov
+        )
+        if out:
+            _LAST_AI_ERROR = ""
+            return out
+    return None
 
 
 def _run_ai_json_prompt(
     system_prompt: str, user_prompt: str, max_tokens: int = 350
 ) -> Optional[Dict[str, Any]]:
     """Ejecuta un prompt estructurado en cascada por los proveedores IA configurados."""
+    global _LAST_AI_ERROR
     providers = get_available_ai_providers()
     if not providers:
         return None
+    chain_errors: List[str] = []
     for prov in providers:
         try:
             raw_text = _dispatch_provider_call(prov, system_prompt, user_prompt, max_tokens=max_tokens)
             parsed = _extract_json_block(raw_text or "")
             if parsed:
+                _LAST_AI_ERROR = ""
                 parsed["_provider"] = prov
                 return parsed
+            chain_errors.append(_LAST_AI_ERROR or f"{prov}:json_invalido")
         except Exception as exc:
+            chain_errors.append(f"{prov}:{str(exc)[:50]}")
             logger.warning("Proveedor IA %s falló en prompt estructurado: %s", prov, exc)
             continue
+    if chain_errors:
+        _LAST_AI_ERROR = " | ".join(chain_errors[:3])
     return None
 
 
