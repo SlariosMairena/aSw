@@ -534,10 +534,11 @@ function escapeHtml(str) {
                 const btn = document.getElementById(`tabBtn_${t}`);
                 if (btn) {
                     const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
+                    const hideInvCls = (t === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) ? ' hidden' : '';
                     if (t === tabName) {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer' + adminOnlyCls;
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500 text-slate-950 transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 cursor-pointer' + adminOnlyCls + hideInvCls;
                     } else {
-                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer' + adminOnlyCls;
+                        btn.className = 'px-4 py-2 rounded-xl text-sm font-semibold bg-slate-800 text-slate-300 hover:bg-slate-700 transition flex items-center gap-1.5 cursor-pointer' + adminOnlyCls + hideInvCls;
                     }
                 }
             });
@@ -563,8 +564,8 @@ function escapeHtml(str) {
         }
         window.switchComercioTab = switchComercioTab;
 
-        let liveKanbanTimer = null;
-        let livePollInFlight = false;
+        let liveEventsSource = null;
+        let liveSyncInFlight = false;
         let knownOrderIds = new Set();
         let knownOrderStates = new Map();
         let lastOrdersSignature = '';
@@ -590,77 +591,76 @@ function escapeHtml(str) {
             lastOrdersSignature = _computeOrdersSignature(pedidos);
         }
 
-        async function pollLivePedidosTick() {
-            if (livePollInFlight || document.hidden || !activeTenantId || !authToken) return;
+        async function refreshPedidosFromEvent(evt = null) {
+            if (liveSyncInFlight || !activeTenantId || !authToken) return;
             const sec = document.getElementById('comercioSection');
             if (!sec || sec.classList.contains('hidden')) return;
 
-            livePollInFlight = true;
+            liveSyncInFlight = true;
             try {
                 const sucursalFilter = document.getElementById('filtroSucursalSelect')?.value || '';
                 const query = sucursalFilter ? `?sucursal_id=${sucursalFilter}` : '';
                 const data = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/dashboard${query}`);
                 const pedidos = data.pedidos || [];
-                const newSig = _computeOrdersSignature(pedidos);
+                const prevIds = new Set(knownOrderIds);
 
-                if (newSig !== lastOrdersSignature) {
-                    const prevIds = new Set(knownOrderIds);
-                    const prevStates = new Map(knownOrderStates);
+                currentComercioData = data;
+                const sym = data.comercio?.simbolo_moneda || 'C$';
+                _syncKnownOrdersSnapshot(pedidos);
+                renderKanbanPedidos(pedidos, sym);
 
-                    const nuevos = pedidos.filter(p => !prevIds.has(p.id));
-                    const movidos = pedidos.filter(p => {
-                        const prev = prevStates.get(p.id);
-                        return prev && prev.estado !== p.estado_pedido;
-                    });
-
-                    currentComercioData = data;
-                    const sym = data.comercio?.simbolo_moneda || 'C$';
-                    _syncKnownOrdersSnapshot(pedidos);
-                    renderKanbanPedidos(pedidos, sym);
-
-                    if (activeChatPedido) {
-                        const updatedChat = pedidos.find(x => x.id === activeChatPedido.id);
-                        if (updatedChat) {
-                            activeChatPedido = updatedChat;
-                            renderChatModalMessages(updatedChat);
-                        }
-                    }
-
-                    if (nuevos.length > 0) {
-                        playKitchenBell();
-                        const folios = nuevos.map(n => `#${n.folio}`).join(', ');
-                        showToast(`Nuevo pedido recibido: ${folios}`);
-                    } else if (movidos.length > 0) {
-                        const m = movidos[0];
-                        showToast(`Pedido #${m.folio} actualizado a ${m.estado_pedido}`);
+                if (activeChatPedido) {
+                    const updatedChat = pedidos.find(x => x.id === activeChatPedido.id);
+                    if (updatedChat) {
+                        activeChatPedido = updatedChat;
+                        renderChatModalMessages(updatedChat);
                     }
                 }
+
+                if (evt && evt.tipo === 'NUEVO_PEDIDO') {
+                    const esRealmenteNuevo = !evt.pedido_id || !prevIds.has(Number(evt.pedido_id));
+                    if (esRealmenteNuevo) {
+                        playKitchenBell();
+                        showToast(`Nuevo pedido recibido: #${evt.folio || ''}`);
+                    }
+                } else if (evt && evt.tipo === 'ESTADO_PEDIDO' && evt.folio) {
+                    showToast(`Pedido #${evt.folio} actualizado a ${evt.estado || ''}`);
+                }
             } catch (_) {
-                // Fallo puntual en polling silencioso: se reintenta en 3s sin interrumpir al usuario
+                // Reintento silencioso si hubo micro-corte
             } finally {
-                livePollInFlight = false;
+                liveSyncInFlight = false;
             }
         }
 
         function startLiveKanbanPolling() {
-            if (liveKanbanTimer) clearInterval(liveKanbanTimer);
-            liveKanbanTimer = setInterval(pollLivePedidosTick, 1000);
+            stopLiveKanbanPolling();
+            if (!activeTenantId || !authToken || typeof EventSource === 'undefined') return;
+            const url = `/api/v1/panel/comercio/${activeTenantId}/eventos?token=${encodeURIComponent(authToken)}`;
+            liveEventsSource = new EventSource(url);
+            liveEventsSource.onmessage = (msg) => {
+                try {
+                    const evt = JSON.parse(msg.data || '{}');
+                    if (evt.tipo === 'NUEVO_PEDIDO' || evt.tipo === 'ESTADO_PEDIDO' || evt.tipo === 'NUEVO_MENSAJE') {
+                        refreshPedidosFromEvent(evt);
+                    }
+                } catch (_) {}
+            };
         }
         window.startLiveKanbanPolling = startLiveKanbanPolling;
 
         function stopLiveKanbanPolling() {
-            if (liveKanbanTimer) {
-                clearInterval(liveKanbanTimer);
-                liveKanbanTimer = null;
+            if (liveEventsSource) {
+                try { liveEventsSource.close(); } catch (_) {}
+                liveEventsSource = null;
             }
-            livePollInFlight = false;
-            lastOrdersSignature = '';
+            liveSyncInFlight = false;
         }
         window.stopLiveKanbanPolling = stopLiveKanbanPolling;
 
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && liveKanbanTimer) {
-                pollLivePedidosTick();
+            if (!document.hidden && activeTenantId && authToken && !document.getElementById('comercioSection')?.classList.contains('hidden')) {
+                refreshPedidosFromEvent(null);
             }
         });
 

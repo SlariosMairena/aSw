@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.demo_seeds import normalize_giro_code
+from app.core.realtime import publish_tenant_event
 from app.models.saas_models import (
     CategoriaMenu,
     ClienteFrecuente,
@@ -1613,6 +1614,19 @@ def process_incoming_whatsapp_message(
         )
 
     db.commit()
+
+    if pedido_creado:
+        publish_tenant_event(
+            comercio.id,
+            "NUEVO_PEDIDO",
+            {"pedido_id": pedido_creado["id"], "folio": pedido_creado["folio"]},
+        )
+    else:
+        publish_tenant_event(
+            comercio.id,
+            "NUEVO_MENSAJE",
+            {"sesion_id": sesion.id},
+        )
 
     return {
         "reply_text": reply_text,

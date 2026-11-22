@@ -26,6 +26,7 @@ from app.core.deps import (
     verify_tenant_isolation,
 )
 from app.core.inventory_sync import deduct_inventory_for_delivered_order
+from app.core.realtime import publish_tenant_event
 from app.models.saas_models import (
     ClienteFrecuente,
     DetallePedido,
@@ -645,6 +646,11 @@ def crear_pedido_manual_pos(
         )
 
     db.commit()
+    publish_tenant_event(
+        tenant_id,
+        "NUEVO_PEDIDO",
+        {"pedido_id": pedido.id, "folio": pedido.folio},
+    )
 
     record_audit_log(
         db=db,

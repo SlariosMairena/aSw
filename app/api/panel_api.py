@@ -16,7 +16,8 @@ APIs Operativas del Panel Web SaaS (Fase 2):
 import json
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
@@ -25,6 +26,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.demo_seeds import normalize_giro_code, populate_tenant_demo_data
 from app.core.inventory_sync import deduct_inventory_for_delivered_order
+from app.core.realtime import publish_tenant_event, subscribe_tenant_events
 from app.services.whatsapp_provider import send_whatsapp_text
 from app.core.deps import (
     get_current_user,
@@ -34,6 +36,7 @@ from app.core.deps import (
 )
 from app.core.security import (
     build_whatsapp_branch_deep_link,
+    decode_jwt_token,
     generate_qr_base64_data_uri,
     hash_password,
 )
@@ -1325,6 +1328,12 @@ def actualizar_estado_pedido(
     if texto_aviso and pedido.telefono_cliente:
         send_whatsapp_text(pedido.telefono_cliente, texto_aviso)
 
+    publish_tenant_event(
+        pedido.tenant_id,
+        "ESTADO_PEDIDO",
+        {"pedido_id": pedido.id, "folio": pedido.folio, "estado": pedido.estado_pedido},
+    )
+
     record_audit_log(
         db=db,
         accion="CAMBIO_ESTADO_PEDIDO",
@@ -1349,6 +1358,46 @@ def actualizar_estado_pedido(
         "mensaje_enviado_whatsapp": texto_aviso,
         "stock_descontado": stock_descontado,
     }
+
+
+@router.get("/comercio/{tenant_id}/eventos")
+async def stream_eventos_comercio(
+    tenant_id: int,
+    request: Request,
+    token: Optional[str] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """
+    Stream SSE en tiempo real para actualizar el tablero Kanban y chat al instante
+    cuando ocurre un nuevo pedido, cambio de estado o mensaje de WhatsApp.
+    """
+    raw_tok = token or request.cookies.get("saas_access_token")
+    if not raw_tok:
+        auth_h = request.headers.get("authorization") or ""
+        if auth_h.lower().startswith("bearer "):
+            raw_tok = auth_h.split(" ", 1)[1].strip()
+    payload = decode_jwt_token(raw_tok) if raw_tok else None
+    if not payload or payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="No autenticado para eventos en tiempo real.")
+
+    user = (
+        db.query(Usuario)
+        .filter(Usuario.id == int(payload.get("sub")), Usuario.activo.is_(True))
+        .first()
+    )
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuario inválido.")
+    verify_tenant_isolation(user, tenant_id)
+
+    return StreamingResponse(
+        subscribe_tenant_events(tenant_id),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/comercio/chats/{sesion_id}/control")
@@ -1456,6 +1505,11 @@ def enviar_mensaje_humano_al_chat(
 
     # Envío saliente real al cliente por WhatsApp si el proveedor está configurado
     send_whatsapp_text(sesion.telefono_cliente, texto)
+    publish_tenant_event(
+        sesion.tenant_id,
+        "NUEVO_MENSAJE",
+        {"sesion_id": sesion.id},
+    )
 
     return {
         "status": "ok",

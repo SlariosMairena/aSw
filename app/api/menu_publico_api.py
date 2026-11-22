@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.demo_seeds import normalize_giro_code
+from app.core.realtime import publish_tenant_event
 from app.models.saas_models import (
     CategoriaMenu,
     ClienteFrecuente,
@@ -480,8 +481,13 @@ def crear_pedido_desde_menu_publico(
     )
     db.commit()
 
-    # Enviar confirmación real al WhatsApp del cliente
+    # Enviar confirmación real al WhatsApp del cliente y notificar en tiempo real al tablero
     send_whatsapp_text(tel_clean, msg_wa)
+    publish_tenant_event(
+        comercio.id,
+        "NUEVO_PEDIDO",
+        {"pedido_id": pedido.id, "folio": folio},
+    )
 
     return {
         "status": "ok",
@@ -491,3 +497,4 @@ def crear_pedido_desde_menu_publico(
         "simbolo_moneda": sym,
         "tiempo_estimado_min": suc.tiempo_estimado_entrega_min or 30,
     }
+
