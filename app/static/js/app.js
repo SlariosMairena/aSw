@@ -453,6 +453,13 @@ function escapeHtml(str) {
             if (btnNuevoLbl) btnNuevoLbl.textContent = `Nuevo ${profile.itemSingular}`;
             const bloqueMesas = document.getElementById('bloqueReservacionMesas');
             if (bloqueMesas) bloqueMesas.classList.toggle('hidden', !profile.usesTables);
+
+            // Módulo Inventario opcional (oculto por defecto salvo que el SuperAdmin lo active para este comercio)
+            const invEnabled = Boolean(comercioObj && comercioObj.inventario_habilitado);
+            const tabBtnInv = document.getElementById('tabBtn_inventario');
+            if (tabBtnInv) tabBtnInv.classList.toggle('hidden', !invEnabled);
+            const tabContentInv = document.getElementById('tabContent_inventario');
+            if (tabContentInv && !invEnabled) tabContentInv.classList.add('hidden');
         }
 
         async function renderAppByRole() {
@@ -507,6 +514,9 @@ function escapeHtml(str) {
         // =========================================================
         function switchComercioTab(tabName) {
             if (tabName === 'estadisticas' && !isComercioAdminOrSuper()) {
+                tabName = 'pedidos';
+            }
+            if (tabName === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) {
                 tabName = 'pedidos';
             }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
@@ -634,7 +644,7 @@ function escapeHtml(str) {
 
         function startLiveKanbanPolling() {
             if (liveKanbanTimer) clearInterval(liveKanbanTimer);
-            liveKanbanTimer = setInterval(pollLivePedidosTick, 3000);
+            liveKanbanTimer = setInterval(pollLivePedidosTick, 1000);
         }
         window.startLiveKanbanPolling = startLiveKanbanPolling;
 
@@ -1380,10 +1390,12 @@ function escapeHtml(str) {
                                             </button>
                                             ${esAdmin ? `
                                                 <div class="flex items-center gap-1.5">
-                                                    <button type="button" onclick="openModalRecetaProducto(${pl.id}, '${safeName}')"
-                                                        class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1">
-                                                        <i class="fa-solid fa-link"></i> <span>Stock / Receta</span>
-                                                    </button>
+                                                    ${currentComercioData?.comercio?.inventario_habilitado ? `
+                                                        <button type="button" onclick="openModalRecetaProducto(${pl.id}, '${safeName}')"
+                                                            class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1">
+                                                            <i class="fa-solid fa-link"></i> <span>Stock / Receta</span>
+                                                        </button>
+                                                    ` : ''}
                                                     <button type="button" onclick="eliminarPlato(${pl.id})"
                                                         class="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center gap-1">
                                                         <i class="fa-solid fa-trash"></i> <span>Borrar</span>

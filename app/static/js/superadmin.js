@@ -681,6 +681,8 @@
             document.getElementById('ecActivo').checked = Boolean(c.activo);
             document.getElementById('ecModoPagoApi').checked = Boolean(c.modo_pago_api_activo);
             document.getElementById('ecReservaciones').checked = Boolean(c.reservaciones_habilitadas);
+            const ecInv = document.getElementById('ecInventario');
+            if (ecInv) ecInv.checked = Boolean(c.inventario_habilitado);
             document.getElementById('modalEditarComercioAdmin')?.classList.remove('hidden');
         }
 
@@ -708,7 +710,8 @@
                         extender_dias: extenderDias > 0 ? extenderDias : null,
                         activo: document.getElementById('ecActivo').checked,
                         modo_pago_api_activo: document.getElementById('ecModoPagoApi').checked,
-                        reservaciones_habilitadas: document.getElementById('ecReservaciones').checked
+                        reservaciones_habilitadas: document.getElementById('ecReservaciones').checked,
+                        inventario_habilitado: Boolean(document.getElementById('ecInventario')?.checked)
                     }
                 });
                 closeModalEditarComercioAdmin();

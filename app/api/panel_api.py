@@ -46,6 +46,7 @@ from app.models.saas_models import (
     MovimientoInventario,
     MensajeChatWhatsApp,
     MesaZona,
+    ModuloComercio,
     Pedido,
     PlanSaaS,
     ProductoPlato,
@@ -149,6 +150,7 @@ class EditarComercioAdminRequest(BaseModel):
     extender_dias: Optional[int] = None
     modo_pago_api_activo: Optional[bool] = None
     reservaciones_habilitadas: Optional[bool] = None
+    inventario_habilitado: Optional[bool] = None
     activo: Optional[bool] = None
 
 
@@ -245,6 +247,12 @@ class ActualizarSucursalOperacionRequest(BaseModel):
 # =====================================================================
 # 1. ENDPOINTS PARA SUPER_ADMIN (DUEÑO DEL SAAS)
 # =====================================================================
+def _is_inventario_habilitado(db: Session, tenant_id: int) -> bool:
+    """Devuelve True solo si el SuperAdmin activó explícitamente el módulo de inventario para este comercio."""
+    mod = db.query(ModuloComercio).filter(ModuloComercio.tenant_id == tenant_id).first()
+    return bool(mod and mod.inventario_habilitado)
+
+
 @router.get("/superadmin/overview")
 def superadmin_overview(
     current_user: Usuario = Depends(require_super_admin),
@@ -320,6 +328,7 @@ def superadmin_overview(
                 "pedidos_mes_actual": c.pedidos_mes_actual,
                 "modo_pago_api_activo": c.modo_pago_api_activo,
                 "reservaciones_habilitadas": c.reservaciones_habilitadas,
+                "inventario_habilitado": _is_inventario_habilitado(db, c.id),
                 "usuarios_count": len(c.usuarios),
                 "facturas_pendientes": pend_count,
                 "plan": {
@@ -597,6 +606,17 @@ def editar_comercio_admin(
         comercio.modo_pago_api_activo = payload.modo_pago_api_activo
     if payload.reservaciones_habilitadas is not None:
         comercio.reservaciones_habilitadas = payload.reservaciones_habilitadas
+    if payload.inventario_habilitado is not None:
+        mod = db.query(ModuloComercio).filter(ModuloComercio.tenant_id == comercio.id).first()
+        if not mod:
+            mod = ModuloComercio(
+                tenant_id=comercio.id,
+                inventario_habilitado=bool(payload.inventario_habilitado),
+            )
+            db.add(mod)
+        else:
+            mod.inventario_habilitado = bool(payload.inventario_habilitado)
+            mod.actualizado_en = datetime.now(timezone.utc)
     if payload.activo is not None:
         comercio.activo = payload.activo
 
@@ -1204,6 +1224,7 @@ def comercio_dashboard(
             "datos_bancarios_texto": comercio.datos_bancarios_texto,
             "modo_pago_api_activo": comercio.modo_pago_api_activo,
             "reservaciones_habilitadas": comercio.reservaciones_habilitadas,
+            "inventario_habilitado": _is_inventario_habilitado(db, comercio.id),
             "plan_nombre": comercio.plan.nombre if comercio.plan else "Plan Pro",
             "pedidos_mes_actual": comercio.pedidos_mes_actual,
             "limite_pedidos_mes": comercio.plan.limite_pedidos_mes if comercio.plan else 800,

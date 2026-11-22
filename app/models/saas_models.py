@@ -833,3 +833,22 @@ class AuditLog(Base):
     detalles_json = Column(Text, default="{}", nullable=False)
     creado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False, index=True)
 
+
+# =====================================================================
+# 10. MÓDULOS OPCIONALES ACTIVABLES POR COMERCIO (SUPER_ADMIN)
+# =====================================================================
+class ModuloComercio(Base):
+    """
+    Controla módulos opcionales por tenant sin alterar tablas existentes.
+    Por defecto inventario_habilitado = False (solo visible si el SuperAdmin lo activa al cliente).
+    """
+
+    __tablename__ = "modulos_comercio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    inventario_habilitado = Column(Boolean, default=False, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+
