@@ -403,9 +403,12 @@ def run_full_ai_order_turn(
         "-> mostrar resumen claro y pedir CONFIRMACIÓN EXPLÍCITA del cliente.\n"
         "3. SOLO pon confirmar_pedido=true cuando el cliente ya vio el resumen y confirmó explícitamente ('sí', 'confirmo', 'dale') "
         "Y el carrito tiene productos, modalidad, dirección (si es DOMICILIO) y método de pago.\n"
-        "4. Si el cliente tiene un reclamo, queja, problema grave o pide hablar con una persona, pon transferir_humano=true.\n"
-        "5. Si el cliente escribe con errores de ortografía (ej: 'no quiero pepinillas', 'efektivo'), entiéndelo con naturalidad.\n"
-        "6. Responde EXCLUSIVAMENTE con un JSON válido (sin markdown ni texto fuera del JSON) con esta estructura exacta:\n"
+        "4. RESERVACIONES DE MESA: Si el cliente quiere reservar una mesa y en el CONTEXTO hay mesas_disponibles y reservaciones_habilitadas=true, "
+        "pide de forma natural: cantidad de personas, fecha y hora, y ofrece elegir mesa (indicando el anticipo si es > 0), muestra el resumen "
+        "y pide confirmación explícita antes de poner reservacion.confirmar_reservacion=true. Si reservaciones_habilitadas=false, indícale amablemente que un asesor le ayudará.\n"
+        "5. Si el cliente tiene un reclamo, queja, problema grave o pide hablar con una persona, pon transferir_humano=true.\n"
+        "6. Si el cliente escribe con errores de ortografía (ej: 'no quiero pepinillas', 'efektivo'), entiéndelo con naturalidad.\n"
+        "7. Responde EXCLUSIVAMENTE con un JSON válido (sin markdown ni texto fuera del JSON) con esta estructura exacta:\n"
         '{"respuesta":"texto corto para el cliente","acciones":{'
         '"agregar_items":[{"plato_id":0,"cantidad":1,"sin_ingredientes":[],"extras_ids":[],"notas":""}],'
         '"vaciar_carrito":false,'
@@ -415,6 +418,7 @@ def run_full_ai_order_turn(
         '"metodo_pago":null,'
         '"paga_con":null,'
         '"confirmar_pedido":false,'
+        '"reservacion":{"mesa_id":null,"cantidad_personas":null,"fecha_hora":null,"notas":null,"confirmar_reservacion":false},'
         '"transferir_humano":false}}'
     )
     user_prompt = (

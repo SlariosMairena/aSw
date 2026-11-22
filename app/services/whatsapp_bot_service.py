@@ -27,9 +27,11 @@ from app.models.saas_models import (
     DetallePedido,
     IngredienteOpcionPlato,
     MensajeChatWhatsApp,
+    MesaZona,
     PagoTransaccion,
     Pedido,
     ProductoPlato,
+    ReservacionMesa,
     SesionChatWhatsApp,
     StockSucursal,
     SucursalComercio,
@@ -305,6 +307,7 @@ def _empty_state() -> Dict[str, Any]:
         "metodo_pago": None,
         "paga_con": None,
         "pedido_activo_id": None,
+        "reserva_draft": None,  # {cantidad_personas, mesa_id, mesa_nombre, anticipo, fecha_hora, notas}
     }
 
 
@@ -426,7 +429,10 @@ def _format_welcome_categories(
         qty = sum(int(i["cantidad"]) for i in state["items"])
         lines.append(f"\nLlevas *{qty} art.* ({sym}{_calc_subtotal(state['items']):.2f}). Escribe *Listo* cuando quieras finalizar.")
     elif not is_returning:
-        lines.append("\n_Si prefieres hablar con una persona, escribe *asesor*._")
+        if copy["uses_tables"] and comercio.reservaciones_habilitadas and any(m.activa for m in sucursal.mesas):
+            lines.append("\n_Para apartar una mesa escribe *reservar*, o *asesor* para hablar con alguien._")
+        else:
+            lines.append("\n_Si prefieres hablar con una persona, escribe *asesor*._")
 
     return "\n".join(lines)
 
@@ -936,6 +942,71 @@ def _create_order_from_session(
     return pedido
 
 
+def _create_reservation_from_session(
+    db: Session,
+    sesion: SesionChatWhatsApp,
+    comercio: TenantComercio,
+    sucursal: SucursalComercio,
+    res_data: Dict[str, Any],
+) -> ReservacionMesa:
+    mesas_act = [m for m in sucursal.mesas if m.activa]
+    personas = max(1, min(30, int(res_data.get("cantidad_personas") or 2)))
+    mesa_obj = None
+    if res_data.get("mesa_id"):
+        mesa_obj = next((m for m in mesas_act if m.id == int(res_data["mesa_id"])), None)
+    if not mesa_obj and mesas_act:
+        aptas = sorted([m for m in mesas_act if m.capacidad_personas >= personas], key=lambda x: x.capacidad_personas)
+        mesa_obj = aptas[0] if aptas else sorted(mesas_act, key=lambda x: x.capacidad_personas, reverse=True)[0]
+
+    anticipo = float(
+        mesa_obj.monto_anticipo_reserva
+        if mesa_obj is not None
+        else (comercio.monto_anticipo_reserva_default or 0.0)
+    )
+    folio = f"RES-{_utcnow().strftime('%H%M')}-{random.randint(100, 999)}"
+    fecha_hora = str(res_data.get("fecha_hora") or "Por confirmar").strip()[:48]
+    tel_clean = clean_whatsapp_phone(sesion.telefono_cliente) or "00000000"
+    nom_cli = sesion.nombre_cliente or "Cliente WhatsApp"
+
+    reserva = ReservacionMesa(
+        folio_reserva=folio,
+        tenant_id=comercio.id,
+        sucursal_id=sucursal.id,
+        mesa_id=mesa_obj.id if mesa_obj else None,
+        sesion_chat_id=sesion.id,
+        nombre_cliente=nom_cli,
+        telefono_cliente=tel_clean,
+        fecha_hora_reserva=fecha_hora,
+        cantidad_personas=personas,
+        monto_pago_requerido=round(anticipo, 2),
+        estado_pago="PAGADO" if anticipo <= 0 else "PENDIENTE_PAGO_API",
+        estado_reserva="CONFIRMADA" if anticipo <= 0 else "ESPERANDO_PAGO",
+        notas=str(res_data.get("notas") or "").strip() or None,
+    )
+    db.add(reserva)
+    db.flush()
+    return reserva
+
+
+def _format_reserva_confirmation_summary(
+    comercio: TenantComercio, draft: Dict[str, Any]
+) -> str:
+    sym = comercio.simbolo_moneda or "C$"
+    anticipo = float(draft.get("anticipo") or 0.0)
+    lines = [
+        "*Revisa los datos de tu reservación:*\n",
+        f"- Mesa: *{draft.get('mesa_nombre') or 'Asignada por sucursal'}*",
+        f"- Personas: *{draft.get('cantidad_personas')}*",
+        f"- Fecha y hora: *{draft.get('fecha_hora')}*",
+    ]
+    if anticipo > 0:
+        lines.append(f"- Anticipo requerido: *{sym}{anticipo:.2f}*")
+        if comercio.datos_bancarios_texto:
+            lines.append(f"- Datos bancarios: {comercio.datos_bancarios_texto}")
+    lines.append("\n¿Confirmamos tu reservación?\n*1.* Sí, confirmar\n*2.* Cancelar")
+    return "\n".join(lines)
+
+
 def _handle_solo_ia_turn(
     db: Session,
     sesion: SesionChatWhatsApp,
@@ -1029,7 +1100,19 @@ def _handle_solo_ia_turn(
                 {"zona_id": z.id, "nombre": z.nombre_zona, "costo": float(z.costo_envio or 0.0)}
                 for z in zonas_act
             ],
+            "reservaciones_habilitadas": bool(comercio.reservaciones_habilitadas),
+            "mesas_disponibles": [
+                {
+                    "mesa_id": m.id,
+                    "nombre": m.nombre_mesa,
+                    "capacidad": m.capacidad_personas,
+                    "anticipo": float(m.monto_anticipo_reserva or 0.0),
+                }
+                for m in sucursal.mesas
+                if m.activa
+            ] if copy["uses_tables"] else [],
         },
+        "reserva_en_progreso": state.get("reserva_draft"),
         "cliente": {
             "nombre": sesion.nombre_cliente or "Cliente",
             "ultima_direccion": cli_prev.ultima_direccion if cli_prev else None,
@@ -1168,6 +1251,54 @@ def _handle_solo_ia_turn(
             pass
 
     pedido_creado = None
+    reserva_creada = None
+    res_in = acciones.get("reservacion")
+    if isinstance(res_in, dict) and any(
+        res_in.get(k) for k in ("mesa_id", "cantidad_personas", "fecha_hora", "notas", "confirmar_reservacion")
+    ):
+        draft = dict(state.get("reserva_draft") or {})
+        if res_in.get("cantidad_personas"):
+            try:
+                draft["cantidad_personas"] = max(1, min(30, int(res_in["cantidad_personas"])))
+            except Exception:
+                pass
+        if res_in.get("mesa_id") and str(res_in["mesa_id"]).isdigit():
+            m_obj = next((m for m in sucursal.mesas if m.activa and m.id == int(res_in["mesa_id"])), None)
+            if m_obj:
+                draft["mesa_id"] = m_obj.id
+                draft["mesa_nombre"] = m_obj.nombre_mesa
+                draft["anticipo"] = float(m_obj.monto_anticipo_reserva or 0.0)
+        if res_in.get("fecha_hora"):
+            draft["fecha_hora"] = str(res_in["fecha_hora"]).strip()
+        if res_in.get("notas"):
+            draft["notas"] = str(res_in["notas"]).strip()
+        state["reserva_draft"] = draft
+
+        if (
+            res_in.get("confirmar_reservacion")
+            and copy["uses_tables"]
+            and comercio.reservaciones_habilitadas
+            and draft.get("cantidad_personas")
+            and draft.get("fecha_hora")
+        ):
+            reserva = _create_reservation_from_session(db, sesion, comercio, sucursal, draft)
+            reserva_creada = {
+                "id": reserva.id,
+                "folio": reserva.folio_reserva,
+                "estado_reserva": reserva.estado_reserva,
+                "monto_anticipo": reserva.monto_pago_requerido,
+            }
+            state["reserva_draft"] = None
+            if reserva.folio_reserva not in reply_text:
+                ant_txt = f"\nAnticipo requerido: *{sym}{reserva.monto_pago_requerido:.2f}*" if reserva.monto_pago_requerido > 0 else ""
+                bank_txt = f"\nDatos bancarios: {comercio.datos_bancarios_texto}" if (reserva.monto_pago_requerido > 0 and comercio.datos_bancarios_texto) else ""
+                reply_text = (
+                    f"¡Reservación registrada! Folio: *#{reserva.folio_reserva}*\n"
+                    f"Personas: *{reserva.cantidad_personas}* · Fecha/hora: *{reserva.fecha_hora_reserva}*"
+                    f"{ant_txt}{bank_txt}\n"
+                    "Te esperamos pronto."
+                )
+
     if acciones.get("transferir_humano"):
         sesion.modo_atencion = "HUMANO_ACTIVO"
         sesion.resumen_ia_chat = f"Atención humana solicitada (IA): {texto[:160]}"
@@ -1218,6 +1349,12 @@ def _handle_solo_ia_turn(
             "NUEVO_PEDIDO",
             {"pedido_id": pedido_creado["id"], "folio": pedido_creado["folio"]},
         )
+    elif reserva_creada:
+        publish_tenant_event(
+            comercio.id,
+            "NUEVA_RESERVACION",
+            {"reserva_id": reserva_creada["id"], "folio": reserva_creada["folio"]},
+        )
     else:
         publish_tenant_event(
             comercio.id,
@@ -1231,6 +1368,7 @@ def _handle_solo_ia_turn(
         "modo_atencion": sesion.modo_atencion,
         "estado_conversacion": sesion.estado_conversacion,
         "pedido_creado": pedido_creado,
+        "reserva_creada": reserva_creada,
         "quick_replies": [],
         "ai_used": ai_used,
     }
@@ -1462,6 +1600,23 @@ def process_incoming_whatsapp_message(
         sesion.estado_conversacion = "PREGUNTANDO_MAS" if state["items"] else "EXPLORANDO_MENU"
         reply_text = _format_cart_view(comercio, state)
         quick_replies = ["1", "2", "3"] if state["items"] else ["Menú"]
+    elif _fuzzy_contains_any(norm, ["reservar", "reservacion", "apartar mesa"]) and sesion.estado_conversacion not in ("RESERVA_PERSONAS", "RESERVA_MESA", "RESERVA_FECHA", "RESERVA_CONFIRMAR"):
+        copy_g = _giro_copy(comercio.giro)
+        mesas_act = [m for m in sucursal.mesas if m.activa]
+        if not copy_g["uses_tables"] or not mesas_act:
+            reply_text = f"*{comercio.nombre_comercial}* no cuenta con reservación de mesas en esta sucursal. Escribe *menú* para ver nuestros productos."
+            quick_replies = ["Menú"]
+        elif not comercio.reservaciones_habilitadas:
+            reply_text = (
+                f"Las reservaciones automáticas en *{comercio.nombre_comercial}* se coordinan con un asesor. "
+                "Escribe *asesor* si deseas que te ayuden a apartar mesa."
+            )
+            quick_replies = ["Asesor", "Menú"]
+        else:
+            state["reserva_draft"] = {}
+            sesion.estado_conversacion = "RESERVA_PERSONAS"
+            reply_text = "¡Con gusto apartamos tu mesa!\n¿Para cuántas personas sería la reservación?\n_Responde *0* para cancelar._"
+            quick_replies = ["2", "4", "6", "0"]
     elif _fuzzy_contains_any(norm, ["listo", "finalizar", "pagar"]) and sesion.estado_conversacion in ("EXPLORANDO_MENU", "ELIGIENDO_PRODUCTO", "PREGUNTANDO_MAS"):
         if not state["items"]:
             reply_text = "Todavía no has elegido ningún producto. Dime qué sección te gustaría ver:\n\n" + _format_welcome_categories(
@@ -1978,6 +2133,106 @@ def process_incoming_whatsapp_message(
             else:
                 reply_text = _format_final_confirmation(comercio, state)
                 quick_replies = ["1", "2", "3"]
+
+        # -----------------------------------------------------------------
+        # FLUJO GUIADO DE RESERVACIÓN DE MESAS
+        # -----------------------------------------------------------------
+        elif est == "RESERVA_PERSONAS":
+            if texto.strip() == "0" or _fuzzy_contains_any(norm, ["cancelar", "volver"]):
+                state["reserva_draft"] = None
+                sesion.estado_conversacion = "EXPLORANDO_MENU"
+                reply_text = "Reservación cancelada. Escribe *menú* cuando gustes ordenar."
+                quick_replies = ["Menú"]
+            else:
+                p_num = _extract_number(texto)
+                if p_num and 1 <= int(p_num) <= 30:
+                    personas = int(p_num)
+                    mesas_act = [m for m in sucursal.mesas if m.activa]
+                    aptas = [m for m in mesas_act if m.capacidad_personas >= personas] or mesas_act
+                    draft = dict(state.get("reserva_draft") or {})
+                    draft["cantidad_personas"] = personas
+                    state["reserva_draft"] = draft
+                    sesion.estado_conversacion = "RESERVA_MESA"
+                    sym = comercio.simbolo_moneda or "C$"
+                    lines = [f"Perfecto, para *{personas} personas*. Elige la mesa que prefieras:\n"]
+                    for idx, m in enumerate(aptas[:6], start=1):
+                        ant = f" · Anticipo {sym}{m.monto_anticipo_reserva:.2f}" if m.monto_anticipo_reserva > 0 else ""
+                        lines.append(f"*{idx}.* {m.nombre_mesa} ({m.capacidad_personas} pers.{ant})")
+                    lines.append("\n*0.* Cancelar reservación")
+                    reply_text = "\n".join(lines)
+                    quick_replies = [str(i) for i in range(1, min(len(aptas), 4) + 1)] + ["0"]
+                else:
+                    reply_text = "Indícame el número de personas (ej: *2*, *4* o *6*) o *0* para cancelar."
+                    quick_replies = ["2", "4", "6", "0"]
+
+        elif est == "RESERVA_MESA":
+            if texto.strip() == "0" or _fuzzy_contains_any(norm, ["cancelar", "volver"]):
+                state["reserva_draft"] = None
+                sesion.estado_conversacion = "EXPLORANDO_MENU"
+                reply_text = "Reservación cancelada. Escribe *menú* cuando gustes."
+                quick_replies = ["Menú"]
+            else:
+                draft = dict(state.get("reserva_draft") or {})
+                personas = int(draft.get("cantidad_personas") or 2)
+                mesas_act = [m for m in sucursal.mesas if m.activa]
+                aptas = [m for m in mesas_act if m.capacidad_personas >= personas] or mesas_act
+                num = int(_extract_number(texto)) if texto.strip().isdigit() else None
+                m_idx = (num - 1) if (num and 1 <= num <= len(aptas)) else _fuzzy_match_options(texto, [m.nombre_mesa for m in aptas], cutoff=0.62)
+                if m_idx is not None and 0 <= m_idx < len(aptas):
+                    m = aptas[m_idx]
+                    draft["mesa_id"] = m.id
+                    draft["mesa_nombre"] = m.nombre_mesa
+                    draft["anticipo"] = float(m.monto_anticipo_reserva or 0.0)
+                    state["reserva_draft"] = draft
+                    sesion.estado_conversacion = "RESERVA_FECHA"
+                    reply_text = f"Excelente, *{m.nombre_mesa}*.\n¿Para qué fecha y hora deseas reservar? (Ej: *Hoy 7:30 PM* o *Mañana 2:00 PM*)."
+                    quick_replies = ["Hoy 7:00 PM", "Mañana 1:00 PM", "0"]
+                else:
+                    reply_text = "Por favor responde con el número de la mesa que prefieras o *0* para cancelar."
+                    quick_replies = ["1", "2", "0"]
+
+        elif est == "RESERVA_FECHA":
+            if texto.strip() == "0" or _fuzzy_contains_any(norm, ["cancelar"]):
+                state["reserva_draft"] = None
+                sesion.estado_conversacion = "EXPLORANDO_MENU"
+                reply_text = "Reservación cancelada. Escribe *menú* cuando gustes."
+                quick_replies = ["Menú"]
+            elif len(texto.strip()) < 3:
+                reply_text = "Indícame la fecha y hora por favor (ej: *Hoy 8:00 PM* o *Viernes 7:00 PM*)."
+                quick_replies = []
+            else:
+                draft = dict(state.get("reserva_draft") or {})
+                draft["fecha_hora"] = texto.strip()[:48]
+                state["reserva_draft"] = draft
+                sesion.estado_conversacion = "RESERVA_CONFIRMAR"
+                reply_text = _format_reserva_confirmation_summary(comercio, draft)
+                quick_replies = ["1", "2"]
+
+        elif est == "RESERVA_CONFIRMAR":
+            if upper == "1" or _fuzzy_contains_any(norm, ["si", "confirmar", "confirmo", "dale", "ok"]):
+                draft = dict(state.get("reserva_draft") or {})
+                reserva = _create_reservation_from_session(db, sesion, comercio, sucursal, draft)
+                sym = comercio.simbolo_moneda or "C$"
+                state["reserva_draft"] = None
+                sesion.estado_conversacion = "EXPLORANDO_MENU"
+                ant_txt = f"\nAnticipo: *{sym}{reserva.monto_pago_requerido:.2f}*" if reserva.monto_pago_requerido > 0 else ""
+                reply_text = (
+                    f"¡Reservación registrada! Folio: *#{reserva.folio_reserva}*\n"
+                    f"Mesa: *{draft.get('mesa_nombre') or 'Asignada'}* · *{reserva.cantidad_personas} personas*\n"
+                    f"Fecha/hora: *{reserva.fecha_hora_reserva}*{ant_txt}\n\n"
+                    "Te esperamos pronto."
+                )
+                publish_tenant_event(
+                    comercio.id,
+                    "NUEVA_RESERVACION",
+                    {"reserva_id": reserva.id, "folio": reserva.folio_reserva},
+                )
+                quick_replies = ["Menú"]
+            else:
+                state["reserva_draft"] = None
+                sesion.estado_conversacion = "EXPLORANDO_MENU"
+                reply_text = "Reservación cancelada sin problema. Escribe *menú* cuando gustes."
+                quick_replies = ["Menú"]
         else:
             sesion.estado_conversacion = "EXPLORANDO_MENU"
             state["categoria_id"] = None

@@ -623,6 +623,10 @@ function escapeHtml(str) {
                         playKitchenBell();
                         showToast(`Nuevo pedido recibido: #${evt.folio || ''}`);
                     }
+                } else if (evt && evt.tipo === 'NUEVA_RESERVACION') {
+                    playKitchenBell();
+                    renderSucursalesYMesas(data.sucursales, data.comercio, data.reservaciones_mesa || []);
+                    showToast(`Nueva reservación de mesa: #${evt.folio || ''}`);
                 } else if (evt && evt.tipo === 'ESTADO_PEDIDO' && evt.folio) {
                     showToast(`Pedido #${evt.folio} actualizado a ${evt.estado || ''}`);
                 }
@@ -641,7 +645,7 @@ function escapeHtml(str) {
             liveEventsSource.onmessage = (msg) => {
                 try {
                     const evt = JSON.parse(msg.data || '{}');
-                    if (evt.tipo === 'NUEVO_PEDIDO' || evt.tipo === 'ESTADO_PEDIDO' || evt.tipo === 'NUEVO_MENSAJE') {
+                    if (evt.tipo === 'NUEVO_PEDIDO' || evt.tipo === 'ESTADO_PEDIDO' || evt.tipo === 'NUEVO_MENSAJE' || evt.tipo === 'NUEVA_RESERVACION') {
                         refreshPedidosFromEvent(evt);
                     }
                 } catch (_) {}
