@@ -162,7 +162,7 @@ function escapeHtml(str) {
                     col2ActionBtn: 'En Atención',
                     chatHumanLabel: 'Recepción',
                     hintBanner: 'Perfil Clínica / Citas activo: catálogo de servicios, agenda por consultorio/doctor con anticipo y recordatorios WhatsApp.',
-                    tabMenuLabel: 'Servicios y Precios',
+                    tabMenuLabel: 'Servicios',
                     catalogTitle: 'Catálogo de Servicios y Tratamientos',
                     itemSingular: 'Servicio',
                     itemPlural: 'servicios',
@@ -173,7 +173,7 @@ function escapeHtml(str) {
                     descPlaceholder: 'Qué incluye el servicio, duración aproximada o indicaciones previas...',
                     extrasTitle: 'Duración y Opciones Adicionales',
                     extrasSubtitle: 'Agrega duraciones o complementos del servicio (ej. Radiografía, Limpieza Profunda):',
-                    tabSucLabel: 'Consultorios & Citas',
+                    tabSucLabel: 'Sedes y QR',
                     soundLabel: 'Probar Aviso',
                     enProcesoLabel: '2. En Atención',
                     invMetric1Label: 'Insumos Clínicos',
@@ -215,7 +215,7 @@ function escapeHtml(str) {
                     descPlaceholder: 'Notas de sabor, tipo de grano o porción...',
                     extrasTitle: 'Tamaños, Leches y Extras de Barra',
                     extrasSubtitle: 'Agrega variantes de tamaño (Grande/Mediano) o extras como shot espresso o leche vegetal:',
-                    tabSucLabel: 'Sucursales & Mesas',
+                    tabSucLabel: 'Sucursales y Mesas',
                     soundLabel: 'Probar Aviso de Barra',
                     enProcesoLabel: '2. En Barra',
                     invMetric1Label: 'Insumos de Barra',
@@ -245,7 +245,7 @@ function escapeHtml(str) {
                     col2ActionBtn: 'Alistando',
                     chatHumanLabel: 'Farmacia',
                     hintBanner: 'Perfil Farmacéutico activo: catálogo por presentaciones y dosis, despacho sin mesas ni ingredientes removibles.',
-                    tabMenuLabel: 'Catálogo de Medicamentos',
+                    tabMenuLabel: 'Medicamentos',
                     catalogTitle: 'Catálogo Farmacéutico',
                     itemSingular: 'Medicamento',
                     itemPlural: 'medicamentos',
@@ -256,7 +256,7 @@ function escapeHtml(str) {
                     descPlaceholder: 'Indicación terapéutica, dosis o requerimientos...',
                     extrasTitle: 'Presentaciones y Variantes (Caja / Blíster / Dosis)',
                     extrasSubtitle: 'Configura presentaciones disponibles del mismo producto con ajuste de precio:',
-                    tabSucLabel: 'Sucursales & Retiros',
+                    tabSucLabel: 'Sucursales',
                     soundLabel: 'Probar Aviso Despacho',
                     enProcesoLabel: '2. Alistando',
                     invMetric1Label: 'Medicamentos en Stock',
@@ -285,7 +285,7 @@ function escapeHtml(str) {
                     col2ActionBtn: 'Empacando',
                     chatHumanLabel: 'Tienda',
                     hintBanner: 'Perfil Retail / Tienda activo: artículos por tallas, variantes y empaque para envío (sin mesas ni cocina).',
-                    tabMenuLabel: 'Catálogo de Artículos',
+                    tabMenuLabel: 'Artículos',
                     catalogTitle: 'Catálogo de Tienda',
                     itemSingular: 'Artículo',
                     itemPlural: 'artículos',
@@ -296,7 +296,7 @@ function escapeHtml(str) {
                     descPlaceholder: 'Material, corte, medidas o detalles del artículo...',
                     extrasTitle: 'Tallas, Colores o Empaque Especial',
                     extrasSubtitle: 'Configura tallas o servicios adicionales (ej. empaque para regalo):',
-                    tabSucLabel: 'Sucursales & Tiendas',
+                    tabSucLabel: 'Sucursales',
                     soundLabel: 'Probar Aviso Pedido',
                     enProcesoLabel: '2. Empacando',
                     invMetric1Label: 'Artículos Registrados',
@@ -330,7 +330,7 @@ function escapeHtml(str) {
                     col2ActionBtn: 'Surtiendo',
                     chatHumanLabel: 'Minisúper',
                     hintBanner: 'Perfil Minisúper activo: abarrotes, lácteos, packs familiares y surtido rápido por sucursal (sin mesas).',
-                    tabMenuLabel: 'Catálogo de Abarrotes',
+                    tabMenuLabel: 'Productos',
                     catalogTitle: 'Catálogo del Minisúper',
                     itemSingular: 'Producto',
                     itemPlural: 'productos',
@@ -341,7 +341,7 @@ function escapeHtml(str) {
                     descPlaceholder: 'Marca, contenido neto o unidad de venta...',
                     extrasTitle: 'Presentaciones y Packs Familiares',
                     extrasSubtitle: 'Agrega formatos alternos como Six-Pack, Galón o Saco Familiar:',
-                    tabSucLabel: 'Sucursales & Zonas',
+                    tabSucLabel: 'Sucursales',
                     soundLabel: 'Probar Aviso Surtido',
                     enProcesoLabel: '2. Surtiendo',
                     invMetric1Label: 'Productos en Existencia',
@@ -369,7 +369,7 @@ function escapeHtml(str) {
                 col2ActionBtn: 'En Cocina',
                 chatHumanLabel: 'Restaurante',
                 hintBanner: 'Perfil Restaurante activo: cocina multi-sucursal, platos con ingredientes removibles, extras y reservación de mesas.',
-                tabMenuLabel: 'Menú, Precios y Extras',
+                tabMenuLabel: 'Menú y Precios',
                 catalogTitle: 'Catálogo del Menú',
                 itemSingular: 'Plato',
                 itemPlural: 'platos',
@@ -380,7 +380,7 @@ function escapeHtml(str) {
                 descPlaceholder: 'Detalles de cocción, guarnición o descripción breve...',
                 extrasTitle: 'Extras o Variantes con Costo',
                 extrasSubtitle: 'Toca los botones sugeridos para agregar extras o variantes típicos con su precio, o escribe uno personalizado abajo:',
-                tabSucLabel: 'Sucursales & Mesas',
+                tabSucLabel: 'Sucursales y Mesas',
                 soundLabel: 'Probar Sonido Cocina',
                 enProcesoLabel: '2. En Cocina',
                 invMetric1Label: 'Insumos Registrados',
@@ -404,7 +404,12 @@ function escapeHtml(str) {
 
         function applyComercioRoleVisibility() {
             const isAdmin = isComercioAdminOrSuper();
+            const esCitasGiro = getGiroProfile(currentComercioData?.comercio?.giro).code === 'SERVICIOS_CITAS';
             document.querySelectorAll('.comercio-admin-only').forEach(el => {
+                if (el.id === 'tabBtn_repartidores' && esCitasGiro) {
+                    el.classList.add('hidden');
+                    return;
+                }
                 el.classList.toggle('hidden', !isAdmin);
             });
             const menuCatCol = document.getElementById('menuCatalogoCol');
@@ -448,6 +453,16 @@ function escapeHtml(str) {
             const esCitasGiro = profile.code === 'SERVICIOS_CITAS';
             if (tabPedLbl) tabPedLbl.textContent = esCitasGiro ? 'Agenda de Citas' : 'Pedidos';
             if (tabPedIcon) tabPedIcon.className = `fa-solid ${esCitasGiro ? 'fa-calendar-days' : 'fa-clipboard-list'} w-4 text-center pointer-events-none`;
+            const tabCliLbl = document.getElementById('tabLabel_clientes');
+            if (tabCliLbl) tabCliLbl.textContent = esCitasGiro ? 'Pacientes / Clientes' : 'Clientes';
+            const tabInvLbl = document.getElementById('tabLabel_inventario');
+            if (tabInvLbl) tabInvLbl.textContent = esCitasGiro ? 'Insumos' : 'Inventario';
+            const sucSecHead = document.getElementById('sucursalesSectionHeading');
+            if (sucSecHead) sucSecHead.textContent = esCitasGiro
+                ? 'Sedes, Horarios y Códigos QR de WhatsApp'
+                : 'Sucursales, Zonas de Envío y Códigos QR de WhatsApp';
+            const cfgDelWrap = document.getElementById('cfgDeliverySectionWrap');
+            if (cfgDelWrap) cfgDelWrap.classList.toggle('hidden', esCitasGiro);
 
             // Opción 2: en SERVICIOS_CITAS la pantalla principal es directamente la Agenda/Calendario
             const kanbanWrap = document.getElementById('kanbanPedidosWrapper');
@@ -617,6 +632,11 @@ function escapeHtml(str) {
         function syncRepartidoresTabState() {
             const btn = document.getElementById('tabBtn_repartidores');
             if (!btn) return;
+            const esCitasGiro = getGiroProfile(currentComercioData?.comercio?.giro).code === 'SERVICIOS_CITAS';
+            if (esCitasGiro) {
+                btn.classList.add('hidden');
+                return;
+            }
             const dCfg = currentComercioData?.comercio?.delivery_config || {};
             const deliveryOff = dCfg.modo_delivery === 'DESACTIVADO';
             const isLocked = deliveryOff && currentUser?.rol !== 'SUPER_ADMIN';
@@ -634,7 +654,11 @@ function escapeHtml(str) {
         window.syncRepartidoresTabState = syncRepartidoresTabState;
 
         function switchComercioTab(tabName) {
+            const esCitasGiro = getGiroProfile(currentComercioData?.comercio?.giro).code === 'SERVICIOS_CITAS';
             if ((tabName === 'estadisticas' || tabName === 'configuracion' || tabName === 'repartidores') && !isComercioAdminOrSuper()) {
+                tabName = 'pedidos';
+            }
+            if (tabName === 'repartidores' && esCitasGiro) {
                 tabName = 'pedidos';
             }
             if (tabName === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) {
@@ -660,7 +684,8 @@ function escapeHtml(str) {
                 if (btn) {
                     const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
                     const hideInvCls = (t === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) ? ' hidden' : '';
-                    const isRepLocked = (t === 'repartidores' && currentComercioData?.comercio?.delivery_config?.modo_delivery === 'DESACTIVADO' && currentUser?.rol !== 'SUPER_ADMIN');
+                    const hideRepCitasCls = (t === 'repartidores' && esCitasGiro) ? ' hidden' : '';
+                    const isRepLocked = (t === 'repartidores' && !esCitasGiro && currentComercioData?.comercio?.delivery_config?.modo_delivery === 'DESACTIVADO' && currentUser?.rol !== 'SUPER_ADMIN');
                     const lockedRepCls = isRepLocked ? ' ui-nav-locked' : '';
                     if (t === 'repartidores') {
                         btn.title = isRepLocked ? 'Delivery desactivado — Actívalo en Configuración' : 'Ver entregas en camino y repartidor';
@@ -668,9 +693,9 @@ function escapeHtml(str) {
                         if (lbl) lbl.innerHTML = isRepLocked ? 'Repartidores <i class="fa-solid fa-lock text-[10px] ml-1 opacity-75"></i>' : 'Repartidores';
                     }
                     if (t === tabName) {
-                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls + lockedRepCls;
+                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls + hideRepCitasCls + lockedRepCls;
                     } else {
-                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls + lockedRepCls;
+                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls + hideRepCitasCls + lockedRepCls;
                     }
                 }
             });
