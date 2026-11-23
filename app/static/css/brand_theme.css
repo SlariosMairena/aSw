@@ -253,11 +253,26 @@ body.theme-crema .border-\[\#EDE5D7\] { border-color: #E5E7EB !important; }
 body.theme-crema .text-\[\#1A241E\] { color: #111827 !important; }
 body.theme-crema .text-\[\#39483F\] { color: #374151 !important; }
 body.theme-crema .text-\[\#5C6B62\] { color: #6B7280 !important; }
-body.theme-crema .bg-\[\#1B4332\] { background-color: #111827 !important; }
-body.theme-crema .hover\:bg-\[\#143326\]:hover { background-color: #1F2937 !important; }
-body.theme-crema .bg-\[\#D6402B\] { background-color: #111827 !important; }
-body.theme-crema .hover\:bg-\[\#B8321F\]:hover { background-color: #1F2937 !important; }
+body.theme-crema .bg-\[\#1B4332\]:not(button[onclick="logout()"]) { background-color: #111827 !important; }
+body.theme-crema .hover\:bg-\[\#143326\]:not(button[onclick="logout()"]):hover { background-color: #1F2937 !important; }
+body.theme-crema .bg-\[\#D6402B\]:not(button[onclick="logout()"]) { background-color: #111827 !important; }
+body.theme-crema .hover\:bg-\[\#B8321F\]:not(button[onclick="logout()"]):hover { background-color: #1F2937 !important; }
 body.theme-crema .text-\[\#1B4332\] { color: #111827 !important; }
+
+/* Botón Salir en Navbar (Modo Claro): rojo suave legible sobre fondo claro */
+body.theme-crema .ui-navbar button[onclick="logout()"] {
+  background-color: #FEF2F2 !important;
+  border: 1px solid #FCA5A5 !important;
+  color: #B91C1C !important;
+  box-shadow: none !important;
+}
+body.theme-crema .ui-navbar button[onclick="logout()"] * {
+  color: #B91C1C !important;
+}
+body.theme-crema .ui-navbar button[onclick="logout()"]:hover {
+  background-color: #FEE2E2 !important;
+  border-color: #F87171 !important;
+}
 
 /* ============================================================================
    ADAPTACIÓN SEMÁNTICA PARA VISTAS Y MODALES RENDERIZADOS POR JS
@@ -571,13 +586,13 @@ body.theme-dark {
   --c30-text-on: #F9FAFB;
   --c30-muted-on: #9CA3AF;
 
-  --c10-accent: #FFFFFF;
-  --c10-hover: #E5E7EB;
+  --c10-accent: #059669;
+  --c10-hover: #047857;
   --c10-tint: rgba(239, 68, 68, 0.16);
-  --c10-text-on: #0A0B0D;
+  --c10-text-on: #F3F4F6;
 
-  --text-main: #F3F4F6;
-  --text-secondary: #D1D5DB;
+  --text-main: #E5E7EB;
+  --text-secondary: #C4CBD4;
   --text-muted: #8B949E;
 
   --chat-bg: #0A0B0D;
@@ -604,8 +619,9 @@ body.theme-dark .ui-navbar h1 span {
   border-color: #262B33 !important;
 }
 body.theme-dark .ui-brand-logo {
-  background: #FFFFFF;
-  color: #0A0B0D;
+  background: #181B20;
+  color: #34D399;
+  border: 1px solid #2A2F37;
 }
 body.theme-dark .ui-navbar #btnThemeToggle,
 body.theme-dark .ui-navbar #btnOpen2FA,
@@ -674,31 +690,46 @@ body.theme-dark .hover\:bg-\[\#E2D6C1\]:hover { background-color: #242931 !impor
 body.theme-dark .border-\[\#DFD5C3\],
 body.theme-dark .border-\[\#EDE5D7\] { border-color: var(--c60-border) !important; }
 
-body.theme-dark .bg-\[\#1B4332\],
-body.theme-dark .bg-\[\#D6402B\],
+body.theme-dark .bg-\[\#1B4332\]:not(button[onclick="logout()"]),
+body.theme-dark .bg-\[\#D6402B\]:not(button[onclick="logout()"]),
 body.theme-dark button.bg-emerald-600,
 body.theme-dark a.bg-emerald-600,
 body.theme-dark button.bg-emerald-500,
 body.theme-dark .ui-btn-primary,
 body.theme-dark .ui-btn-secondary {
-  background-color: #F9FAFB !important;
-  color: #0A0B0D !important;
-  border-color: #F9FAFB !important;
+  background-color: #059669 !important;
+  color: #F3F4F6 !important;
+  border-color: #10B981 !important;
   box-shadow: none !important;
 }
-body.theme-dark .bg-\[\#1B4332\] *,
-body.theme-dark .bg-\[\#D6402B\] *,
+body.theme-dark .bg-\[\#1B4332\]:not(button[onclick="logout()"]) *,
+body.theme-dark .bg-\[\#D6402B\]:not(button[onclick="logout()"]) *,
 body.theme-dark button.bg-emerald-600 *,
 body.theme-dark button.bg-emerald-500 *,
 body.theme-dark .ui-btn-primary *,
 body.theme-dark .ui-btn-secondary * {
-  color: #0A0B0D !important;
+  color: #F3F4F6 !important;
 }
-body.theme-dark .hover\:bg-\[\#143326\]:hover,
-body.theme-dark .hover\:bg-\[\#B8321F\]:hover,
+body.theme-dark .hover\:bg-\[\#143326\]:not(button[onclick="logout()"]):hover,
+body.theme-dark .hover\:bg-\[\#B8321F\]:not(button[onclick="logout()"]):hover,
 body.theme-dark button.bg-emerald-600:hover,
 body.theme-dark button.bg-emerald-500:hover {
-  background-color: #E5E7EB !important;
+  background-color: #047857 !important;
+}
+
+/* Botón Salir en Navbar (Modo Oscuro): contraste limpio sin fondo blanco */
+body.theme-dark .ui-navbar button[onclick="logout()"] {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  border: 1px solid rgba(248, 113, 113, 0.42) !important;
+  color: #FCA5A5 !important;
+  box-shadow: none !important;
+}
+body.theme-dark .ui-navbar button[onclick="logout()"] * {
+  color: #FCA5A5 !important;
+}
+body.theme-dark .ui-navbar button[onclick="logout()"]:hover {
+  background-color: rgba(239, 68, 68, 0.28) !important;
+  border-color: rgba(248, 113, 113, 0.65) !important;
 }
 
 body.theme-dark .text-\[\#1A241E\] { color: var(--text-main) !important; }
