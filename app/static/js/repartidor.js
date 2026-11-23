@@ -315,6 +315,15 @@ async function cargarRepartidoresComercio() {
         const noAuthEl = document.getElementById('repComercioNoAutorizadoNotice');
         const reached = reps.length >= maxRep && currentUser?.rol !== 'SUPER_ADMIN';
 
+        const cupoLbl = document.getElementById('repComercioCupoLabel');
+        if (cupoLbl) {
+            cupoLbl.innerHTML = `Cupo autorizado por la plataforma: <strong>${reps.length} de ${maxRep}</strong> ${maxRep === 1 ? 'repartidor propio' : 'repartidores propios'}.`;
+        }
+        const limTxt = document.getElementById('repComercioLimiteText');
+        if (limTxt) {
+            limTxt.innerHTML = `Ya alcanzaste tu cupo autorizado (<strong>${reps.length} de ${maxRep}</strong>). Si deseas ampliar tu cupo o eliminar/cambiar un repartidor, <strong>contacta al administrador de la plataforma</strong>.`;
+        }
+
         if (!canPropio) {
             if (formEl) formEl.classList.add('hidden');
             if (limEl) limEl.classList.add('hidden');
@@ -345,18 +354,26 @@ async function cargarFlotaSuperAdmin() {
         const permBox = document.getElementById('saRepPermisosComerciosList');
         if (permBox) {
             permBox.innerHTML = permisos.map(c => `
-                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2.5">
-                    <div class="min-w-0">
+                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+                    <div class="min-w-0 flex-1">
                         <div class="font-bold text-white truncate">${escapeHtml(c.nombre_comercial)}</div>
-                        <div class="text-[11px] text-slate-400">Repartidores propios: <strong>${c.repartidores_propios_count}/${c.max_repartidores_propios}</strong></div>
+                        <div class="text-[11px] text-slate-400">Registrados: <strong>${c.repartidores_propios_count} / ${c.max_repartidores_propios}</strong></div>
                     </div>
-                    <button type="button" onclick="togglePermisoPropioComercio(${c.tenant_id}, ${!c.permite_repartidor_propio})"
-                        class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 ${c.permite_repartidor_propio
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                            : 'bg-slate-800 text-slate-300 border border-slate-700 hover:text-white'}">
-                        <i class="fa-solid ${c.permite_repartidor_propio ? 'fa-toggle-on' : 'fa-toggle-off'} mr-1"></i>
-                        <span>${c.permite_repartidor_propio ? 'Autorizado (1)' : 'No autorizado'}</span>
-                    </button>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <label class="flex items-center gap-1 text-[11px] text-slate-400" title="Cantidad máxima de repartidores propios">
+                            <span>Máx:</span>
+                            <input id="saMaxRep_${c.tenant_id}" type="number" min="1" max="20" value="${c.max_repartidores_propios || 1}"
+                                onchange="guardarPermisoPropioComercio(${c.tenant_id}, ${c.permite_repartidor_propio ? 'true' : 'false'})"
+                                class="w-14 px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-center font-bold text-xs text-white outline-none">
+                        </label>
+                        <button type="button" onclick="guardarPermisoPropioComercio(${c.tenant_id}, ${!c.permite_repartidor_propio})"
+                            class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 ${c.permite_repartidor_propio
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                : 'bg-slate-800 text-slate-300 border border-slate-700 hover:text-white'}">
+                            <i class="fa-solid ${c.permite_repartidor_propio ? 'fa-toggle-on' : 'fa-toggle-off'} mr-1"></i>
+                            <span>${c.permite_repartidor_propio ? 'Autorizado' : 'Inhabilitado'}</span>
+                        </button>
+                    </div>
                 </div>
             `).join('') || `<div class="text-slate-400 py-3">Sin comercios registrados.</div>`;
         }
@@ -370,19 +387,22 @@ async function cargarFlotaSuperAdmin() {
 }
 window.cargarFlotaSuperAdmin = cargarFlotaSuperAdmin;
 
-async function togglePermisoPropioComercio(tenantId, habilitar) {
+async function guardarPermisoPropioComercio(tenantId, habilitar) {
+    const inp = document.getElementById(`saMaxRep_${tenantId}`);
+    const maxVal = Math.max(1, Math.min(20, Number(inp?.value || 1)));
     try {
         await apiFetch(`/api/v1/delivery/comercio/${tenantId}/permiso-propio`, {
             method: 'PATCH',
-            body: { permite_repartidor_propio: !!habilitar, max_repartidores_propios: 1 }
+            body: { permite_repartidor_propio: !!habilitar, max_repartidores_propios: maxVal }
         });
-        showToast(habilitar ? 'Permiso de Repartidor Propio (máx. 1) habilitado.' : 'Permiso revocado (comercio regresado a Flota SaaS).');
+        showToast(habilitar ? `Autorizado con cupo máximo de ${maxVal} repartidor(es).` : 'Permiso revocado (comercio regresado a Flota SaaS).');
         await cargarFlotaSuperAdmin();
     } catch (err) {
         showToast(err.message, true);
     }
 }
-window.togglePermisoPropioComercio = togglePermisoPropioComercio;
+window.guardarPermisoPropioComercio = guardarPermisoPropioComercio;
+window.togglePermisoPropioComercio = guardarPermisoPropioComercio;
 
 async function eliminarRepartidorAdmin(uid, nombre) {
     if (!window.confirm(`¿Eliminar definitivamente al repartidor "${nombre}" del sistema?`)) return;

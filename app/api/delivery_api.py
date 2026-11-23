@@ -235,7 +235,7 @@ def actualizar_permiso_repartidor_propio(
 
     perm = get_or_create_permiso_delivery(db, tenant_id)
     perm.permite_repartidor_propio = bool(payload.permite_repartidor_propio)
-    perm.max_repartidores_propios = max(1, min(1, int(payload.max_repartidores_propios or 1)))
+    perm.max_repartidores_propios = max(1, min(20, int(payload.max_repartidores_propios or 1)))
 
     # Si se revoca el permiso y el comercio estaba en PROPIO, regresarlo a FLOTA_SAAS
     if not perm.permite_repartidor_propio:
