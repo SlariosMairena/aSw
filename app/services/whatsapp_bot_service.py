@@ -422,8 +422,16 @@ def _format_welcome_categories(
             qs_parts.append(f"nombre={quote(nombre_cliente.strip())}")
         qs = ("?" + "&".join(qs_parts)) if qs_parts else ""
         menu_link = f"{base_url}/m/{quote(sucursal.codigo_whatsapp or '')}{qs}"
-        lines.append(f"\n*Opción 1 — Menú Web Interactivo* (ver menú, seleccionar y enviar tu pedido directo):\n{menu_link}")
-        lines.append("\n*Opción 2 — Pedir aquí por chat:* responde con el número de la categoría:")
+        g_code = normalize_giro_code(comercio.giro)
+        if g_code == "SERVICIOS_CITAS":
+            lines.append(f"\n*Opción 1 — Catálogo de Servicios Web* (ver tratamientos y precios):\n{menu_link}")
+            lines.append("\n*Opción 2 — Consultar servicios aquí por chat:* responde con el número de la especialidad:")
+        elif g_code in ("TIENDA", "FARMACIA", "SUPERMERCADO"):
+            lines.append(f"\n*Opción 1 — Catálogo Web Interactivo* (ver productos con fotos y pedir directo):\n{menu_link}")
+            lines.append("\n*Opción 2 — Comprar aquí por chat:* responde con el número de la categoría:")
+        else:
+            lines.append(f"\n*Opción 1 — Menú Web Interactivo* (ver menú, seleccionar y enviar tu pedido directo):\n{menu_link}")
+            lines.append("\n*Opción 2 — Pedir aquí por chat:* responde con el número de la categoría:")
 
     for idx, cat in enumerate(cats, start=1):
         lines.append(f"*{idx}.* {cat.nombre}")
@@ -434,7 +442,11 @@ def _format_welcome_categories(
         lines.append(f"\nLlevas *{qty} art.* ({sym}{_calc_subtotal(state['items']):.2f}). Escribe *Listo* cuando quieras finalizar.")
     elif not is_returning:
         if copy["uses_tables"] and comercio.reservaciones_habilitadas and any(m.activa for m in sucursal.mesas):
-            lines.append("\n*Opción 3 — Reservar una mesa:* escribe *reservar*")
+            g_code = normalize_giro_code(comercio.giro)
+            if g_code == "SERVICIOS_CITAS":
+                lines.append("\n*Opción 3 — Agendar una cita:* escribe *cita* o *reservar*")
+            else:
+                lines.append("\n*Opción 3 — Reservar una mesa:* escribe *reservar*")
         lines.append("\n_Si prefieres hablar con una persona, escribe *asesor*._")
 
     return "\n".join(lines)
