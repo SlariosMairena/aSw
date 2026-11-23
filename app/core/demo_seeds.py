@@ -39,6 +39,8 @@ from app.models.saas_models import (
 
 def normalize_giro_code(giro_raw: Optional[str]) -> str:
     g = str(giro_raw or "RESTAURANTE").upper().strip()
+    if any(k in g for k in ("SERVICIO", "CITA", "CLINIC", "DENTIS", "ODONT", "BARBER", "SPA", "SALON")):
+        return "SERVICIOS_CITAS"
     if "CAFETER" in g:
         return "CAFETERIA"
     if "FARMAC" in g:

@@ -367,6 +367,8 @@ def _get_available_catalog(
 
 def _giro_copy(giro_raw: Optional[str]) -> Dict[str, Any]:
     g = normalize_giro_code(giro_raw)
+    if g == "SERVICIOS_CITAS":
+        return {"catalog": "nuestro catálogo de servicios", "uses_tables": True, "prep_word": "atención en consultorio"}
     if g == "FARMACIA":
         return {"catalog": "nuestras secciones", "uses_tables": False, "prep_word": "despacho"}
     if g == "TIENDA":
@@ -958,6 +960,25 @@ def _create_order_from_session(
     return pedido
 
 
+def _has_reservation_conflict(
+    db: Session, sucursal_id: int, mesa_id: Optional[int], fecha_hora: str
+) -> bool:
+    """Detecta si ya existe una cita/reserva activa en el mismo consultorio/mesa y horario."""
+    fh = (fecha_hora or "").strip().lower()
+    if not mesa_id or not fh or fh == "por confirmar":
+        return False
+    activas = (
+        db.query(ReservacionMesa.fecha_hora_reserva)
+        .filter(
+            ReservacionMesa.sucursal_id == sucursal_id,
+            ReservacionMesa.mesa_id == mesa_id,
+            ReservacionMesa.estado_reserva.notin_(("CANCELADA", "COMPLETADA")),
+        )
+        .all()
+    )
+    return any((row[0] or "").strip().lower() == fh for row in activas)
+
+
 def _create_reservation_from_session(
     db: Session,
     sesion: SesionChatWhatsApp,
@@ -966,21 +987,28 @@ def _create_reservation_from_session(
     res_data: Dict[str, Any],
 ) -> ReservacionMesa:
     mesas_act = [m for m in sucursal.mesas if m.activa]
-    personas = max(1, min(30, int(res_data.get("cantidad_personas") or 2)))
+    personas = max(1, min(30, int(res_data.get("cantidad_personas") or 1)))
+    fecha_hora = str(res_data.get("fecha_hora") or "Por confirmar").strip()[:48]
     mesa_obj = None
     if res_data.get("mesa_id"):
         mesa_obj = next((m for m in mesas_act if m.id == int(res_data["mesa_id"])), None)
     if not mesa_obj and mesas_act:
         aptas = sorted([m for m in mesas_act if m.capacidad_personas >= personas], key=lambda x: x.capacidad_personas)
-        mesa_obj = aptas[0] if aptas else sorted(mesas_act, key=lambda x: x.capacidad_personas, reverse=True)[0]
+        candidatas = aptas if aptas else sorted(mesas_act, key=lambda x: x.capacidad_personas, reverse=True)
+        # Preferir un consultorio/mesa libre en ese horario
+        libre = next((m for m in candidatas if not _has_reservation_conflict(db, sucursal.id, m.id, fecha_hora)), None)
+        mesa_obj = libre or candidatas[0]
+
+    if mesa_obj and _has_reservation_conflict(db, sucursal.id, mesa_obj.id, fecha_hora):
+        raise ValueError(f"HORARIO_OCUPADO:{mesa_obj.nombre_mesa}:{fecha_hora}")
 
     anticipo = float(
         mesa_obj.monto_anticipo_reserva
         if (mesa_obj is not None and float(mesa_obj.monto_anticipo_reserva or 0.0) > 0)
         else (comercio.monto_anticipo_reserva_default or 0.0)
     )
-    folio = f"RES-{_utcnow().strftime('%H%M')}-{random.randint(100, 999)}"
-    fecha_hora = str(res_data.get("fecha_hora") or "Por confirmar").strip()[:48]
+    is_cita = normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS"
+    folio = f"{'CIT' if is_cita else 'RES'}-{_utcnow().strftime('%H%M')}-{random.randint(100, 999)}"
     tel_clean = clean_whatsapp_phone(sesion.telefono_cliente) or "00000000"
     nom_cli = str(res_data.get("nombre_cliente") or "").strip()[:80] or sesion.nombre_cliente or "Cliente WhatsApp"
 

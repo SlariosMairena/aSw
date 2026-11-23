@@ -152,6 +152,48 @@ function escapeHtml(str) {
 
         function getGiroProfile(giroRaw) {
             const g = String(giroRaw || 'RESTAURANTE').toUpperCase().trim();
+            if (g.includes('SERVICIO') || g.includes('CITA') || g.includes('CLINIC') || g.includes('DENTIS') || g.includes('BARBER') || g.includes('SPA')) {
+                return {
+                    code: 'SERVICIOS_CITAS',
+                    label: 'Clínica / Dentista / Citas',
+                    icon: 'fa-calendar-check',
+                    col2Icon: 'fa-stethoscope',
+                    col2Label: '2. EN CONSULTA / ATENCIÓN',
+                    col2ActionBtn: 'En Atención',
+                    chatHumanLabel: 'Recepción',
+                    hintBanner: 'Perfil Clínica / Citas activo: catálogo de servicios, agenda por consultorio/doctor con anticipo y recordatorios WhatsApp.',
+                    tabMenuLabel: 'Servicios y Precios',
+                    catalogTitle: 'Catálogo de Servicios y Tratamientos',
+                    itemSingular: 'Servicio',
+                    itemPlural: 'servicios',
+                    menuFormSubtitle: 'Configura tratamiento o servicio, precio, duración y opciones adicionales',
+                    categoryDefault: 'Consultas',
+                    categoryPlaceholder: 'Ej. Consultas, Limpieza Dental, Ortodoncia',
+                    itemPlaceholder: 'Ej. Limpieza Dental Ultrasónica, Consulta de Valoración',
+                    descPlaceholder: 'Qué incluye el servicio, duración aproximada o indicaciones previas...',
+                    extrasTitle: 'Duración y Opciones Adicionales',
+                    extrasSubtitle: 'Agrega duraciones o complementos del servicio (ej. Radiografía, Limpieza Profunda):',
+                    tabSucLabel: 'Consultorios & Citas',
+                    soundLabel: 'Probar Aviso',
+                    enProcesoLabel: '2. En Atención',
+                    invMetric1Label: 'Insumos Clínicos',
+                    invNewBtnLabel: 'Nuevo Insumo',
+                    invThItemLabel: 'Insumo / Material Clínico',
+                    invSearchPlaceholder: 'Buscar guantes, resina, anestesia...',
+                    invModalNewTitle: 'Nuevo Insumo Clínico',
+                    invNameLabel: 'Nombre del Insumo',
+                    invNamePlaceholder: 'Ej. Resina Fotocurada A2, Guantes Nitrilo',
+                    usesRemovableIngredients: false,
+                    usesTables: true,
+                    defaultCategories: [],
+                    defaultExtras: [
+                        { nombre: 'Duración 30 min', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Duración 60 min', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Radiografía Digital', tipo: 'EXTRA', precio: 250.00 },
+                        { nombre: 'Limpieza Profunda', tipo: 'EXTRA', precio: 350.00 }
+                    ]
+                };
+            }
             if (g.includes('CAFETER') || g === 'CAFETERIA') {
                 return {
                     code: 'CAFETERIA',
@@ -429,6 +471,7 @@ function escapeHtml(str) {
             if (lblExtrasSubtitle) lblExtrasSubtitle.textContent = profile.extrasSubtitle;
 
             const extrasTabMap = {
+                SERVICIOS_CITAS: { tab: '2. Duración y Opciones', ph: 'Ej. Duración 45 min, Radiografía Digital', pph: '+ 0', heading: 'Duraciones y opciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio del Servicio' },
                 TIENDA: { tab: '2. Tallas, Colores y Variantes', ph: 'Ej. Talla M, Color Azul, Caja Regalo', pph: '+ 0', heading: 'Tallas, colores y opciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio de Venta' },
                 FARMACIA: { tab: '2. Presentaciones / Dosis', ph: 'Ej. Caja x20, Frasco 120ml', pph: '+ 0', heading: 'Presentaciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio de Venta' },
                 SUPERMERCADO: { tab: '2. Presentaciones / Empaques', ph: 'Ej. Pack x6, Bolsa 1kg', pph: '+ 0', heading: 'Presentaciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio de Venta' },
@@ -1304,6 +1347,7 @@ function escapeHtml(str) {
         function getSuggestedCategoriesForGiro(giroRaw) {
             const code = getGiroProfile(giroRaw).code;
             const map = {
+                SERVICIOS_CITAS: ['Consultas', 'Limpieza Dental', 'Blanqueamiento', 'Ortodoncia', 'Estética', 'Urgencias'],
                 RESTAURANTE: ['Pizzas', 'Hamburguesas', 'Combos', 'Entradas', 'Bebidas', 'Postres'],
                 CAFETERIA: ['Cafés Calientes', 'Cafés Fríos', 'Frappés', 'Repostería', 'Desayunos', 'Bebidas'],
                 FARMACIA: ['Analgésicos', 'Vitaminas', 'Cuidado Personal', 'Primeros Auxilios', 'Bebé'],

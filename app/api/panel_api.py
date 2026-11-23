@@ -1337,6 +1337,33 @@ def comercio_dashboard(
     }
 
 
+@router.post("/comercio/reservaciones/{reserva_id}/recordatorio")
+def enviar_recordatorio_cita_whatsapp(
+    reserva_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Envía un recordatorio inmediato por WhatsApp al paciente/cliente sobre su cita o reservación."""
+    res = db.query(ReservacionMesa).filter(ReservacionMesa.id == reserva_id).first()
+    if not res:
+        raise HTTPException(status_code=404, detail="Cita o reservación no encontrada.")
+    verify_tenant_isolation(current_user, res.tenant_id)
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == res.tenant_id).first()
+    mesa_nom = res.mesa.nombre_mesa if res.mesa else "Consultorio / Espacio asignado"
+    es_cita = normalize_giro_code(comercio.giro if comercio else "") == "SERVICIOS_CITAS"
+    titulo = "Recordatorio de Cita" if es_cita else "Recordatorio de Reservación"
+    msg = (
+        f"📅 *{titulo} — {comercio.nombre_comercial if comercio else 'Tu Comercio'}*\n"
+        f"Hola {res.nombre_cliente}, te recordamos tu {'cita' if es_cita else 'reservación'} *{res.folio_reserva}*:\n"
+        f"• Horario: *{res.fecha_hora_reserva}*\n"
+        f"• Lugar: *{mesa_nom}*\n"
+        f"¡Te esperamos!"
+    )
+    if res.telefono_cliente:
+        send_whatsapp_text(res.telefono_cliente, msg)
+    return {"status": "ok", "folio": res.folio_reserva, "enviado_a": res.telefono_cliente}
+
+
 @router.patch("/comercio/pedidos/{pedido_id}/estado")
 def actualizar_estado_pedido(
     pedido_id: int,
