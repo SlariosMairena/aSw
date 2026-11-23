@@ -1,18 +1,23 @@
 <!-- MODAL MODULAR: CREAR / EDITAR PRODUCTO DEL MENÚ -->
-<div id="modalPlatoForm" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
-    <div id="menuFormCol" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-6">
+<div id="modalPlatoForm"
+    class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div id="menuFormCol"
+        class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-6 max-h-[92vh] overflow-y-auto">
         <!-- Encabezado del Modal -->
         <div class="flex items-center justify-between px-6 py-4 bg-slate-950 border-b border-slate-800">
             <div class="flex items-center gap-3">
-                <span id="formPlatoIcon" class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
+                <span id="formPlatoIcon"
+                    class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center font-bold text-sm">
                     <i class="fa-solid fa-plus"></i>
                 </span>
                 <div>
                     <h3 id="formPlatoTitle" class="text-base font-bold text-white">Nuevo Producto</h3>
-                    <p id="formPlatoSubtitle" class="text-xs text-slate-400">Configura nombre, precio, ingredientes y extras de forma ordenada</p>
+                    <p id="formPlatoSubtitle" class="text-xs text-slate-400">Configura nombre, precio, ingredientes y
+                        extras de forma ordenada</p>
                 </div>
             </div>
-            <button type="button" onclick="closeModalPlatoForm()" class="text-slate-400 hover:text-white text-xl leading-none px-1">
+            <button type="button" onclick="closeModalPlatoForm()"
+                class="text-slate-400 hover:text-white text-xl leading-none px-1">
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
@@ -26,12 +31,15 @@
             <button type="button" id="btnPlatoTab_ingredientes" onclick="switchPlatoModalTab('ingredientes')"
                 class="px-3.5 py-2 rounded-t-xl font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
                 <i class="fa-solid fa-leaf text-emerald-400"></i> <span>2. Ingredientes ($0)</span>
-                <span id="countIngBaseBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
+                <span id="countIngBaseBadge"
+                    class="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">0</span>
             </button>
             <button type="button" id="btnPlatoTab_extras" onclick="switchPlatoModalTab('extras')"
                 class="px-3.5 py-2 rounded-t-xl font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
-                <i class="fa-solid fa-circle-plus text-amber-400"></i> <span id="lblExtrasTabTitle">3. Extras / Variantes</span>
-                <span id="countExtrasBadge" class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
+                <i class="fa-solid fa-circle-plus text-amber-400"></i> <span id="lblExtrasTabTitle">3. Extras /
+                    Variantes</span>
+                <span id="countExtrasBadge"
+                    class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">0</span>
             </button>
         </div>
 
@@ -43,29 +51,43 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-slate-300 font-semibold mb-1.5">Categoría</label>
-                        <input id="platoCategoria" type="text" required list="menuCategoriasDatalist" placeholder="Ej. Categoría principal" value=""
+                        <input id="platoCategoria" type="text" required list="menuCategoriasDatalist"
+                            oninput="syncPlatoModalCategoryChips()"
+                            placeholder="Elige una abajo o escribe una nueva..." value=""
                             class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
                         <datalist id="menuCategoriasDatalist"></datalist>
                     </div>
                     <div>
-                        <label class="block text-slate-300 font-semibold mb-1.5">Precio Base (<span class="currencySymbolSpan">C$</span>)</label>
+                        <label class="block text-slate-300 font-semibold mb-1.5">Precio Base (<span
+                                class="currencySymbolSpan">C$</span>)</label>
                         <div class="relative">
-                            <span class="absolute left-3.5 top-2.5 text-slate-400 font-bold currencySymbolSpan">C$</span>
+                            <span
+                                class="absolute left-3.5 top-2.5 text-slate-400 font-bold currencySymbolSpan">C$</span>
                             <input id="platoPrecio" type="number" step="0.50" required placeholder="180.00"
                                 class="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-emerald-400 font-bold focus:outline-none focus:border-emerald-500 transition">
                         </div>
                     </div>
                 </div>
 
+                <!-- Selector rápido de categorías existentes + sugeridas por giro -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-slate-400">Categorías rápidas (toca para elegir o escribe una nueva arriba)</span>
+                    </div>
+                    <div id="platoModalCatChips" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
                 <div>
-                    <label id="lblNombreProductoMenu" class="block text-slate-300 font-semibold mb-1.5">Nombre del Producto</label>
+                    <label id="lblNombreProductoMenu" class="block text-slate-300 font-semibold mb-1.5">Nombre del
+                        Producto</label>
                     <input id="platoNombre" type="text" required placeholder="Ej. Producto principal"
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition">
                 </div>
 
                 <div>
                     <label class="block text-slate-300 font-semibold mb-1.5">Descripción corta (opcional)</label>
-                    <textarea id="platoDesc" rows="3" placeholder="Detalles, presentación o descripción breve que verá el cliente..."
+                    <textarea id="platoDesc" rows="3"
+                        placeholder="Detalles, presentación o descripción breve que verá el cliente..."
                         class="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 transition resize-none"></textarea>
                 </div>
 
@@ -76,17 +98,22 @@
                             <i class="fa-solid fa-image text-emerald-400"></i>
                             <span>Foto del Producto (opcional)</span>
                         </label>
-                        <span id="platoImgMeta" class="text-[10px] text-slate-400">Se comprime automático a WebP (~20 KB)</span>
+                        <span id="platoImgMeta" class="text-[10px] text-slate-400">Se comprime automático a WebP (~20
+                            KB)</span>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div id="platoImgPreviewWrap" class="w-16 h-16 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
-                            <img id="platoImgPreview" src="" alt="Vista previa" class="hidden w-full h-full object-cover">
+                        <div id="platoImgPreviewWrap"
+                            class="w-16 h-16 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden shrink-0">
+                            <img id="platoImgPreview" src="" alt="Vista previa"
+                                class="hidden w-full h-full object-cover">
                             <i id="platoImgPlaceholder" class="fa-solid fa-camera text-slate-500 text-lg"></i>
                         </div>
                         <div class="flex-1 flex flex-wrap items-center gap-2">
-                            <label class="px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs cursor-pointer transition flex items-center gap-1.5">
+                            <label
+                                class="px-3 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-xs cursor-pointer transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-upload"></i> <span>Elegir Foto</span>
-                                <input id="platoImgInput" type="file" accept="image/*" class="hidden" onchange="handlePlatoImagenSeleccionada(this)">
+                                <input id="platoImgInput" type="file" accept="image/*" class="hidden"
+                                    onchange="handlePlatoImagenSeleccionada(this)">
                             </label>
                             <button id="btnQuitarFotoPlato" type="button" onclick="quitarFotoPlatoModal()"
                                 class="hidden px-2.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs transition flex items-center gap-1">
@@ -99,16 +126,20 @@
 
             <!-- PESTAÑA 2: INGREDIENTES BASE REMOVIBLES ($0) -->
             <div id="platoTab_ingredientes" class="hidden space-y-3">
-                <div id="bloqueIngBaseForm" class="p-4 rounded-xl bg-slate-950/90 border border-emerald-500/30 space-y-3">
+                <div id="bloqueIngBaseForm"
+                    class="p-4 rounded-xl bg-slate-950/90 border border-emerald-500/30 space-y-3">
                     <p class="text-[11px] text-slate-400 leading-relaxed">
-                        Ingredientes incluidos en la receta original. En WhatsApp y el Menú Web el cliente podrá quitarlos sin costo extra (ej. <em>"sin cebolla"</em>).
+                        Ingredientes incluidos en la receta original. En WhatsApp y el Menú Web el cliente podrá
+                        quitarlos sin costo extra (ej. <em>"sin cebolla"</em>).
                     </p>
                     <div class="space-y-1.5">
-                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sugeridos rápidos (toca para activar/desactivar):</span>
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sugeridos rápidos
+                            (toca para activar/desactivar):</span>
                         <div id="quickIngredientsBar" class="flex flex-wrap gap-1.5"></div>
                     </div>
                     <div class="flex gap-2 pt-1">
-                        <input id="inputNuevoIngBase" type="text" placeholder="Escribir ingrediente (ej. Pepinillos, Orégano)..."
+                        <input id="inputNuevoIngBase" type="text"
+                            placeholder="Escribir ingrediente (ej. Pepinillos, Orégano)..."
                             onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomIngBase();}"
                             class="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500">
                         <button type="button" onclick="addCustomIngBase()"
@@ -117,8 +148,11 @@
                         </button>
                     </div>
                     <div>
-                        <div class="text-[10px] font-semibold text-slate-400 mb-1.5">Ingredientes activos en este producto:</div>
-                        <div id="selectedIngBaseContainer" class="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-xl bg-slate-900/70 border border-slate-800"></div>
+                        <div class="text-[10px] font-semibold text-slate-400 mb-1.5">Ingredientes activos en este
+                            producto:</div>
+                        <div id="selectedIngBaseContainer"
+                            class="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                        </div>
                     </div>
                 </div>
             </div>
@@ -128,18 +162,22 @@
                 <div class="p-4 rounded-xl bg-slate-950/90 border border-amber-500/30 space-y-3">
                     <div class="flex items-center gap-2">
                         <i class="fa-solid fa-circle-plus text-amber-400"></i>
-                        <span id="lblExtrasTitle" class="text-amber-300 font-bold text-xs">Extras o Variantes con Costo</span>
+                        <span id="lblExtrasTitle" class="text-amber-300 font-bold text-xs">Extras o Variantes con
+                            Costo</span>
                     </div>
                     <p id="lblExtrasSubtitle" class="text-[11px] text-slate-400 leading-relaxed">
-                        Toca las sugerencias rápidas o agrega extras, tallas o presentaciones personalizadas con su precio adicional.
+                        Toca las sugerencias rápidas o agrega extras, tallas o presentaciones personalizadas con su
+                        precio adicional.
                     </p>
                     <div class="space-y-1.5">
-                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sugeridos rápidos:</span>
+                        <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Sugeridos
+                            rápidos:</span>
                         <div id="quickExtrasBar" class="flex flex-wrap gap-1.5"></div>
                     </div>
                     <div class="grid grid-cols-12 gap-2 pt-1">
                         <div class="col-span-4">
-                            <select id="inputExtraTipo" class="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-xs outline-none focus:border-amber-500">
+                            <select id="inputExtraTipo"
+                                class="w-full px-2.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-xs outline-none focus:border-amber-500">
                                 <option value="EXTRA">Extra (+)</option>
                                 <option value="VARIANTE">Variante</option>
                             </select>
@@ -150,7 +188,8 @@
                                 class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs outline-none focus:border-amber-500">
                         </div>
                         <div class="col-span-3 relative">
-                            <span class="absolute left-2.5 top-2 text-slate-400 font-bold text-xs currencySymbolSpan">C$</span>
+                            <span
+                                class="absolute left-2.5 top-2 text-slate-400 font-bold text-xs currencySymbolSpan">C$</span>
                             <input id="inputExtraPrecio" type="number" step="0.50" placeholder="+ 40"
                                 onkeydown="if(event.key==='Enter'){event.preventDefault();addExtraItemFromInputs();}"
                                 class="w-full pl-8 pr-2 py-2 rounded-xl bg-slate-900 border border-slate-700 text-emerald-400 font-bold text-xs outline-none focus:border-amber-500">
@@ -161,8 +200,11 @@
                         <i class="fa-solid fa-plus"></i> <span>Añadir a la lista</span>
                     </button>
                     <div>
-                        <div class="text-[10px] font-semibold text-slate-400 mb-1.5">Extras y variantes configurados:</div>
-                        <div id="selectedExtrasContainer" class="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-xl bg-slate-900/70 border border-slate-800"></div>
+                        <div class="text-[10px] font-semibold text-slate-400 mb-1.5">Extras y variantes configurados:
+                        </div>
+                        <div id="selectedExtrasContainer"
+                            class="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
+                        </div>
                     </div>
                 </div>
             </div>

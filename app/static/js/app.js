@@ -1273,9 +1273,57 @@ function escapeHtml(str) {
         let activeCatalogCategory = '';
         let expandedPlatoIds = new Set();
 
+        function getSuggestedCategoriesForGiro(giroRaw) {
+            const code = getGiroProfile(giroRaw).code;
+            const map = {
+                RESTAURANTE: ['Pizzas', 'Hamburguesas', 'Combos', 'Entradas', 'Bebidas', 'Postres'],
+                CAFETERIA: ['Cafés Calientes', 'Cafés Fríos', 'Frappés', 'Repostería', 'Desayunos', 'Bebidas'],
+                FARMACIA: ['Analgésicos', 'Vitaminas', 'Cuidado Personal', 'Primeros Auxilios', 'Bebé'],
+                TIENDA: ['Camisetas', 'Pantalones', 'Calzado', 'Accesorios', 'Ofertas'],
+                SUPERMERCADO: ['Bebidas', 'Snacks', 'Lácteos', 'Despensa', 'Limpieza', 'Higiene']
+            };
+            return map[code] || map.RESTAURANTE;
+        }
+
+        function renderPlatoModalCategoryChips() {
+            const box = document.getElementById('platoModalCatChips');
+            if (!box) return;
+            const existing = [...new Set((allPlatosCache || []).map(p => (p.categoria || '').trim()).filter(Boolean))];
+            const suggested = getSuggestedCategoriesForGiro(currentComercioData?.comercio?.giro);
+            const allCats = [...new Set([...existing, ...suggested])];
+            const currentVal = (document.getElementById('platoCategoria')?.value || '').trim().toLowerCase();
+
+            box.innerHTML = allCats.map(cat => {
+                const isSelected = currentVal && cat.toLowerCase() === currentVal;
+                const isExisting = existing.some(e => e.toLowerCase() === cat.toLowerCase());
+                const safeCat = cat.replace(/'/g, "\\'");
+                return `
+                    <button type="button" onclick="pickPlatoModalCategory('${safeCat}')"
+                        class="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition inline-flex items-center gap-1 ${
+                            isSelected
+                                ? 'bg-[#1B4332] text-white keep-white border-[#1B4332] font-bold shadow-sm'
+                                : (isExisting
+                                    ? 'bg-slate-800/90 text-slate-200 border-slate-700 hover:border-slate-500'
+                                    : 'bg-slate-950/70 text-slate-400 border-slate-800 hover:text-white hover:border-slate-600')
+                        }">
+                        ${isExisting ? '<i class="fa-solid fa-tag text-[9px] opacity-70"></i>' : '<i class="fa-solid fa-sparkles text-[9px] opacity-60"></i>'}
+                        <span>${escapeHtml(cat)}</span>
+                    </button>`;
+            }).join('');
+        }
+        window.syncPlatoModalCategoryChips = renderPlatoModalCategoryChips;
+
+        function pickPlatoModalCategory(catName) {
+            const inp = document.getElementById('platoCategoria');
+            if (inp) inp.value = catName;
+            renderPlatoModalCategoryChips();
+        }
+        window.pickPlatoModalCategory = pickPlatoModalCategory;
+
         function openModalNuevoPlato() {
             resetFormularioPlato();
             switchPlatoModalTab('basico');
+            renderPlatoModalCategoryChips();
             document.getElementById('modalPlatoForm')?.classList.remove('hidden');
         }
         window.openModalNuevoPlato = openModalNuevoPlato;
@@ -1342,6 +1390,7 @@ function escapeHtml(str) {
         function renderMenuCategoryChips() {
             const bar = document.getElementById('menuCategoriasChipsBar');
             if (!bar) return;
+            bar.className = 'flex items-center gap-1.5 flex-nowrap overflow-x-auto sm:flex-wrap pb-1 sm:pb-0';
             const counts = {};
             allPlatosCache.forEach(p => {
                 const c = p.categoria || 'General';
@@ -1350,24 +1399,26 @@ function escapeHtml(str) {
             const cats = Object.keys(counts);
             let html = `
                 <button type="button" onclick="selectMenuCategoryChip('')"
-                    class="px-3 py-1 rounded-xl text-xs font-bold border transition ${
+                    class="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold border transition inline-flex items-center gap-1.5 ${
                         !activeCatalogCategory
-                            ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                            ? 'bg-[#1B4332] text-white keep-white border-[#1B4332] shadow-sm'
                             : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                     }">
-                    Todas <span class="text-[10px] opacity-75">(${allPlatosCache.length})</span>
+                    <span>Todas</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-full ${!activeCatalogCategory ? 'bg-white/20' : 'bg-slate-800 text-slate-400'}">${allPlatosCache.length}</span>
                 </button>
             `;
             cats.forEach(c => {
                 const active = activeCatalogCategory === c;
                 html += `
                     <button type="button" onclick="selectMenuCategoryChip('${c.replace(/'/g, "\\'")}')"
-                        class="px-2.5 py-1 rounded-xl text-xs font-semibold border transition ${
+                        class="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition inline-flex items-center gap-1.5 ${
                             active
-                                ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold'
+                                ? 'bg-[#1B4332] text-white keep-white border-[#1B4332] font-bold shadow-sm'
                                 : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                         }">
-                        ${escapeHtml(c)} <span class="text-[10px] opacity-75">(${counts[c]})</span>
+                        <span>${escapeHtml(c)}</span>
+                        <span class="text-[10px] px-1.5 py-0.2 rounded-full ${active ? 'bg-white/20' : 'bg-slate-800 text-slate-400'}">${counts[c]}</span>
                     </button>
                 `;
             });
@@ -1487,12 +1538,14 @@ function escapeHtml(str) {
 
             grid.innerHTML = Object.entries(grupos).map(([catName, itemsCat]) => `
                 <div class="space-y-2.5">
-                    <div class="flex items-center justify-between px-1">
-                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-indigo-300 flex items-center gap-2">
-                            <i class="fa-solid fa-folder-open text-indigo-400"></i>
+                    <div class="flex items-center gap-2.5 pt-1 pb-1 border-b border-slate-800/70">
+                        <span class="w-6 h-6 rounded-lg bg-slate-800/90 border border-slate-700 flex items-center justify-center text-emerald-400 text-[11px] shrink-0">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </span>
+                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-white flex items-center gap-2">
                             <span>${escapeHtml(catName)}</span>
-                            <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold">${itemsCat.length}</span>
                         </h4>
+                        <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold">${itemsCat.length} ${itemsCat.length === 1 ? 'artículo' : 'artículos'}</span>
                     </div>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                         ${itemsCat.map(pl => {
@@ -1991,6 +2044,7 @@ function escapeHtml(str) {
             document.getElementById('btnSubmitPlato').className =
                 'px-6 py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-extrabold text-xs shadow-lg shadow-indigo-500/20 transition flex items-center gap-2';
             switchPlatoModalTab('basico');
+            renderPlatoModalCategoryChips();
             document.getElementById('modalPlatoForm')?.classList.remove('hidden');
         }
 
