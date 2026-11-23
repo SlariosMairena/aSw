@@ -283,6 +283,7 @@
                                     <span>${meta.label}</span>
                                 </span>
                                 <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#EDE5D7] text-[#1A241E]">${escapeHtml(c.plan?.nombre || 'Sin Plan')}</span>
+                                ${c.inventario_habilitado ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-boxes-stacked mr-1"></i>Inventario</span>` : ''}
                                 ${c.facturas_pendientes > 0 ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A]">${c.facturas_pendientes} pend.</span>` : ''}
                             </div>
                             <p class="text-[11px] text-[#5C6B62] truncate mt-0.5">
@@ -336,6 +337,10 @@
                         </button>
                         <button type="button" onclick="openModalGenerarFacturaSaaS(${c.id})" class="bg-[#E4EFE9] hover:bg-[#D2E6DC] border border-[#B7D4C5] text-[#1B4332] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-file-invoice-dollar"></i><span>Facturar</span>
+                        </button>
+                        <button type="button" onclick="toggleInventarioComercioAdmin(this, ${c.id}, ${!c.inventario_habilitado})"
+                            class="${c.inventario_habilitado ? 'bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300' : 'bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E]'} px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-boxes-stacked"></i><span>${c.inventario_habilitado ? 'Inventario: Activo' : 'Habilitar Inventario'}</span>
                         </button>
                         <button type="button" onclick="poblarDemoComercio(this, ${c.id})" class="bg-[#FEF3C7] hover:bg-[#FDE68A] border border-[#FDE68A] text-[#92400E] px-2.5 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1.5 transition">
                             <i class="fa-solid fa-wand-magic-sparkles"></i><span>Poblar Demo</span>
@@ -718,6 +723,23 @@
         function closeModalEditarComercioAdmin() {
             document.getElementById('modalEditarComercioAdmin')?.classList.add('hidden');
         }
+
+        async function toggleInventarioComercioAdmin(btn, tenantId, habilitar) {
+            if (btn) btn.disabled = true;
+            try {
+                await apiFetch(`/api/v1/panel/superadmin/comercios/${tenantId}`, {
+                    method: 'PUT',
+                    body: { inventario_habilitado: !!habilitar }
+                });
+                showToast(habilitar ? 'Módulo de Inventario habilitado para este comercio.' : 'Módulo de Inventario ocultado para este comercio.');
+                await loadSuperAdminDashboard();
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+        window.toggleInventarioComercioAdmin = toggleInventarioComercioAdmin;
 
         async function handleEditarComercioAdmin(e) {
             e.preventDefault();
