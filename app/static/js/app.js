@@ -268,7 +268,12 @@ function escapeHtml(str) {
                     usesTables: false,
                     defaultCategories: [],
                     defaultExtras: [
-                        { nombre: 'Talla L / Grande', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Talla S', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Talla M', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Talla L', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Talla XL', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Color Negro', tipo: 'VARIANTE', precio: 0.00 },
+                        { nombre: 'Color Blanco', tipo: 'VARIANTE', precio: 0.00 },
                         { nombre: 'Empaque para Regalo', tipo: 'EXTRA', precio: 45.00 }
                     ]
                 };
@@ -422,6 +427,29 @@ function escapeHtml(str) {
             if (lblExtrasTitle) lblExtrasTitle.textContent = profile.extrasTitle;
             const lblExtrasSubtitle = document.getElementById('lblExtrasSubtitle');
             if (lblExtrasSubtitle) lblExtrasSubtitle.textContent = profile.extrasSubtitle;
+
+            const extrasTabMap = {
+                TIENDA: { tab: '2. Tallas, Colores y Variantes', ph: 'Ej. Talla M, Color Azul, Caja Regalo', pph: '+ 0', heading: 'Tallas, colores y opciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio de Venta' },
+                FARMACIA: { tab: '2. Presentaciones / Dosis', ph: 'Ej. Caja x20, Frasco 120ml', pph: '+ 0', heading: 'Presentaciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio de Venta' },
+                SUPERMERCADO: { tab: '2. Presentaciones / Empaques', ph: 'Ej. Pack x6, Bolsa 1kg', pph: '+ 0', heading: 'Presentaciones configuradas:', tipo: 'VARIANTE', precioLbl: 'Precio de Venta' },
+                CAFETERIA: { tab: '3. Tamaños y Leches', ph: 'Ej. Tamaño Grande, Leche Almendra', pph: '+ 25', heading: 'Tamaños y extras de barra configurados:', tipo: 'EXTRA', precioLbl: 'Precio Base' },
+                RESTAURANTE: { tab: '3. Extras / Variantes', ph: 'Ej. Extra Queso, Porción Grande', pph: '+ 40', heading: 'Extras y variantes configurados:', tipo: 'EXTRA', precioLbl: 'Precio Base' }
+            };
+            const exCfg = extrasTabMap[profile.code] || extrasTabMap.RESTAURANTE;
+            const lblExTab = document.getElementById('lblExtrasTabTitle');
+            if (lblExTab) lblExTab.textContent = exCfg.tab;
+            const inpExNom = document.getElementById('inputExtraNombre');
+            if (inpExNom) inpExNom.placeholder = exCfg.ph;
+            const inpExPre = document.getElementById('inputExtraPrecio');
+            if (inpExPre) inpExPre.placeholder = exCfg.pph;
+            const selExTipo = document.getElementById('inputExtraTipo');
+            if (selExTipo) selExTipo.value = exCfg.tipo;
+            const lblSelEx = document.getElementById('lblSelectedExtrasHeading');
+            if (lblSelEx) lblSelEx.textContent = exCfg.heading;
+            const lblPreBase = document.getElementById('lblPrecioBasePlato');
+            if (lblPreBase) lblPreBase.textContent = exCfg.precioLbl;
+            const lblFoto = document.getElementById('lblFotoPlatoLabel');
+            if (lblFoto) lblFoto.textContent = `Foto del ${profile.itemSingular} (opcional)`;
 
             if (!document.getElementById('platoEditId')?.value) {
                 const formTitle = document.getElementById('formPlatoTitle');

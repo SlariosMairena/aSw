@@ -58,7 +58,7 @@
                         <datalist id="menuCategoriasDatalist"></datalist>
                     </div>
                     <div>
-                        <label class="block text-slate-300 font-semibold mb-1.5">Precio Base (<span
+                        <label class="block text-slate-300 font-semibold mb-1.5"><span id="lblPrecioBasePlato">Precio Base</span> (<span
                                 class="currencySymbolSpan">C$</span>)</label>
                         <div class="relative">
                             <span
@@ -96,7 +96,7 @@
                     <div class="flex items-center justify-between gap-2">
                         <label class="text-slate-300 font-semibold flex items-center gap-1.5">
                             <i class="fa-solid fa-image text-emerald-400"></i>
-                            <span>Foto del Producto (opcional)</span>
+                            <span id="lblFotoPlatoLabel">Foto del Producto (opcional)</span>
                         </label>
                         <span id="platoImgMeta" class="text-[10px] text-slate-400">Se comprime automático a WebP (~20
                             KB)</span>
@@ -200,7 +200,7 @@
                         <i class="fa-solid fa-plus"></i> <span>Añadir a la lista</span>
                     </button>
                     <div>
-                        <div class="text-[10px] font-semibold text-slate-400 mb-1.5">Extras y variantes configurados:
+                        <div id="lblSelectedExtrasHeading" class="text-[10px] font-semibold text-slate-400 mb-1.5">Extras y variantes configurados:
                         </div>
                         <div id="selectedExtrasContainer"
                             class="flex flex-wrap gap-1.5 min-h-[36px] p-2.5 rounded-xl bg-slate-900/70 border border-slate-800">
