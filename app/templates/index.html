@@ -107,6 +107,11 @@
                         <i class="fa-solid fa-chart-line w-4 text-center pointer-events-none"></i>
                         <span class="pointer-events-none">Estadísticas</span>
                     </button>
+                    <button type="button" id="tabBtn_configuracion" data-comercio-tab="configuracion"
+                        class="comercio-admin-only ui-nav-btn">
+                        <i class="fa-solid fa-gear w-4 text-center pointer-events-none"></i>
+                        <span class="pointer-events-none">Configuración</span>
+                    </button>
 
                     <div class="hidden lg:block my-2 border-t border-white/10"></div>
 
@@ -140,6 +145,9 @@
 
                 <!-- Pestaña F: Directorio de Clientes Frecuentes -->
                 {% include 'views/clientes.html' %}
+
+                <!-- Pestaña G: Configuración del Negocio, Moneda y Delivery -->
+                {% include 'views/configuracion.html' %}
             </div>
         </div>
     </section>
@@ -149,7 +157,6 @@
     {% include 'modals/chat_modal.html' %}
     {% include 'modals/nuevo_comercio_modal.html' %}
     {% include 'modals/superadmin_modals.html' %}
-    {% include 'modals/config_comercio_modal.html' %}
     {% include 'modals/equipo_modal.html' %}
     {% include 'modals/inventario_modal.html' %}
     {% include 'modals/twofa_modal.html' %}

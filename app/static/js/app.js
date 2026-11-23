@@ -522,14 +522,14 @@ function escapeHtml(str) {
         // CARGA DEL PANEL DEL RESTAURANTE / COCINA
         // =========================================================
         function switchComercioTab(tabName) {
-            if (tabName === 'estadisticas' && !isComercioAdminOrSuper()) {
+            if ((tabName === 'estadisticas' || tabName === 'configuracion') && !isComercioAdminOrSuper()) {
                 tabName = 'pedidos';
             }
             if (tabName === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) {
                 tabName = 'pedidos';
             }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
-            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas'];
+            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas', 'configuracion'];
             
             tabs.forEach(t => {
                 const el = document.getElementById(`tabContent_${t}`);
@@ -571,6 +571,10 @@ function escapeHtml(str) {
                 }
                 if (typeof cargarCorteCajaDiario === 'function') {
                     cargarCorteCajaDiario();
+                }
+            } else if (tabName === 'configuracion') {
+                if (typeof populateConfigComercioForm === 'function') {
+                    populateConfigComercioForm();
                 }
             }
         }
@@ -2162,9 +2166,8 @@ function escapeHtml(str) {
         }
         window.quitarLogoComercioModal = quitarLogoComercioModal;
 
-        function openConfigComercioModal() {
+        function populateConfigComercioForm() {
             if (!currentComercioData || !currentComercioData.comercio) {
-                showToast('Cargando información del restaurante...', true);
                 return;
             }
             const c = currentComercioData.comercio;
@@ -2188,12 +2191,19 @@ function escapeHtml(str) {
             if (cbPin) cbPin.checked = dCfg.requiere_pin_entrega !== false;
             const cbWa = document.getElementById('cfgDeliveryAvisoWa');
             if (cbWa) cbWa.checked = dCfg.notificar_whatsapp_repartidor !== false;
+        }
 
-            document.getElementById('modalConfigComercio').classList.remove('hidden');
+        function openConfigComercioModal() {
+            if (!currentComercioData || !currentComercioData.comercio) {
+                showToast('Cargando información del restaurante...', true);
+                return;
+            }
+            switchComercioTab('configuracion');
         }
 
         function closeConfigComercioModal() {
-            document.getElementById('modalConfigComercio').classList.add('hidden');
+            const m = document.getElementById('modalConfigComercio');
+            if (m) m.classList.add('hidden');
         }
 
         function setMonedaPreset(simbolo, iso) {
@@ -2247,6 +2257,7 @@ function escapeHtml(str) {
                 closeConfigComercioModal();
                 showToast(`¡Configuración y logo actualizados con éxito!`);
                 await reloadComercioDashboard();
+                populateConfigComercioForm();
             } catch (err) {
                 showToast(err.message, true);
             }
