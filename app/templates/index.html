@@ -64,6 +64,9 @@
     <!-- Panel SuperAdmin (Dueño del SaaS) -->
     {% include 'views/superadmin.html' %}
 
+    <!-- Panel Móvil de Repartidor (Flota SaaS / Propio) -->
+    {% include 'views/repartidor.html' %}
+
     <!-- Panel Operativo del Comercio (Sidebar Vertical Izquierdo + Área Principal) -->
     <section id="comercioSection" class="hidden flex-1 max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-5">
         <div class="ui-comercio-shell">
@@ -166,5 +169,6 @@
     <script src="/static/js/estadisticas.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/operaciones.js?v={{ cache_bust | default('20261113_1') }}"></script>
     <script src="/static/js/whatsapp_sim.js?v={{ cache_bust | default('20261113_1') }}"></script>
+    <script src="/static/js/repartidor.js?v={{ cache_bust | default('20261113_1') }}"></script>
 </body>
 </html>

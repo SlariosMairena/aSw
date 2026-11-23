@@ -113,6 +113,26 @@
                 <span class="text-[10px] text-slate-400">Este texto se lo enviará el bot automáticamente al cliente en WhatsApp cuando elija pagar por transferencia.</span>
             </div>
 
+            <div>
+                <label class="block text-slate-300 font-semibold mb-1">Modo de Delivery (Envíos a Domicilio)</label>
+                <select id="cfgModoDelivery"
+                    class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                    <option value="FLOTA_SAAS">Flota Compartida del SaaS (Repartidores de la plataforma)</option>
+                    <option value="PROPIO">Repartidor Propio del Negocio</option>
+                    <option value="DESACTIVADO">Sin Delivery (Solo Retiro en Local / Mesa)</option>
+                </select>
+                <div class="flex flex-wrap gap-3 mt-2 text-[11px] text-slate-300">
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input id="cfgDeliveryPin" type="checkbox" checked class="w-3.5 h-3.5 accent-[#1B4332]">
+                        <span>Exigir PIN de 4 dígitos al entregar</span>
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                        <input id="cfgDeliveryAvisoWa" type="checkbox" checked class="w-3.5 h-3.5 accent-[#1B4332]">
+                        <span>Avisar por WhatsApp al repartidor cuando esté LISTO</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="flex gap-4 p-3 rounded-xl bg-slate-900 border border-slate-800">
                 <label class="flex items-center gap-2 cursor-pointer">
                     <input id="cfgAceptaEfectivo" type="checkbox" class="w-4 h-4 accent-emerald-500 rounded">

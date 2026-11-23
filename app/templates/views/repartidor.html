@@ -1,0 +1,65 @@
+<!-- ========================================================= -->
+<!-- VISTA MÓVIL DEL REPARTIDOR (ROL REPARTIDOR — FLOTA/PROPIO) -->
+<!-- ========================================================= -->
+<section id="repartidorSection" class="hidden flex-1 max-w-2xl w-full mx-auto px-4 py-5 space-y-5">
+    <!-- Encabezado del Repartidor -->
+    <div class="glass rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <span class="w-11 h-11 rounded-xl bg-[#1B4332] text-white keep-white flex items-center justify-center text-lg shrink-0">
+                    <i class="fa-solid fa-motorcycle"></i>
+                </span>
+                <div class="min-w-0">
+                    <h2 id="repNombreTitle" class="text-lg font-extrabold text-[#1A241E] truncate">Panel de Repartidor</h2>
+                    <p id="repSubInfo" class="text-xs text-[#5C6B62] truncate">Cargando perfil...</p>
+                </div>
+            </div>
+            <button type="button" onclick="loadRepartidorPanel()"
+                class="px-3 py-2 rounded-xl bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] text-xs font-bold transition flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-rotate text-[#1B4332]"></i> <span>Actualizar</span>
+            </button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EDE5D7] text-xs">
+            <label class="inline-flex items-center gap-2 cursor-pointer font-bold text-[#1A241E]">
+                <input type="checkbox" id="repDisponibleToggle" onchange="toggleRepartidorDisponible(this.checked)" class="w-4 h-4 accent-[#1B4332]">
+                <span id="repDisponibleLabel">Disponible para recibir envíos</span>
+            </label>
+            <span class="px-2.5 py-1 rounded-full bg-[#E4EFE9] text-[#1B4332] font-extrabold">
+                Envíos hoy: <span id="repGananciaHoy">C$0.00</span>
+            </span>
+        </div>
+    </div>
+
+    <!-- 1. ENTREGAS EN CAMINO (ASIGNADAS A MÍ) -->
+    <div class="space-y-2.5">
+        <div class="flex items-center justify-between px-1">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-[#1B4332] flex items-center gap-1.5">
+                <i class="fa-solid fa-route"></i> <span>Mis Entregas en Camino</span>
+            </h3>
+            <span id="repCountEnCamino" class="text-[11px] px-2 py-0.5 rounded-full bg-[#D6402B] text-white keep-white font-bold">0</span>
+        </div>
+        <div id="repEnCaminoList" class="space-y-3"></div>
+    </div>
+
+    <!-- 2. PEDIDOS LISTOS PARA RECOGER -->
+    <div class="space-y-2.5">
+        <div class="flex items-center justify-between px-1">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-[#5C6B62] flex items-center gap-1.5">
+                <i class="fa-solid fa-box-open text-[#D6402B]"></i> <span>Pedidos Listos para Recoger</span>
+            </h3>
+            <span id="repCountDisponibles" class="text-[11px] px-2 py-0.5 rounded-full bg-[#EDE5D7] text-[#1A241E] font-bold">0</span>
+        </div>
+        <div id="repDisponiblesList" class="space-y-3"></div>
+    </div>
+
+    <!-- 3. ENTREGADOS HOY -->
+    <details class="glass rounded-2xl overflow-hidden">
+        <summary class="cursor-pointer px-4 py-3 text-xs font-extrabold text-[#1A241E] flex items-center justify-between">
+            <span><i class="fa-solid fa-circle-check text-[#1B4332] mr-1.5"></i> Entregados Hoy</span>
+            <span id="repCountEntregados" class="px-2 py-0.5 rounded-full bg-[#E4EFE9] text-[#1B4332] font-bold">0</span>
+        </summary>
+        <div id="repEntregadosList" class="p-4 pt-1 space-y-2"></div>
+    </details>
+</section>
+

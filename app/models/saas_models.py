@@ -918,3 +918,62 @@ class ConexionWhatsappComercio(Base):
     activo = Column(Boolean, default=True, nullable=False)
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
+
+# =====================================================================
+# 13. SISTEMA DE DELIVERY (FLOTA SAAS COMPARTIDA / REPARTIDOR PROPIO + PIN)
+# =====================================================================
+class ConfigDeliveryComercio(Base):
+    """Define si el comercio usa Delivery DESACTIVADO, FLOTA_SAAS o PROPIO."""
+
+    __tablename__ = "config_delivery_comercio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    modo_delivery = Column(String(30), default="FLOTA_SAAS", nullable=False)  # DESACTIVADO | FLOTA_SAAS | PROPIO
+    requiere_pin_entrega = Column(Boolean, default=True, nullable=False)
+    notificar_whatsapp_repartidor = Column(Boolean, default=True, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+
+class PerfilRepartidor(Base):
+    """Datos operativos del usuario con rol REPARTIDOR (sin alterar tabla usuarios)."""
+
+    __tablename__ = "perfiles_repartidor"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(
+        Integer, ForeignKey("usuarios.id"), nullable=False, unique=True, index=True
+    )
+    telefono_whatsapp = Column(String(30), nullable=False)
+    vehiculo = Column(String(40), default="Moto", nullable=False)
+    es_flota_saas = Column(Boolean, default=True, nullable=False)
+    disponible = Column(Boolean, default=True, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+
+class AsignacionDelivery(Base):
+    """Tracking de asignación, PIN de 4 dígitos y entrega de cada pedido a domicilio."""
+
+    __tablename__ = "asignaciones_delivery"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pedido_id = Column(
+        Integer, ForeignKey("pedidos.id"), nullable=False, unique=True, index=True
+    )
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    repartidor_usuario_id = Column(
+        Integer, ForeignKey("usuarios.id"), nullable=True, index=True
+    )
+    repartidor_nombre = Column(String(120), nullable=True)
+    repartidor_telefono = Column(String(30), nullable=True)
+    estado_delivery = Column(String(30), default="PENDIENTE", nullable=False)  # PENDIENTE | EN_CAMINO | ENTREGADO
+    pin_entrega = Column(String(6), nullable=False)
+    costo_envio = Column(Float, default=0.0, nullable=False)
+    tomado_en = Column(DateTime(timezone=True), nullable=True)
+    entregado_en = Column(DateTime(timezone=True), nullable=True)
+    creado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+

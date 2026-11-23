@@ -41,9 +41,11 @@ from app.core.security import (
     hash_password,
 )
 from app.models.saas_models import (
+    AsignacionDelivery,
     AuditLog,
     CategoriaMenu,
     ComercioLogo,
+    ConfigDeliveryComercio,
     DetallePedido,
     IngredienteOpcionPlato,
     ItemInventario,
@@ -1031,6 +1033,13 @@ def comercio_dashboard(
         pedidos_query = pedidos_query.filter(Pedido.sucursal_id == sucursal_id)
     pedidos = pedidos_query.order_by(Pedido.id.desc()).all()
 
+    asig_rows = (
+        db.query(AsignacionDelivery)
+        .filter(AsignacionDelivery.tenant_id == tenant_id)
+        .all()
+    )
+    asig_by_ped = {a.pedido_id: a for a in asig_rows}
+
     pedidos_data = []
     for ped in pedidos:
         sesion = ped.sesion_chat
@@ -1097,6 +1106,16 @@ def comercio_dashboard(
                 "resumen_chat_ia": ped.resumen_chat_ia,
                 "como_se_realizo_pedido": ped.como_se_realizo_pedido,
                 "notas_especiales": ped.notas_especiales,
+                "delivery_info": (
+                    {
+                        "estado_delivery": asig_by_ped[ped.id].estado_delivery,
+                        "repartidor_nombre": asig_by_ped[ped.id].repartidor_nombre,
+                        "repartidor_telefono": asig_by_ped[ped.id].repartidor_telefono,
+                        "pin_entrega": asig_by_ped[ped.id].pin_entrega,
+                    }
+                    if ped.id in asig_by_ped
+                    else None
+                ),
                 "creado_en": ped.creado_en.strftime("%d/%m/%Y %H:%M")
                 if ped.creado_en
                 else "",
@@ -1228,6 +1247,9 @@ def comercio_dashboard(
         .all()
     )
 
+    from app.api.delivery_api import get_or_create_delivery_config
+
+    deliv_cfg = get_or_create_delivery_config(db, tenant_id)
     logo_row = (
         db.query(ComercioLogo.actualizado_en)
         .filter(ComercioLogo.tenant_id == tenant_id)
@@ -1244,6 +1266,11 @@ def comercio_dashboard(
             "id": comercio.id,
             "nombre_comercial": comercio.nombre_comercial,
             "logo_url": logo_url,
+            "delivery_config": {
+                "modo_delivery": deliv_cfg.modo_delivery,
+                "requiere_pin_entrega": deliv_cfg.requiere_pin_entrega,
+                "notificar_whatsapp_repartidor": deliv_cfg.notificar_whatsapp_repartidor,
+            },
             "slug": comercio.slug,
             "giro": comercio.giro,
             "estado_suscripcion": comercio.estado_suscripcion,
@@ -1340,6 +1367,14 @@ def actualizar_estado_pedido(
             if sesion_cierre:
                 sesion_cierre.estado_conversacion = "COMPLETADO"
                 sesion_cierre.activa = False
+
+    if nuevo == "LISTO" and pedido.tipo_entrega == "DOMICILIO":
+        try:
+            from app.api.delivery_api import notify_repartidores_pedido_listo
+
+            notify_repartidores_pedido_listo(db, pedido)
+        except Exception:
+            pass
 
     stock_descontado = []
     if nuevo == "ENTREGADO":
@@ -2549,6 +2584,9 @@ def estadisticas_ventas_comercio(
     top_productos = sorted(productos_map.values(), key=lambda x: (-x["cantidad"], -x["ingresos"]))[:10]
     tendencia_diaria = [dias_map[k] for k in sorted(dias_map.keys())][-14:]
 
+    from app.api.delivery_api import get_or_create_delivery_config
+
+    deliv_cfg = get_or_create_delivery_config(db, tenant_id)
     logo_row = (
         db.query(ComercioLogo.actualizado_en)
         .filter(ComercioLogo.tenant_id == tenant_id)
@@ -2565,6 +2603,11 @@ def estadisticas_ventas_comercio(
             "id": comercio.id,
             "nombre_comercial": comercio.nombre_comercial,
             "logo_url": logo_url,
+            "delivery_config": {
+                "modo_delivery": deliv_cfg.modo_delivery,
+                "requiere_pin_entrega": deliv_cfg.requiere_pin_entrega,
+                "notificar_whatsapp_repartidor": deliv_cfg.notificar_whatsapp_repartidor,
+            },
             "giro": comercio.giro,
             "moneda": comercio.moneda,
             "simbolo_moneda": comercio.simbolo_moneda,

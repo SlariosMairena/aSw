@@ -141,6 +141,7 @@ function escapeHtml(str) {
             document.getElementById('userHeaderBox').classList.add('hidden');
             document.getElementById('superAdminSection').classList.add('hidden');
             document.getElementById('comercioSection').classList.add('hidden');
+            document.getElementById('repartidorSection')?.classList.add('hidden');
             document.getElementById('loginSection').classList.remove('hidden');
         }
 
@@ -474,11 +475,19 @@ function escapeHtml(str) {
             if (currentUser.rol === 'SUPER_ADMIN') {
                 document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
                 document.getElementById('comercioSection').classList.add('hidden');
+                document.getElementById('repartidorSection')?.classList.add('hidden');
                 document.getElementById('superAdminSection').classList.remove('hidden');
                 await loadSuperAdminDashboard();
+            } else if (currentUser.rol === 'REPARTIDOR') {
+                document.getElementById('btnVolverSuperAdmin').classList.add('hidden');
+                document.getElementById('superAdminSection').classList.add('hidden');
+                document.getElementById('comercioSection').classList.add('hidden');
+                document.getElementById('repartidorSection')?.classList.remove('hidden');
+                if (typeof loadRepartidorPanel === 'function') await loadRepartidorPanel();
             } else {
                 activeTenantId = currentUser.tenant_id;
                 document.getElementById('superAdminSection').classList.add('hidden');
+                document.getElementById('repartidorSection')?.classList.add('hidden');
                 document.getElementById('comercioSection').classList.remove('hidden');
                 switchComercioTab('pedidos');
                 await reloadComercioDashboard(true);
@@ -834,6 +843,12 @@ function escapeHtml(str) {
             const humanPill = p.modo_atencion_chat === 'HUMANO_ACTIVO'
                 ? `<span class="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-[10px] font-bold"><i class="fa-solid fa-hand mr-1"></i> Humano</span>`
                 : '';
+            const repPill = (p.delivery_info && p.delivery_info.repartidor_nombre)
+                ? `<div class="text-[11px] font-bold text-[#1B4332] bg-[#E4EFE9] border border-[#B7D4C5] rounded-lg px-2 py-1 flex items-center justify-between gap-2">
+                     <span><i class="fa-solid fa-motorcycle mr-1"></i>${escapeHtml(p.delivery_info.repartidor_nombre)}</span>
+                     <span class="uppercase text-[10px]">${escapeHtml(p.delivery_info.estado_delivery || '')}</span>
+                   </div>`
+                : '';
 
             return `
                 <div id="cardPedido_${p.id}" onclick="openPedidoDetalleModal(${p.id})"
@@ -862,6 +877,7 @@ function escapeHtml(str) {
                         </div>
                         <span class="font-extrabold text-sm text-[#1B4332] shrink-0">${moneda}${Number(p.total || 0).toFixed(2)}</span>
                     </div>
+                    ${repPill}
 
                     <!-- Fila 3: Acciones limpias (Siguiente paso + Ver Detalle + Chat) -->
                     <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-[#EDE5D7]">
@@ -2165,6 +2181,13 @@ function escapeHtml(str) {
             document.getElementById('cfgDatosBancarios').value = c.datos_bancarios_texto || '';
             document.getElementById('cfgAceptaEfectivo').checked = c.acepta_efectivo !== false;
             document.getElementById('cfgAceptaTransferencia').checked = c.acepta_transferencia !== false;
+            const dCfg = c.delivery_config || {};
+            const selDel = document.getElementById('cfgModoDelivery');
+            if (selDel) selDel.value = dCfg.modo_delivery || 'FLOTA_SAAS';
+            const cbPin = document.getElementById('cfgDeliveryPin');
+            if (cbPin) cbPin.checked = dCfg.requiere_pin_entrega !== false;
+            const cbWa = document.getElementById('cfgDeliveryAvisoWa');
+            if (cbWa) cbWa.checked = dCfg.notificar_whatsapp_repartidor !== false;
 
             document.getElementById('modalConfigComercio').classList.remove('hidden');
         }
@@ -2198,6 +2221,17 @@ function escapeHtml(str) {
                     method: 'PATCH',
                     body
                 });
+                const selDel = document.getElementById('cfgModoDelivery');
+                if (selDel) {
+                    await apiFetch(`/api/v1/delivery/comercio/${activeTenantId}/config`, {
+                        method: 'PUT',
+                        body: {
+                            modo_delivery: selDel.value,
+                            requiere_pin_entrega: !!document.getElementById('cfgDeliveryPin')?.checked,
+                            notificar_whatsapp_repartidor: !!document.getElementById('cfgDeliveryAvisoWa')?.checked
+                        }
+                    });
+                }
                 if (pendingComercioLogoBase64) {
                     await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/logo`, {
                         method: 'PUT',

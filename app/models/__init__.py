@@ -24,6 +24,9 @@ from app.models.saas_models import (
     ProductoImagen,
     ComercioLogo,
     ConexionWhatsappComercio,
+    ConfigDeliveryComercio,
+    PerfilRepartidor,
+    AsignacionDelivery,
 )
 
 __all__ = [
@@ -51,5 +54,8 @@ __all__ = [
     "ProductoImagen",
     "ComercioLogo",
     "ConexionWhatsappComercio",
+    "ConfigDeliveryComercio",
+    "PerfilRepartidor",
+    "AsignacionDelivery",
 ]
 
