@@ -521,6 +521,23 @@ function escapeHtml(str) {
         // =========================================================
         // CARGA DEL PANEL DEL RESTAURANTE / COCINA
         // =========================================================
+        function syncRepartidoresTabState() {
+            const btn = document.getElementById('tabBtn_repartidores');
+            if (!btn) return;
+            const isLocked = !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN';
+            btn.classList.toggle('ui-nav-locked', isLocked);
+            btn.title = isLocked
+                ? 'Opción inhabilitada — Contacta al administrador para activar Repartidor Propio'
+                : 'Gestionar repartidor propio';
+            const lbl = btn.querySelector('span');
+            if (lbl) {
+                lbl.innerHTML = isLocked
+                    ? 'Repartidores <i class="fa-solid fa-lock text-[10px] ml-1 opacity-75"></i>'
+                    : 'Repartidores';
+            }
+        }
+        window.syncRepartidoresTabState = syncRepartidoresTabState;
+
         function switchComercioTab(tabName) {
             if ((tabName === 'estadisticas' || tabName === 'configuracion' || tabName === 'repartidores') && !isComercioAdminOrSuper()) {
                 tabName = 'pedidos';
@@ -730,6 +747,7 @@ function escapeHtml(str) {
 
                 applyGiroAdaptation(c);
                 applyComercioRoleVisibility();
+                syncRepartidoresTabState();
 
                 const badge = document.getElementById('headerMonedaBadge');
                 if (badge) badge.textContent = `${sym} (${c.moneda || 'NIO'})`;
