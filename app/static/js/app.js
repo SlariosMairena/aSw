@@ -529,7 +529,8 @@ function escapeHtml(str) {
                 tabName = 'pedidos';
             }
             if (tabName === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN') {
-                tabName = 'pedidos';
+                showToast('Repartidor Propio no está habilitado para tu comercio. Contacta al administrador.', true);
+                return;
             }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
             const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas', 'repartidores', 'configuracion'];
@@ -547,11 +548,17 @@ function escapeHtml(str) {
                 if (btn) {
                     const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
                     const hideInvCls = (t === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) ? ' hidden' : '';
-                    const hideRepCls = (t === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN') ? ' hidden' : '';
+                    const isRepLocked = (t === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN');
+                    const lockedRepCls = isRepLocked ? ' ui-nav-locked' : '';
+                    if (t === 'repartidores') {
+                        btn.title = isRepLocked ? 'Opción inhabilitada — Contacta al administrador para activar Repartidor Propio' : 'Gestionar repartidor propio';
+                        const lbl = btn.querySelector('span');
+                        if (lbl) lbl.innerHTML = isRepLocked ? 'Repartidores <i class="fa-solid fa-lock text-[10px] ml-1 opacity-75"></i>' : 'Repartidores';
+                    }
                     if (t === tabName) {
-                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls + hideRepCls;
+                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls + lockedRepCls;
                     } else {
-                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls + hideRepCls;
+                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls + lockedRepCls;
                     }
                 }
             });
@@ -2206,8 +2213,10 @@ function escapeHtml(str) {
                     optPropio.disabled = !canPropio;
                     optPropio.textContent = canPropio
                         ? 'Repartidor Propio del Negocio (Máx. 1)'
-                        : 'Repartidor Propio (Requiere autorización del SuperAdmin)';
+                        : 'Repartidor Propio (Inhabilitado — Contactar administrador)';
                 }
+                const hintEl = document.getElementById('cfgDeliveryPropioLockedHint');
+                if (hintEl) hintEl.classList.toggle('hidden', canPropio);
                 selDel.value = dCfg.modo_delivery || 'FLOTA_SAAS';
             }
             const cbPin = document.getElementById('cfgDeliveryPin');

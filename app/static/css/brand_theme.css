@@ -260,6 +260,30 @@ body.theme-crema ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
   box-shadow: inset 3px 0 0 #111827;
 }
 
+.ui-nav-btn.ui-nav-locked {
+  opacity: 0.45;
+  color: #9CA3AF !important;
+  background: rgba(15, 23, 42, 0.04) !important;
+  cursor: not-allowed;
+}
+.ui-nav-btn.ui-nav-locked:hover {
+  background: rgba(15, 23, 42, 0.06) !important;
+  color: #6B7280 !important;
+}
+body.theme-dark .ui-nav-btn.ui-nav-locked {
+  opacity: 0.4;
+  color: #6B7280 !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+select option:disabled {
+  color: #6B7280 !important;
+  background-color: #E5E7EB !important;
+}
+body.theme-dark select option:disabled {
+  color: #4B5563 !important;
+  background-color: #090A0C !important;
+}
+
 .ui-nav-btn.ui-nav-bot {
   border: 1px solid #E5E7EB;
   background: #FAFAFA;
