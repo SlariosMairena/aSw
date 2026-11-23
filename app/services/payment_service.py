@@ -140,12 +140,15 @@ class SimulatedPaymentGateway(BasePaymentGateway):
 
             comercio_obj = db.query(TenantComercio).filter(TenantComercio.id == pedido.tenant_id).first()
             sym = (comercio_obj.simbolo_moneda if comercio_obj else "C$") or "C$"
+            from app.core.demo_seeds import get_giro_notification_copy
+
+            gc = get_giro_notification_copy(comercio_obj.giro if comercio_obj else "RESTAURANTE")
 
             # Notificar al cliente en el historial de chat si tiene sesión activa
             if pedido.sesion_chat_id:
                 msg_ok = (
-                    f"¡Pago confirmado! Tu pedido *#{pedido.folio}* ({sym}{pedido.total:.2f}) "
-                    "ya entró al panel de preparación. Te avisaremos en cuanto esté listo."
+                    f"¡Pago confirmado! Tu {gc['item_noun']} *#{pedido.folio}* ({sym}{pedido.total:.2f}) "
+                    f"{gc['paid_area']}. Te avisaremos en cuanto haya novedades."
                 )
                 db.add(
                     MensajeChatWhatsApp(
@@ -171,7 +174,7 @@ class SimulatedPaymentGateway(BasePaymentGateway):
                 try:
                     send_whatsapp_text(
                         pedido.telefono_cliente,
-                        f"¡Pago recibido! Tu pedido *#{pedido.folio}* ({sym}{pedido.total:.2f}) ya entró a cocina.",
+                        f"¡Pago recibido! Tu {gc['item_noun']} *#{pedido.folio}* ({sym}{pedido.total:.2f}) {gc['paid_area']}.",
                     )
                 except Exception:
                     pass

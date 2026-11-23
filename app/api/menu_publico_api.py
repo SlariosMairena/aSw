@@ -547,12 +547,15 @@ def crear_pedido_desde_menu_publico(
     checkout_full = f"{base_url}{checkout_rel}"
 
     sym = comercio.simbolo_moneda or "C$"
+    from app.core.demo_seeds import get_giro_notification_copy
+
+    gc = get_giro_notification_copy(comercio.giro)
     msg_wa = (
-        f"¡Recibimos tu solicitud *#{folio}* desde el menú web de *{comercio.nombre_comercial}*!\n\n"
+        f"¡Recibimos tu {gc['item_noun']} *#{folio}* desde el {gc['canal_web']} de *{comercio.nombre_comercial}*!\n\n"
         + "\n".join(f"- {l}" for l in resumen_lineas)
         + f"\n\nTotal a pagar: *{sym}{total:.2f}*\n"
-        f"Estado: *PENDIENTE DE PAGO* _(aún no entra a cocina)_\n\n"
-        f"Completa tu pago aquí para confirmar tu pedido al instante:\n{checkout_full}"
+        f"Estado: *PENDIENTE DE PAGO* _({gc['pending_area']})_\n\n"
+        f"Completa tu pago aquí para confirmar tu {gc['item_noun']} al instante:\n{checkout_full}"
     )
     db.add(
         MensajeChatWhatsApp(

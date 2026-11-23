@@ -1131,28 +1131,34 @@ def _format_reserva_created_reply(
     comercio: TenantComercio, reserva: ReservacionMesa, mesa_nombre: str
 ) -> str:
     sym = comercio.simbolo_moneda or "C$"
+    es_cita = normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS"
+    espacio_lbl = f"- Consultorio / Especialista: *{mesa_nombre}*" if es_cita else f"- Mesa: *{mesa_nombre}* · *{reserva.cantidad_personas} personas*"
     if float(reserva.monto_pago_requerido or 0.0) > 0:
         bank_line = (
             f"\n- Datos bancarios: {comercio.datos_bancarios_texto}"
             if comercio.datos_bancarios_texto
             else ""
         )
+        titulo = "Solicitud de cita registrada" if es_cita else "Solicitud de reservación registrada"
+        confirm_obj = "confirmar tu cita" if es_cita else "confirmar tu mesa"
+        sust = "cita" if es_cita else "reservación"
         return (
-            f"*Solicitud de reservación registrada* — Folio: *#{reserva.folio_reserva}*\n"
+            f"*{titulo}* — Folio: *#{reserva.folio_reserva}*\n"
             f"Estado: *PENDIENTE DE PAGO* _(aún no confirmada)_\n\n"
             f"- A nombre de: *{reserva.nombre_cliente}*\n"
-            f"- Mesa: *{mesa_nombre}* · *{reserva.cantidad_personas} personas*\n"
+            f"{espacio_lbl}\n"
             f"- Fecha y hora: *{reserva.fecha_hora_reserva}*\n"
             f"- Anticipo requerido: *{sym}{reserva.monto_pago_requerido:.2f}*{bank_line}\n\n"
-            "Para *confirmar tu mesa*, realiza el pago del anticipo y envíanos el comprobante por este chat. "
-            "Tu reservación quedará confirmada en cuanto validemos tu pago."
+            f"Para *{confirm_obj}*, realiza el pago del anticipo y envíanos el comprobante por este chat. "
+            f"Tu {sust} quedará confirmada en cuanto validemos tu pago."
         )
+    ok_title = "¡Cita confirmada!" if es_cita else "¡Reservación confirmada!"
     return (
-        f"¡Reservación confirmada! Folio: *#{reserva.folio_reserva}*\n"
+        f"{ok_title} Folio: *#{reserva.folio_reserva}*\n"
         f"- A nombre de: *{reserva.nombre_cliente}*\n"
-        f"- Mesa: *{mesa_nombre}* · *{reserva.cantidad_personas} personas*\n"
+        f"{espacio_lbl}\n"
         f"- Fecha y hora: *{reserva.fecha_hora_reserva}*\n\n"
-        "Te esperamos pronto."
+        "¡Te esperamos pronto!"
     )
 
 
@@ -1474,12 +1480,16 @@ def _handle_solo_ia_turn(
             state["pedido_activo_id"] = pedido.id
             sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
             # Exigir pago previo antes de entrar al panel del comercio (listo para Pagadito API)
+            from app.core.demo_seeds import get_giro_notification_copy
+
+            gc = get_giro_notification_copy(comercio.giro)
+            noun_cap = gc["item_noun"].capitalize()
             reply_text = (
-                f"*Pedido registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
+                f"*{noun_cap} registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
                 f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
-                "Para confirmar tu pedido y enviarlo a cocina, realiza tu pago en este enlace seguro:\n"
+                f"Para confirmar tu {gc['item_noun']} y enviarlo a {copy['prep_word']}, realiza tu pago en este enlace seguro:\n"
                 f"{checkout_full}\n\n"
-                "_Tu pedido entrará automáticamente al panel en cuanto se confirme el pago._"
+                f"_Tu {gc['item_noun']} se confirmará automáticamente en cuanto se apruebe el pago._"
             )
 
     _save_session_state(sesion, state)
@@ -2283,12 +2293,16 @@ def process_incoming_whatsapp_message(
                 state = _empty_state()
                 state["pedido_activo_id"] = pedido.id
                 sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
+                from app.core.demo_seeds import get_giro_notification_copy
+
+                gc = get_giro_notification_copy(comercio.giro)
+                noun_cap = gc["item_noun"].capitalize()
                 reply_text = (
-                    f"*Pedido registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
+                    f"*{noun_cap} registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
                     f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
-                    f"Para confirmarlo y enviarlo a {copy['prep_word']}, completa tu pago aquí:\n"
+                    f"Para confirmar tu {gc['item_noun']} y enviarlo a {copy['prep_word']}, completa tu pago aquí:\n"
                     f"{checkout_full}\n\n"
-                    "_Tu pedido entrará automáticamente al panel en cuanto se confirme el pago._"
+                    f"_Tu {gc['item_noun']} se confirmará automáticamente en cuanto se apruebe el pago._"
                 )
                 quick_replies = ["1", "2", "3"]
             elif upper == "2" or _fuzzy_contains_any(norm, ["cambiar", "editar", "agregar"]):

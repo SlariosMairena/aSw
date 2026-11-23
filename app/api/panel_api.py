@@ -1449,20 +1449,21 @@ def actualizar_estado_pedido(
     pedido.estado_pedido = nuevo
     pedido.actualizado_en = datetime.now(timezone.utc)
 
-    # Notificación automática al chat de WhatsApp del cliente
-    nombre_com = (
-        pedido.sucursal.comercio.nombre_comercial
-        if pedido.sucursal and pedido.sucursal.comercio
-        else "el comercio"
-    )
+    # Notificación automática al chat de WhatsApp del cliente adaptada al giro
+    com_obj = pedido.sucursal.comercio if pedido.sucursal and pedido.sucursal.comercio else None
+    nombre_com = com_obj.nombre_comercial if com_obj else "el comercio"
+    from app.core.demo_seeds import get_giro_notification_copy
+
+    gc = get_giro_notification_copy(com_obj.giro if com_obj else "RESTAURANTE")
+    noun = gc["item_noun"]
     mensajes_estado = {
-        "RECIBIDO": f"Hola {pedido.nombre_cliente}, tu pedido #{pedido.folio} ha sido RECIBIDO por {nombre_com}.",
-        "EN_PROCESO": f"Tu pedido #{pedido.folio} ya está EN PROCESO / preparación en {nombre_com}.",
-        "LISTO": f"Tu pedido #{pedido.folio} está LISTO. {'Pronto saldrá a tu domicilio.' if pedido.tipo_entrega == 'DOMICILIO' else 'Ya puedes pasar a recogerlo.'}",
-        "ENTREGADO": f"Tu pedido #{pedido.folio} fue marcado como ENTREGADO. Muchas gracias por tu compra.",
-        "CANCELADO": f"Tu pedido #{pedido.folio} ha sido CANCELADO. Si tienes dudas, escríbenos por este chat.",
+        "RECIBIDO": f"Hola {pedido.nombre_cliente}, tu {noun} #{pedido.folio} {gc['recibido']} en {nombre_com}.",
+        "EN_PROCESO": f"Tu {noun} #{pedido.folio} {gc['en_proceso']} en {nombre_com}.",
+        "LISTO": f"Tu {noun} #{pedido.folio} {gc['listo_dom'] if pedido.tipo_entrega == 'DOMICILIO' else gc['listo_loc']}.",
+        "ENTREGADO": f"Tu {noun} #{pedido.folio} {gc['entregado']}",
+        "CANCELADO": f"Tu {noun} #{pedido.folio} {gc['cancelado']}. Si tienes dudas, escríbenos por este chat.",
     }
-    texto_aviso = mensajes_estado.get(nuevo, f"Actualización de pedido #{pedido.folio}: {nuevo}")
+    texto_aviso = mensajes_estado.get(nuevo, f"Actualización de tu {noun} #{pedido.folio}: {nuevo}")
 
     if pedido.sesion_chat_id:
         db.add(

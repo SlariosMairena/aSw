@@ -52,6 +52,88 @@ def normalize_giro_code(giro_raw: Optional[str]) -> str:
     return "RESTAURANTE"
 
 
+def get_giro_notification_copy(giro_raw: Optional[str]) -> Dict[str, str]:
+    """Textos de confirmación y cambio de estado adaptados a cada tipo de negocio."""
+    g = normalize_giro_code(giro_raw)
+    if g == "SERVICIOS_CITAS":
+        return {
+            "item_noun": "solicitud de servicio",
+            "canal_web": "catálogo web de servicios",
+            "pending_area": "aún no queda confirmada en agenda",
+            "paid_area": "ya quedó confirmada en nuestra agenda de atención",
+            "recibido": "ha sido RECIBIDA en recepción",
+            "en_proceso": "ya está EN ATENCIÓN / consulta",
+            "listo_dom": "está LISTA y confirmada",
+            "listo_loc": "está LISTA / confirmada en recepción",
+            "entregado": "fue marcada como FINALIZADA. ¡Gracias por tu visita!",
+            "cancelado": "ha sido CANCELADA",
+        }
+    if g == "TIENDA":
+        return {
+            "item_noun": "compra",
+            "canal_web": "catálogo web",
+            "pending_area": "aún no pasa a empaque",
+            "paid_area": "ya pasó a empaque para prepararla",
+            "recibido": "ha sido RECIBIDA",
+            "en_proceso": "ya se está EMPACANDO",
+            "listo_dom": "ya está EMPACADA y saliendo a envío",
+            "listo_loc": "ya está LISTA para retirar en tienda",
+            "entregado": "fue ENTREGADA. ¡Gracias por tu compra!",
+            "cancelado": "ha sido CANCELADA",
+        }
+    if g == "FARMACIA":
+        return {
+            "item_noun": "pedido",
+            "canal_web": "catálogo web de farmacia",
+            "pending_area": "aún no pasa a despacho",
+            "paid_area": "ya pasó a despacho en farmacia",
+            "recibido": "ha sido RECIBIDO en farmacia",
+            "en_proceso": "está siendo DESPACHADO en farmacia",
+            "listo_dom": "ya está LISTO y saliendo a tu domicilio",
+            "listo_loc": "ya está LISTO para retirar en mostrador",
+            "entregado": "fue ENTREGADO. ¡Cuidamos tu salud!",
+            "cancelado": "ha sido CANCELADO",
+        }
+    if g == "SUPERMERCADO":
+        return {
+            "item_noun": "pedido",
+            "canal_web": "catálogo web",
+            "pending_area": "aún no pasa a alistamiento",
+            "paid_area": "ya pasó a alistamiento en pasillos",
+            "recibido": "ha sido RECIBIDO",
+            "en_proceso": "se está ALISTANDO en tienda",
+            "listo_dom": "ya está LISTO y saliendo a tu domicilio",
+            "listo_loc": "ya está LISTO para retirar en caja",
+            "entregado": "fue ENTREGADO. ¡Gracias por tu preferencia!",
+            "cancelado": "ha sido CANCELADO",
+        }
+    if g == "CAFETERIA":
+        return {
+            "item_noun": "pedido",
+            "canal_web": "menú web",
+            "pending_area": "aún no entra a barra",
+            "paid_area": "ya entró a barra para preparación",
+            "recibido": "ha sido RECIBIDO en barra",
+            "en_proceso": "ya se está preparando EN BARRA",
+            "listo_dom": "ya está LISTO y pronto saldrá a tu domicilio",
+            "listo_loc": "ya está LISTO para retirar en barra",
+            "entregado": "fue ENTREGADO. ¡Que disfrutes tu bebida!",
+            "cancelado": "ha sido CANCELADO",
+        }
+    return {
+        "item_noun": "pedido",
+        "canal_web": "menú web",
+        "pending_area": "aún no entra a cocina",
+        "paid_area": "ya entró a cocina para preparación",
+        "recibido": "ha sido RECIBIDO",
+        "en_proceso": "ya está EN COCINA preparándose",
+        "listo_dom": "ya está LISTO y pronto saldrá a tu domicilio",
+        "listo_loc": "ya está LISTO para pasar a recogerlo",
+        "entregado": "fue ENTREGADO. ¡Buen provecho!",
+        "cancelado": "ha sido CANCELADO",
+    }
+
+
 GIRO_CATALOG_TEMPLATES: Dict[str, Dict[str, Any]] = {
     "RESTAURANTE": {
         "tiene_mesas": True,
