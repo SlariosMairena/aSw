@@ -853,9 +853,15 @@ def _create_order_from_session(
 
     tipo_entrega = state.get("tipo_entrega") or "RECOGER_LOCAL"
     tel_clean = clean_whatsapp_phone(sesion.telefono_cliente) or "00000000"
-    from app.api.operaciones_api import cliente_tiene_envio_gratis
+    from app.services.fidelidad_service import (
+        calcular_descuento_cliente,
+        consumir_premio_sellos,
+        get_cliente_beneficios,
+    )
 
-    es_vip_envio_gratis = cliente_tiene_envio_gratis(db, comercio.id, tel_clean)
+    beneficios_cli = get_cliente_beneficios(db, comercio.id, tel_clean)
+    es_vip_envio_gratis = bool(beneficios_cli.get("envio_gratis"))
+    desc_monto, desc_label, usa_premio_sello = calcular_descuento_cliente(subtotal, beneficios_cli)
     costo_envio = 0.0
     if tipo_entrega == "DOMICILIO":
         if es_vip_envio_gratis:
@@ -873,7 +879,9 @@ def _create_order_from_session(
         else:
             costo_envio = float(sucursal.costo_envio_base or 0.0)
 
-    total = round(subtotal + costo_envio, 2)
+    total = round(max(0.0, subtotal - desc_monto) + costo_envio, 2)
+    if usa_premio_sello and desc_monto > 0:
+        consumir_premio_sellos(db, comercio.id, tel_clean)
     nom_cli = sesion.nombre_cliente or "Cliente WhatsApp"
 
     cli = (
@@ -1217,7 +1225,7 @@ def _handle_solo_ia_turn(
         "cliente": {
             "nombre": sesion.nombre_cliente or "Cliente",
             "ultima_direccion": cli_prev.ultima_direccion if cli_prev else None,
-            "envio_gratis_vip": __import__("app.api.operaciones_api", fromlist=["cliente_tiene_envio_gratis"]).cliente_tiene_envio_gratis(db, comercio.id, telefono),
+            "beneficios_vip": __import__("app.services.fidelidad_service", fromlist=["get_cliente_beneficios"]).get_cliente_beneficios(db, comercio.id, telefono),
         },
         "pedido_activo_en_curso": pedido_activo_ctx,
         "carrito_actual": {

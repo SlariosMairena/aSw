@@ -1040,6 +1040,29 @@ def comercio_dashboard(
     )
     asig_by_ped = {a.pedido_id: a for a in asig_rows}
 
+    from app.models.saas_models import BeneficioCliente, ClienteFrecuente, FidelidadCliente
+    from app.services.fidelidad_service import get_or_create_config_fidelidad
+
+    vip_tels = set()
+    for tel_r, eg in (
+        db.query(ClienteFrecuente.telefono_whatsapp, BeneficioCliente.envio_gratis)
+        .join(BeneficioCliente, BeneficioCliente.cliente_id == ClienteFrecuente.id)
+        .filter(ClienteFrecuente.tenant_id == tenant_id, BeneficioCliente.envio_gratis.is_(True))
+        .all()
+    ):
+        if tel_r:
+            vip_tels.add(tel_r)
+    for tel_r, ev, dp in (
+        db.query(ClienteFrecuente.telefono_whatsapp, FidelidadCliente.es_vip, FidelidadCliente.descuento_pct)
+        .join(FidelidadCliente, FidelidadCliente.cliente_id == ClienteFrecuente.id)
+        .filter(ClienteFrecuente.tenant_id == tenant_id)
+        .all()
+    ):
+        if tel_r and (ev or float(dp or 0.0) > 0):
+            vip_tels.add(tel_r)
+
+    fid_cfg = get_or_create_config_fidelidad(db, tenant_id)
+
     pedidos_data = []
     for ped in pedidos:
         sesion = ped.sesion_chat
@@ -1090,6 +1113,7 @@ def comercio_dashboard(
                 else "Principal",
                 "telefono_cliente": ped.telefono_cliente,
                 "nombre_cliente": ped.nombre_cliente,
+                "cliente_es_vip": bool(ped.telefono_cliente and ped.telefono_cliente in vip_tels),
                 "tipo_entrega": ped.tipo_entrega,
                 "direccion_entrega": ped.direccion_entrega,
                 "zona_envio_nombre": ped.zona_envio_nombre,
@@ -1271,6 +1295,12 @@ def comercio_dashboard(
                 "requiere_pin_entrega": deliv_cfg.requiere_pin_entrega,
                 "notificar_whatsapp_repartidor": deliv_cfg.notificar_whatsapp_repartidor,
             },
+            "fidelidad_config": {
+                "activo": bool(fid_cfg.activo),
+                "sellos_meta": int(fid_cfg.sellos_meta or 5),
+                "monto_minimo_sello": float(fid_cfg.monto_minimo_sello or 150.0),
+                "premio_descuento_pct": float(fid_cfg.premio_descuento_pct or 15.0),
+            },
             "slug": comercio.slug,
             "giro": comercio.giro,
             "estado_suscripcion": comercio.estado_suscripcion,
@@ -1381,6 +1411,12 @@ def actualizar_estado_pedido(
         stock_descontado = deduct_inventory_for_delivered_order(
             db, pedido, current_user.email
         )
+        try:
+            from app.services.fidelidad_service import otorgar_sello_por_entrega
+
+            otorgar_sello_por_entrega(db, pedido)
+        except Exception:
+            pass
 
     db.commit()
 

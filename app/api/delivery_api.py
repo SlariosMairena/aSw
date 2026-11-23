@@ -590,6 +590,14 @@ def confirmar_entrega_con_pin(
         )
     db.commit()
 
+    try:
+        from app.services.fidelidad_service import otorgar_sello_por_entrega
+
+        if otorgar_sello_por_entrega(db, pedido):
+            db.commit()
+    except Exception:
+        pass
+
     publish_tenant_event(
         pedido.tenant_id,
         "PEDIDO_ACTUALIZADO",

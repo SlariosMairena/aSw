@@ -100,6 +100,40 @@
                     </div>
                 </div>
 
+                <!-- Tarjeta de Sellos (Fidelidad Automática) -->
+                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-slate-200 font-bold flex items-center gap-1.5">
+                            <i class="fa-solid fa-award text-amber-400"></i>
+                            <span>Tarjeta de Sellos (Fidelidad)</span>
+                        </span>
+                        <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-300 font-semibold">
+                            <input id="cfgFidelidadActivo" type="checkbox" class="w-4 h-4 accent-[#1B4332] rounded">
+                            <span>Activar programa</span>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1">Meta de sellos</label>
+                            <input id="cfgSellosMeta" type="number" min="2" max="30" value="5"
+                                class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1">Compra mín.</label>
+                            <input id="cfgMontoMinSello" type="number" min="0" step="10" value="150"
+                                class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-bold">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-slate-400 mb-1">Premio (% OFF)</label>
+                            <input id="cfgPremioPct" type="number" min="1" max="100" value="15"
+                                class="w-full px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-emerald-400 text-xs font-bold">
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400">
+                        Al entregarse cada pedido que supere la compra mínima, el cliente suma 1 sello y recibe aviso por WhatsApp. Al completar la meta, gana el descuento automático en su próximo pedido.
+                    </p>
+                </div>
+
                 <div class="pt-1 lg:hidden">
                     <button type="submit"
                         class="w-full py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-2">

@@ -57,6 +57,9 @@
     </header>
 
     <main class="max-w-2xl mx-auto px-4 pt-4 space-y-4">
+        <!-- Banner VIP & Tarjeta de Sellos (se muestra automáticamente si tiene beneficios) -->
+        <div id="pubVipBanner" class="hidden rounded-2xl p-3.5 bg-[#E4EFE9] border border-[#1B4332]/25 text-[#143326] space-y-2 shadow-sm"></div>
+
         <!-- Buscador -->
         <div class="relative">
             <i class="fa-solid fa-magnifying-glass text-slate-500 absolute left-3.5 top-3 text-xs"></i>
@@ -269,6 +272,7 @@
             if (menuData.ultima_direccion && !document.getElementById('chkDireccion').value) {
                 document.getElementById('chkDireccion').value = menuData.ultima_direccion;
             }
+            renderPubVipBanner();
 
             renderCategorias();
             renderProductos();
@@ -513,11 +517,54 @@
             }
         }
 
+        function renderPubVipBanner() {
+            const box = document.getElementById('pubVipBanner');
+            if (!box || !menuData?.cliente_beneficios) return;
+            const b = menuData.cliente_beneficios;
+            const pills = [];
+            if (b.envio_gratis) {
+                pills.push(`<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#1B4332] text-white text-[11px] font-bold"><i class="fa-solid fa-truck-fast"></i> Envío Gratis VIP</span>`);
+            }
+            if (Number(b.descuento_efectivo_pct || 0) > 0) {
+                const lbl = b.usa_premio_sellos ? `Premio Sellos: -${b.descuento_efectivo_pct}%` : `Descuento VIP: -${b.descuento_efectivo_pct}%`;
+                pills.push(`<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#D6402B] text-white text-[11px] font-bold"><i class="fa-solid fa-percent"></i> ${lbl}</span>`);
+            }
+            let sellosHtml = '';
+            if (b.programa_sellos_activo && b.cliente_id) {
+                const meta = Number(b.sellos_meta || 5);
+                const cur = Number(b.sellos_actuales || 0);
+                let dots = '';
+                for (let i = 0; i < meta; i++) {
+                    dots += `<span class="w-3 h-3 rounded-full inline-block ${i < cur ? 'bg-[#1B4332]' : 'bg-[#1B4332]/20'}"></span>`;
+                }
+                sellosHtml = `
+                    <div class="flex items-center justify-between gap-2 pt-1.5 border-t border-[#1B4332]/15 text-[11px]">
+                        <span class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-award text-[#D6402B]"></i> Tarjeta de Sellos: ${cur}/${meta}</span>
+                        <div class="flex items-center gap-1">${dots}</div>
+                    </div>`;
+            }
+            if (pills.length === 0 && !sellosHtml) {
+                box.classList.add('hidden');
+                return;
+            }
+            box.innerHTML = `
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <span class="text-xs font-extrabold mr-1"><i class="fa-solid fa-crown text-amber-600 mr-1"></i>Tus ventajas activas:</span>
+                    ${pills.join('')}
+                </div>
+                ${sellosHtml}`;
+            box.classList.remove('hidden');
+        }
+
         function recalcularCheckout() {
             const sub = cart.reduce((a, it) => a + (it.precio_base + it.precio_extras) * it.cantidad, 0);
             const tipo = document.getElementById('chkTipoEntrega').value;
+            const b = menuData?.cliente_beneficios || {};
+            const esVipGratis = !!(b.envio_gratis || menuData?.cliente_envio_gratis);
+            const descPct = Number(b.descuento_efectivo_pct || 0);
+            const descMonto = descPct > 0 ? Number((sub * (descPct / 100)).toFixed(2)) : 0;
+
             let envio = 0;
-            const esVipGratis = !!menuData?.cliente_envio_gratis;
             if (tipo === 'DOMICILIO') {
                 if (esVipGratis) {
                     envio = 0;
@@ -530,14 +577,19 @@
                     }
                 }
             }
-            document.getElementById('chkSubtotal').textContent = `${sym()}${sub.toFixed(2)}`;
+            const subEl = document.getElementById('chkSubtotal');
+            if (descMonto > 0) {
+                subEl.innerHTML = `${sym()}${sub.toFixed(2)} <span class="text-emerald-400 font-bold text-[11px]">(-${descPct}%: -${sym()}${descMonto.toFixed(2)})</span>`;
+            } else {
+                subEl.textContent = `${sym()}${sub.toFixed(2)}`;
+            }
             const chkEnvioEl = document.getElementById('chkEnvio');
             if (tipo === 'DOMICILIO' && esVipGratis) {
                 chkEnvioEl.innerHTML = `<span class="text-emerald-400 font-extrabold">GRATIS (VIP)</span>`;
             } else {
                 chkEnvioEl.textContent = `${sym()}${envio.toFixed(2)}`;
             }
-            document.getElementById('chkTotal').textContent = `${sym()}${(sub + envio).toFixed(2)}`;
+            document.getElementById('chkTotal').textContent = `${sym()}${Math.max(0, sub - descMonto + envio).toFixed(2)}`;
         }
 
         async function enviarPedidoPublico(e) {

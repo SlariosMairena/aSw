@@ -30,7 +30,9 @@ from app.core.realtime import publish_tenant_event
 from app.models.saas_models import (
     BeneficioCliente,
     ClienteFrecuente,
+    ConfigFidelidadComercio,
     DetallePedido,
+    FidelidadCliente,
     IngredienteOpcionPlato,
     ItemInventario,
     MesaZona,
@@ -533,9 +535,18 @@ def crear_pedido_manual_pos(
     tel_clean = "".join(ch for ch in (payload.telefono_cliente or "00000000") if ch.isdigit()) or "00000000"
     nom_cli = payload.nombre_cliente.strip() or "Cliente en Local"
 
+    from app.services.fidelidad_service import (
+        calcular_descuento_cliente,
+        consumir_premio_sellos,
+        get_cliente_beneficios,
+    )
+
+    beneficios_cli = get_cliente_beneficios(db, tenant_id, tel_clean)
+    desc_monto, desc_label, usa_premio_sello = calcular_descuento_cliente(subtotal, beneficios_cli)
+
     costo_envio = 0.0
     if tipo_ent == "DOMICILIO":
-        if cliente_tiene_envio_gratis(db, tenant_id, tel_clean):
+        if beneficios_cli.get("envio_gratis"):
             costo_envio = 0.0
         elif payload.zona_envio_id:
             zona_obj = (
@@ -550,7 +561,9 @@ def crear_pedido_manual_pos(
             costo_envio = float(zona_obj.costo_envio) if zona_obj else float(suc.costo_envio_base or 0.0)
         else:
             costo_envio = float(suc.costo_envio_base or 0.0)
-    total = round(subtotal + costo_envio, 2)
+    total = round(max(0.0, subtotal - desc_monto) + costo_envio, 2)
+    if usa_premio_sello and desc_monto > 0:
+        consumir_premio_sellos(db, tenant_id, tel_clean)
 
     cli_obj = None
     if tel_clean != "00000000":
@@ -700,6 +713,47 @@ class ClienteEnvioGratisPayload(BaseModel):
     envio_gratis: bool
 
 
+class ClienteVipPayload(BaseModel):
+    envio_gratis: Optional[bool] = None
+    descuento_pct: Optional[float] = None
+    es_vip: Optional[bool] = None
+    notificar_whatsapp: bool = True
+
+
+class ConfigFidelidadPayload(BaseModel):
+    activo: bool = False
+    sellos_meta: int = 5
+    monto_minimo_sello: float = 150.0
+    premio_descuento_pct: float = 15.0
+
+
+@router.put("/comercio/{tenant_id}/fidelidad/config")
+def guardar_config_fidelidad(
+    tenant_id: int,
+    payload: ConfigFidelidadPayload,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    verify_tenant_isolation(current_user, tenant_id)
+    from app.services.fidelidad_service import get_or_create_config_fidelidad
+
+    cfg = get_or_create_config_fidelidad(db, tenant_id)
+    cfg.activo = bool(payload.activo)
+    cfg.sellos_meta = max(2, min(30, int(payload.sellos_meta or 5)))
+    cfg.monto_minimo_sello = max(0.0, float(payload.monto_minimo_sello or 0.0))
+    cfg.premio_descuento_pct = max(1.0, min(100.0, float(payload.premio_descuento_pct or 15.0)))
+    db.commit()
+    return {
+        "status": "ok",
+        "fidelidad_config": {
+            "activo": bool(cfg.activo),
+            "sellos_meta": int(cfg.sellos_meta),
+            "monto_minimo_sello": float(cfg.monto_minimo_sello),
+            "premio_descuento_pct": float(cfg.premio_descuento_pct),
+        },
+    }
+
+
 @router.get("/comercio/{tenant_id}/clientes")
 def listar_clientes_frecuentes(
     tenant_id: int,
@@ -708,6 +762,9 @@ def listar_clientes_frecuentes(
     db: Session = Depends(get_db),
 ):
     verify_tenant_isolation(current_user, tenant_id)
+    from app.services.fidelidad_service import get_or_create_config_fidelidad
+
+    cfg_fid = get_or_create_config_fidelidad(db, tenant_id)
     query = db.query(ClienteFrecuente).filter(ClienteFrecuente.tenant_id == tenant_id)
     if q and q.strip():
         term = f"%{q.strip()}%"
@@ -736,7 +793,20 @@ def listar_clientes_frecuentes(
     )
     envio_gratis_map = {cid: bool(eg) for cid, eg in beneficios_rows}
 
+    fid_rows = (
+        db.query(FidelidadCliente)
+        .filter(FidelidadCliente.tenant_id == tenant_id)
+        .all()
+    )
+    fid_map = {f.cliente_id: f for f in fid_rows}
+
     return {
+        "fidelidad_config": {
+            "activo": bool(cfg_fid.activo),
+            "sellos_meta": int(cfg_fid.sellos_meta or 5),
+            "monto_minimo_sello": float(cfg_fid.monto_minimo_sello or 150.0),
+            "premio_descuento_pct": float(cfg_fid.premio_descuento_pct or 15.0),
+        },
         "clientes": [
             {
                 "id": c.id,
@@ -748,10 +818,82 @@ def listar_clientes_frecuentes(
                 "total_pedidos_realizados": max(c.total_pedidos_realizados, conteo_por_tel.get(c.telefono_whatsapp, 0)),
                 "total_gastado": gasto_por_tel.get(c.telefono_whatsapp, 0.0),
                 "envio_gratis": envio_gratis_map.get(c.id, False),
+                "descuento_pct": float(fid_map[c.id].descuento_pct or 0.0) if c.id in fid_map else 0.0,
+                "es_vip": bool(
+                    (c.id in fid_map and (fid_map[c.id].es_vip or float(fid_map[c.id].descuento_pct or 0.0) > 0))
+                    or envio_gratis_map.get(c.id, False)
+                ),
+                "sellos_actuales": int(fid_map[c.id].sellos_actuales or 0) if c.id in fid_map else 0,
+                "premios_disponibles": int(fid_map[c.id].premios_disponibles or 0) if c.id in fid_map else 0,
                 "actualizado_en": c.actualizado_en.strftime("%d/%m/%Y") if c.actualizado_en else "",
             }
             for c in clientes
-        ]
+        ],
+    }
+
+
+@router.patch("/comercio/{tenant_id}/clientes/{cliente_id}/vip")
+def actualizar_vip_cliente(
+    tenant_id: int,
+    cliente_id: int,
+    payload: ClienteVipPayload,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    """Actualiza Envío Gratis, Descuento VIP (%) y etiqueta VIP del cliente, y le avisa por WhatsApp."""
+    verify_tenant_isolation(current_user, tenant_id)
+    from app.services.fidelidad_service import (
+        get_or_create_fidelidad_cliente,
+        notificar_beneficio_vip_whatsapp,
+    )
+
+    cli = (
+        db.query(ClienteFrecuente)
+        .filter(ClienteFrecuente.id == cliente_id, ClienteFrecuente.tenant_id == tenant_id)
+        .first()
+    )
+    if not cli:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+
+    ben = db.query(BeneficioCliente).filter(BeneficioCliente.cliente_id == cli.id).first()
+    if not ben:
+        ben = BeneficioCliente(tenant_id=tenant_id, cliente_id=cli.id, envio_gratis=False)
+        db.add(ben)
+    fid = get_or_create_fidelidad_cliente(db, tenant_id, cli.id)
+
+    prev_eg = bool(ben.envio_gratis)
+    prev_desc = float(fid.descuento_pct or 0.0)
+    prev_vip = bool(fid.es_vip)
+
+    if payload.envio_gratis is not None:
+        ben.envio_gratis = bool(payload.envio_gratis)
+    if payload.descuento_pct is not None:
+        fid.descuento_pct = max(0.0, min(50.0, float(payload.descuento_pct)))
+    if payload.es_vip is not None:
+        fid.es_vip = bool(payload.es_vip)
+    elif ben.envio_gratis or fid.descuento_pct > 0:
+        fid.es_vip = True
+
+    db.commit()
+
+    activado = (
+        (ben.envio_gratis and not prev_eg)
+        or (fid.descuento_pct > prev_desc and fid.descuento_pct > 0)
+        or (fid.es_vip and not prev_vip)
+    )
+    wa_enviado = False
+    if payload.notificar_whatsapp and activado:
+        wa_enviado = notificar_beneficio_vip_whatsapp(
+            db, tenant_id, cli, bool(ben.envio_gratis), float(fid.descuento_pct), bool(fid.es_vip)
+        )
+
+    return {
+        "status": "ok",
+        "cliente_id": cli.id,
+        "envio_gratis": bool(ben.envio_gratis),
+        "descuento_pct": float(fid.descuento_pct),
+        "es_vip": bool(fid.es_vip or ben.envio_gratis or fid.descuento_pct > 0),
+        "wa_notificado": wa_enviado,
     }
 
 

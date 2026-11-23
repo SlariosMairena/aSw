@@ -916,23 +916,56 @@ async function cargarClientesComercio() {
             return;
         }
         const canEditVip = typeof isComercioAdminOrSuper === 'function' ? isComercioAdminOrSuper() : false;
+        const fidCfg = data.fidelidad_config || {};
+        const sellosActivo = !!fidCfg.activo;
+        const sellosMeta = Number(fidCfg.sellos_meta || 5);
         tbody.innerHTML = clientesDirectoryCache.map((c, idx) => {
-            const isVip = !!c.envio_gratis;
+            const isEg = !!c.envio_gratis;
+            const descPct = Number(c.descuento_pct || 0);
+            const isVip = !!c.es_vip;
+            const sellos = Number(c.sellos_actuales || 0);
+            const premios = Number(c.premios_disponibles || 0);
+
+            const vipNameBadge = isVip
+                ? `<span class="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/40"><i class="fa-solid fa-crown"></i> VIP</span>`
+                : '';
+
+            const sellosBadge = sellosActivo
+                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30" title="Tarjeta de Sellos">
+                        <i class="fa-solid fa-award"></i> ${sellos}/${sellosMeta}${premios > 0 ? ` · ${premios} premio` : ''}
+                   </span>`
+                : '';
+
             const vipCell = canEditVip
-                ? `<button type="button" onclick="toggleClienteEnvioGratis(${c.id}, ${!isVip})"
-                        title="${isVip ? 'Quitar Envío Gratis VIP' : 'Autorizar Envío Gratis VIP para este cliente'}"
-                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${isVip
-                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                            : 'bg-slate-800/70 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-500'}">
-                        <i class="fa-solid ${isVip ? 'fa-truck-fast' : 'fa-tag'}"></i>
-                        <span>${isVip ? 'Envío Gratis' : 'Normal'}</span>
-                   </button>`
-                : (isVip
-                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-truck-fast"></i> Envío Gratis</span>`
-                    : `<span class="text-slate-500 text-[11px]">Normal</span>`);
+                ? `<div class="flex flex-wrap items-center justify-center gap-1.5">
+                        <button type="button" onclick="actualizarVipCliente(${c.id}, { envio_gratis: ${!isEg} })"
+                            title="${isEg ? 'Quitar Envío Gratis VIP' : 'Autorizar Envío Gratis VIP (avisa por WhatsApp)'}"
+                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${isEg
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                                : 'bg-slate-800/70 text-slate-400 border border-slate-700 hover:text-white'}">
+                            <i class="fa-solid ${isEg ? 'fa-truck-fast' : 'fa-tag'}"></i>
+                            <span>${isEg ? 'Envío Gratis' : 'Envío Normal'}</span>
+                        </button>
+                        <select onchange="actualizarVipCliente(${c.id}, { descuento_pct: Number(this.value) })"
+                            title="Descuento VIP automático en todos sus pedidos"
+                            class="bg-slate-900 border ${descPct > 0 ? 'border-amber-500/50 text-amber-300' : 'border-slate-700 text-slate-300'} rounded-full px-2 py-1 text-[11px] font-bold outline-none cursor-pointer">
+                            <option value="0" ${descPct === 0 ? 'selected' : ''}>0% OFF</option>
+                            <option value="5" ${descPct === 5 ? 'selected' : ''}>5% OFF</option>
+                            <option value="10" ${descPct === 10 ? 'selected' : ''}>10% OFF</option>
+                            <option value="15" ${descPct === 15 ? 'selected' : ''}>15% OFF</option>
+                            <option value="20" ${descPct === 20 ? 'selected' : ''}>20% OFF</option>
+                        </select>
+                        ${sellosBadge}
+                   </div>`
+                : `<div class="flex flex-wrap items-center justify-center gap-1">
+                        ${isEg ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300"><i class="fa-solid fa-truck-fast"></i> Envío Gratis</span>` : ''}
+                        ${descPct > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300">${descPct}% OFF</span>` : ''}
+                        ${sellosBadge}
+                        ${(!isEg && descPct === 0 && !sellosBadge) ? `<span class="text-slate-500 text-[11px]">Normal</span>` : ''}
+                   </div>`;
             return `
             <tr class="hover:bg-slate-800/40">
-                <td class="px-4 py-3 font-bold text-white">${escapeHtml(c.nombre_cliente)}</td>
+                <td class="px-4 py-3 font-bold text-white">${escapeHtml(c.nombre_cliente)}${vipNameBadge}</td>
                 <td class="px-4 py-3 text-emerald-300 font-mono">${escapeHtml(c.telefono_whatsapp)}</td>
                 <td class="px-4 py-3 text-slate-300">${escapeHtml(c.ultima_direccion || 'Sin direccion guardada')}${c.ultima_zona_envio ? ` <span class="text-amber-300">(${escapeHtml(c.ultima_zona_envio)})</span>` : ''}</td>
                 <td class="px-4 py-3 text-center">
@@ -952,20 +985,22 @@ async function cargarClientesComercio() {
 }
 window.cargarClientesComercio = cargarClientesComercio;
 
-async function toggleClienteEnvioGratis(clienteId, nuevoValor) {
+async function actualizarVipCliente(clienteId, patchObj) {
     if (!activeTenantId) return;
     try {
-        await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/clientes/${clienteId}/envio-gratis`, {
+        const res = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/clientes/${clienteId}/vip`, {
             method: 'PATCH',
-            body: { envio_gratis: !!nuevoValor }
+            body: { ...patchObj, notificar_whatsapp: true }
         });
-        showToast(nuevoValor ? 'Beneficio de Envío Gratis VIP activado para este cliente.' : 'Envío Gratis VIP desactivado.');
+        const waMsg = res.wa_notificado ? ' Se envió aviso por WhatsApp al cliente.' : '';
+        showToast(`Beneficios VIP actualizados.${waMsg}`);
         await cargarClientesComercio();
     } catch (err) {
         showToast(err.message, true);
     }
 }
-window.toggleClienteEnvioGratis = toggleClienteEnvioGratis;
+window.actualizarVipCliente = actualizarVipCliente;
+window.toggleClienteEnvioGratis = (id, val) => actualizarVipCliente(id, { envio_gratis: !!val });
 
 function enviarClienteAPos(idx) {
     const cli = clientesDirectoryCache[idx];

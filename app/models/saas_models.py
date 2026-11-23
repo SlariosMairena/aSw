@@ -996,3 +996,38 @@ class BeneficioCliente(Base):
     envio_gratis = Column(Boolean, default=False, nullable=False)
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
+
+class ConfigFidelidadComercio(Base):
+    """Configuración del programa de Tarjeta de Sellos por comercio."""
+
+    __tablename__ = "config_fidelidad_comercio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    activo = Column(Boolean, default=False, nullable=False)
+    sellos_meta = Column(Integer, default=5, nullable=False)
+    monto_minimo_sello = Column(Float, default=150.0, nullable=False)
+    premio_descuento_pct = Column(Float, default=15.0, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+
+class FidelidadCliente(Base):
+    """Descuento VIP (%), insignia VIP y sellos acumulados por cliente."""
+
+    __tablename__ = "fidelidad_cliente"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    cliente_id = Column(
+        Integer, ForeignKey("clientes_frecuentes.id"), nullable=False, unique=True, index=True
+    )
+    es_vip = Column(Boolean, default=False, nullable=False)
+    descuento_pct = Column(Float, default=0.0, nullable=False)
+    sellos_actuales = Column(Integer, default=0, nullable=False)
+    premios_disponibles = Column(Integer, default=0, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+

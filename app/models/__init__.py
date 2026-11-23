@@ -28,6 +28,8 @@ from app.models.saas_models import (
     PerfilRepartidor,
     AsignacionDelivery,
     BeneficioCliente,
+    ConfigFidelidadComercio,
+    FidelidadCliente,
 )
 
 __all__ = [

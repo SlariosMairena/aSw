@@ -850,6 +850,9 @@ function escapeHtml(str) {
             const humanPill = p.modo_atencion_chat === 'HUMANO_ACTIVO'
                 ? `<span class="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] border border-[#FDE68A] text-[10px] font-bold"><i class="fa-solid fa-hand mr-1"></i> Humano</span>`
                 : '';
+            const vipPill = p.cliente_es_vip
+                ? `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 border border-amber-500/40 text-[10px] font-extrabold"><i class="fa-solid fa-crown mr-1"></i>VIP</span>`
+                : '';
             const repPill = (p.delivery_info && p.delivery_info.repartidor_nombre)
                 ? `<div class="text-[11px] font-bold text-[#1B4332] bg-[#E4EFE9] border border-[#B7D4C5] rounded-lg px-2 py-1 flex items-center justify-between gap-2">
                      <span><i class="fa-solid fa-motorcycle mr-1"></i>${escapeHtml(p.delivery_info.repartidor_nombre)}</span>
@@ -869,6 +872,7 @@ function escapeHtml(str) {
                             </div>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
+                            ${vipPill}
                             ${humanPill}
                             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${ent.cls}">
                                 <i class="fa-solid ${ent.icon} mr-1"></i>${ent.lbl}
@@ -2190,6 +2194,16 @@ function escapeHtml(str) {
             if (cbPin) cbPin.checked = dCfg.requiere_pin_entrega !== false;
             const cbWa = document.getElementById('cfgDeliveryAvisoWa');
             if (cbWa) cbWa.checked = dCfg.notificar_whatsapp_repartidor !== false;
+
+            const fCfg = c.fidelidad_config || {};
+            const cbFid = document.getElementById('cfgFidelidadActivo');
+            if (cbFid) cbFid.checked = !!fCfg.activo;
+            const elMeta = document.getElementById('cfgSellosMeta');
+            if (elMeta) elMeta.value = fCfg.sellos_meta || 5;
+            const elMin = document.getElementById('cfgMontoMinSello');
+            if (elMin) elMin.value = fCfg.monto_minimo_sello ?? 150;
+            const elPremio = document.getElementById('cfgPremioPct');
+            if (elPremio) elPremio.value = fCfg.premio_descuento_pct || 15;
         }
 
         function openConfigComercioModal() {
@@ -2234,6 +2248,18 @@ function escapeHtml(str) {
                             modo_delivery: selDel.value,
                             requiere_pin_entrega: !!document.getElementById('cfgDeliveryPin')?.checked,
                             notificar_whatsapp_repartidor: !!document.getElementById('cfgDeliveryAvisoWa')?.checked
+                        }
+                    });
+                }
+                const cbFid = document.getElementById('cfgFidelidadActivo');
+                if (cbFid) {
+                    await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/fidelidad/config`, {
+                        method: 'PUT',
+                        body: {
+                            activo: !!cbFid.checked,
+                            sellos_meta: Number(document.getElementById('cfgSellosMeta')?.value || 5),
+                            monto_minimo_sello: Number(document.getElementById('cfgMontoMinSello')?.value || 150),
+                            premio_descuento_pct: Number(document.getElementById('cfgPremioPct')?.value || 15)
                         }
                     });
                 }

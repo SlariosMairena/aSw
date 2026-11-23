@@ -38,7 +38,11 @@ from app.models.saas_models import (
     TenantComercio,
     ZonaEnvioSucursal,
 )
-from app.api.operaciones_api import cliente_tiene_envio_gratis
+from app.services.fidelidad_service import (
+    calcular_descuento_cliente,
+    consumir_premio_sellos,
+    get_cliente_beneficios,
+)
 from app.services.payment_service import simulated_gateway
 from app.services.whatsapp_provider import clean_whatsapp_phone, send_whatsapp_text
 
@@ -225,8 +229,9 @@ def obtener_menu_publico_json(
     ]
 
     ultima_direccion = ""
-    cliente_envio_gratis = False
     tel_clean = clean_whatsapp_phone(tel or "")
+    beneficios_cli = get_cliente_beneficios(db, comercio.id, tel_clean)
+    cliente_envio_gratis = bool(beneficios_cli.get("envio_gratis"))
     if tel_clean:
         cli = (
             db.query(ClienteFrecuente)
@@ -238,7 +243,6 @@ def obtener_menu_publico_json(
         )
         if cli and cli.ultima_direccion:
             ultima_direccion = cli.ultima_direccion
-        cliente_envio_gratis = cliente_tiene_envio_gratis(db, comercio.id, tel_clean)
 
     logo_row = (
         db.query(ComercioLogo.actualizado_en)
@@ -290,6 +294,7 @@ def obtener_menu_publico_json(
         "platos": platos_data,
         "ultima_direccion": ultima_direccion,
         "cliente_envio_gratis": cliente_envio_gratis,
+        "cliente_beneficios": beneficios_cli,
     }
 
 
@@ -381,7 +386,9 @@ def crear_pedido_desde_menu_publico(
 
     costo_envio = 0.0
     zona_nombre = None
-    es_vip_envio_gratis = cliente_tiene_envio_gratis(db, comercio.id, tel_clean)
+    beneficios_cli = get_cliente_beneficios(db, comercio.id, tel_clean)
+    es_vip_envio_gratis = bool(beneficios_cli.get("envio_gratis"))
+    desc_monto, desc_label, usa_premio_sello = calcular_descuento_cliente(subtotal, beneficios_cli)
     if tipo_ent == "DOMICILIO":
         if payload.zona_envio_id:
             z = (
@@ -401,7 +408,9 @@ def crear_pedido_desde_menu_publico(
         else:
             costo_envio = 0.0 if es_vip_envio_gratis else float(suc.costo_envio_base or 0.0)
 
-    total = round(subtotal + costo_envio, 2)
+    total = round(max(0.0, subtotal - desc_monto) + costo_envio, 2)
+    if usa_premio_sello and desc_monto > 0:
+        consumir_premio_sellos(db, comercio.id, tel_clean)
     metodo_pago = (payload.metodo_pago or "EFECTIVO").upper().strip()
     if metodo_pago not in ("EFECTIVO", "TRANSFERENCIA"):
         metodo_pago = "EFECTIVO"
