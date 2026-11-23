@@ -1,6 +1,6 @@
 <!-- MODAL POS / NUEVO PEDIDO EN LOCAL O MOSTRADOR -->
 <div id="modalPosPedido" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-6 shadow-2xl my-6">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full p-4 sm:p-6 shadow-2xl my-4 max-h-[92vh] overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-5">
             <div>
                 <h3 class="font-bold text-lg text-white flex items-center gap-2">
@@ -82,7 +82,7 @@
                 </div>
 
                 <div id="posDireccionBox" class="hidden grid grid-cols-1 gap-2">
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div class="col-span-2">
                             <label class="block text-[11px] text-slate-400 mb-1">Direccion de Entrega</label>
                             <input type="text" id="posDireccion" placeholder="Calle, numero, referencia"

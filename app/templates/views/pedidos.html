@@ -1,21 +1,21 @@
 <!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS EN 3 COLUMNAS ACTIVAS + HISTORIAL ENTREGADOS -->
 <div id="tabContent_pedidos" class="space-y-5">
     <!-- Barra de Acciones Rapidas: Pedido en Mostrador (POS) y Bot WhatsApp -->
-    <div class="glass rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-2.5 text-xs text-slate-300">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px]">
+    <div class="glass rounded-2xl px-3.5 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+        <div class="flex items-center gap-2 text-xs text-slate-300">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold text-[11px] shrink-0">
                 <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Vivo
             </span>
-            <span>Actualizacion automatica en tiempo real de pedidos y movimientos</span>
+            <span class="hidden sm:inline">Actualización automática en tiempo real</span>
         </div>
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button type="button" id="btnAbrirSimuladorWa" onclick="openModalWhatsappSim()"
-                class="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition flex items-center gap-1.5">
-                <i class="fa-brands fa-whatsapp text-sm"></i> <span>Probar Bot WhatsApp</span>
+                class="flex-1 sm:flex-none justify-center px-3 py-2 sm:py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition flex items-center gap-1.5">
+                <i class="fa-brands fa-whatsapp text-sm"></i> <span>Bot WhatsApp</span>
             </button>
             <button type="button" id="btnNuevoPedidoPos" onclick="openModalPosPedido()"
-                class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/20 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-cash-register"></i> <span>+ Nuevo Pedido en Local / Mostrador</span>
+                class="flex-1 sm:flex-none justify-center px-3.5 py-2 sm:py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition flex items-center gap-1.5">
+                <i class="fa-solid fa-cash-register"></i> <span>+ Nuevo Pedido</span>
             </button>
         </div>
     </div>

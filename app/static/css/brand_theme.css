@@ -40,6 +40,7 @@ body.theme-crema {
   color: var(--text-main) !important;
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
 }
 
 /* Scrollbar minimalista */
@@ -158,8 +159,52 @@ body.theme-crema ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
     border-right: none;
     border-bottom: none;
     border-top: 1px solid #E5E7EB;
-    padding: 0.45rem 0.6rem;
+    padding: 0.35rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom, 0px));
     overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+  }
+  .ui-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+  body.theme-dark .ui-sidebar {
+    background: rgba(13, 15, 18, 0.94);
+    border-top-color: #1E2228;
+  }
+  .ui-sidebar #comercioTabsNavigation {
+    gap: 0.25rem;
+    justify-content: space-between;
+  }
+  .ui-sidebar .ui-nav-btn {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.4rem 0.55rem;
+    min-width: 62px;
+    flex: 1 0 auto;
+    font-size: 0.65rem;
+    line-height: 1.1;
+    text-align: center;
+    border-radius: 0.5rem;
+  }
+  .ui-sidebar .ui-nav-btn i {
+    font-size: 0.95rem;
+    width: auto;
+  }
+  .ui-sidebar .ui-nav-btn span:not(#tabBadgeBajoStock) {
+    max-width: 68px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ui-sidebar .ui-nav-btn.is-active {
+    box-shadow: inset 0 2px 0 #111827 !important;
+  }
+  body.theme-dark .ui-sidebar .ui-nav-btn.is-active {
+    box-shadow: inset 0 2px 0 #34D399 !important;
   }
   body.theme-crema #comercioSection {
     padding-bottom: 5.5rem;
