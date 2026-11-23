@@ -1337,6 +1337,63 @@ def comercio_dashboard(
     }
 
 
+class CrearReservaManualRequest(BaseModel):
+    sucursal_id: int
+    mesa_id: Optional[int] = None
+    nombre_cliente: str
+    telefono_cliente: str = ""
+    fecha_hora_reserva: str
+    cantidad_personas: int = 1
+    notas: Optional[str] = None
+
+
+@router.post("/comercio/{tenant_id}/reservaciones/manual")
+def crear_reservacion_manual(
+    tenant_id: int,
+    payload: CrearReservaManualRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Permite a recepción/barbero/admin agendar una cita o reserva presencial/telefónica en la agenda."""
+    verify_tenant_isolation(current_user, tenant_id)
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+
+    from app.services.whatsapp_bot_service import _has_reservation_conflict
+
+    fh = (payload.fecha_hora_reserva or "").strip()[:48]
+    if not fh:
+        raise HTTPException(status_code=400, detail="Indica fecha y hora de la cita.")
+    if payload.mesa_id and _has_reservation_conflict(db, payload.sucursal_id, payload.mesa_id, fh):
+        raise HTTPException(status_code=409, detail=f"Ese horario ({fh}) ya está ocupado en ese espacio/consultorio.")
+
+    mesa = db.query(MesaZona).filter(MesaZona.id == payload.mesa_id).first() if payload.mesa_id else None
+    anticipo = float(mesa.monto_anticipo_reserva or 0.0) if mesa else 0.0
+    es_cita = normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS"
+    folio = f"{'CIT' if es_cita else 'RES'}-{datetime.now(timezone.utc).strftime('%H%M')}-{random.randint(100, 999)}"
+    tel_clean = "".join(ch for ch in (payload.telefono_cliente or "") if ch.isdigit())
+
+    res = ReservacionMesa(
+        folio_reserva=folio,
+        tenant_id=tenant_id,
+        sucursal_id=payload.sucursal_id,
+        mesa_id=payload.mesa_id,
+        nombre_cliente=payload.nombre_cliente.strip()[:80],
+        telefono_cliente=tel_clean or "00000000",
+        fecha_hora_reserva=fh,
+        cantidad_personas=max(1, int(payload.cantidad_personas or 1)),
+        monto_pago_requerido=round(anticipo, 2),
+        estado_pago="PAGADO" if anticipo <= 0 else "PENDIENTE_PAGO_API",
+        estado_reserva="CONFIRMADA",
+        notas=(payload.notas or "").strip() or None,
+    )
+    db.add(res)
+    db.commit()
+    db.refresh(res)
+    return {"status": "ok", "id": res.id, "folio": res.folio_reserva}
+
+
 @router.post("/comercio/reservaciones/{reserva_id}/recordatorio")
 def enviar_recordatorio_cita_whatsapp(
     reserva_id: int,

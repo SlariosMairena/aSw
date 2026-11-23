@@ -474,42 +474,216 @@ function renderSucursalesYMesasV2(sucursales, comercio, reservaciones = []) {
         }
     }
 
-    const resGrid = document.getElementById('reservacionesListGrid');
-    if (resGrid) {
-        const listRes = reservaciones || (currentComercioData && currentComercioData.reservaciones_mesa) || [];
-        if (listRes.length === 0) {
-            resGrid.innerHTML = `<div class="col-span-full text-xs text-slate-500 py-2">Sin reservaciones registradas aun.</div>`;
-        } else {
-            resGrid.innerHTML = listRes.map(r => {
-                const st = r.estado_reserva || 'PENDIENTE';
-                const badgeCls = st === 'CONFIRMADA'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                    : st === 'COMPLETADA'
-                        ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
-                        : st === 'CANCELADA'
-                            ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                            : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-                return `
-                    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-2">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="font-bold text-white">${escapeHtml(r.nombre_cliente)} <span class="text-slate-400 font-normal">(#${escapeHtml(r.folio || r.id)})</span></span>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls}">${escapeHtml(st)}</span>
-                        </div>
-                        <div class="text-slate-400">
-                            <i class="fa-solid fa-chair mr-1 text-indigo-400"></i> ${escapeHtml(r.mesa_nombre)} • ${r.personas} pers. • ${escapeHtml(r.fecha_hora)}
-                        </div>
-                        <div class="flex flex-wrap gap-1.5 pt-1">
-                            <button type="button" onclick="cambiarEstadoReservacion(${r.id}, 'CONFIRMADA')" class="px-2 py-1 rounded bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 font-semibold">Confirmar</button>
-                            <button type="button" onclick="cambiarEstadoReservacion(${r.id}, 'COMPLETADA')" class="px-2 py-1 rounded bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 font-semibold">Completar</button>
-                            <button type="button" onclick="cambiarEstadoReservacion(${r.id}, 'CANCELADA')" class="px-2 py-1 rounded bg-rose-600/25 hover:bg-rose-600/40 text-rose-300 font-semibold">Cancelar</button>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
+    const esCitaGiro = typeof getGiroProfile === 'function' && getGiroProfile(comercio?.giro).code === 'SERVICIOS_CITAS';
+    const elTitle = document.getElementById('resBloqueTitle');
+    if (elTitle) elTitle.textContent = esCitaGiro ? 'Agenda de Citas y Consultorios / Sillones' : 'Mesas Físicas y Reservaciones';
+    const elSub = document.getElementById('resBloqueSub');
+    if (elSub) elSub.textContent = esCitaGiro
+        ? 'Visualiza tus citas ordenadas por día y horario, filtra por especialista/sillón y envía recordatorios por WhatsApp.'
+        : 'Administra tus mesas por sucursal y gestiona reservaciones en vista de agenda.';
+    const elEspHead = document.getElementById('resEspaciosHeading');
+    if (elEspHead) elEspHead.innerHTML = esCitaGiro
+        ? '<i class="fa-solid fa-door-open text-indigo-400"></i> <span>Consultorios / Sillones / Especialistas</span>'
+        : '<i class="fa-solid fa-chair text-indigo-400"></i> <span>Mesas por Sucursal</span>';
+    const elBtnCita = document.getElementById('btnNuevaCitaManualLbl');
+    if (elBtnCita) elBtnCita.textContent = esCitaGiro ? '+ Agendar Cita' : '+ Nueva Reserva';
+
+    // Llenar selector de espacios para cita manual
+    const citaEspSel = document.getElementById('citaManualEspSelect');
+    if (citaEspSel) {
+        citaEspSel.innerHTML = todasLasMesas.map(m =>
+            `<option value="${m.id}" data-suc="${m.sucursal_id || (sucursales[0]?.id || '')}">${escapeHtml(m.nombre_mesa)}</option>`
+        ).join('') || `<option value="">Sin espacio asignado</option>`;
     }
+
+    window._agendaCache = {
+        reservaciones: reservaciones || (currentComercioData && currentComercioData.reservaciones_mesa) || [],
+        mesas: todasLasMesas,
+        sym,
+        esCitaGiro
+    };
+    renderAgendaCalendarioView();
 }
 window.renderSucursalesYMesasV2 = renderSucursalesYMesasV2;
+
+let agendaFiltroEsp = 'ALL';
+let agendaFiltroEstado = 'ALL';
+
+function setAgendaFiltroEsp(esp) {
+    agendaFiltroEsp = esp || 'ALL';
+    renderAgendaCalendarioView();
+}
+window.setAgendaFiltroEsp = setAgendaFiltroEsp;
+
+function setAgendaFiltroEstado(st) {
+    agendaFiltroEstado = st || 'ALL';
+    renderAgendaCalendarioView();
+}
+window.setAgendaFiltroEstado = setAgendaFiltroEstado;
+
+function toggleNuevaCitaManualForm() {
+    document.getElementById('formNuevaCitaManual')?.classList.toggle('hidden');
+}
+window.toggleNuevaCitaManualForm = toggleNuevaCitaManualForm;
+
+async function handleCrearCitaManual(e) {
+    e.preventDefault();
+    if (!activeTenantId) return;
+    const espSel = document.getElementById('citaManualEspSelect');
+    const opt = espSel?.selectedOptions?.[0];
+    const sucId = Number(opt?.dataset?.suc || currentComercioData?.sucursales?.[0]?.id || 0);
+    const mesaId = espSel?.value ? Number(espSel.value) : null;
+    try {
+        await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/reservaciones/manual`, {
+            method: 'POST',
+            body: {
+                sucursal_id: sucId,
+                mesa_id: mesaId,
+                nombre_cliente: document.getElementById('citaManualNombre').value.trim(),
+                telefono_cliente: document.getElementById('citaManualTel').value.trim(),
+                fecha_hora_reserva: document.getElementById('citaManualFechaHora').value.trim(),
+                cantidad_personas: 1,
+                notas: document.getElementById('citaManualNotas').value.trim() || null
+            }
+        });
+        document.getElementById('citaManualNombre').value = '';
+        document.getElementById('citaManualTel').value = '';
+        document.getElementById('citaManualFechaHora').value = '';
+        document.getElementById('citaManualNotas').value = '';
+        document.getElementById('formNuevaCitaManual')?.classList.add('hidden');
+        showToast('Cita registrada en la agenda.');
+        await reloadComercioDashboard();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.handleCrearCitaManual = handleCrearCitaManual;
+
+async function enviarRecordatorioCita(reservaId) {
+    try {
+        await apiFetch(`/api/v1/panel/comercio/reservaciones/${reservaId}/recordatorio`, { method: 'POST' });
+        showToast('Recordatorio enviado por WhatsApp al cliente.');
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.enviarRecordatorioCita = enviarRecordatorioCita;
+
+function renderAgendaCalendarioView() {
+    const cache = window._agendaCache || { reservaciones: [], mesas: [], sym: 'C$', esCitaGiro: false };
+    const listRes = cache.reservaciones || [];
+    const sym = cache.sym || 'C$';
+    const esCita = !!cache.esCitaGiro;
+
+    // 1. Chips de Especialista / Consultorio / Mesa
+    const espNames = [...new Set(listRes.map(r => r.mesa_nombre || 'Sin asignar'))];
+    const espBar = document.getElementById('agendaEspChips');
+    if (espBar) {
+        espBar.innerHTML = [`<button type="button" onclick="setAgendaFiltroEsp('ALL')" class="px-3 py-1 rounded-full border font-bold text-[11px] transition ${agendaFiltroEsp === 'ALL' ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-slate-900 text-slate-300 border-slate-700'}">Todos (${listRes.length})</button>`]
+            .concat(espNames.map(n => {
+                const cnt = listRes.filter(r => (r.mesa_nombre || 'Sin asignar') === n).length;
+                const act = agendaFiltroEsp === n;
+                const safe = n.replace(/'/g, "\\'");
+                return `<button type="button" onclick="setAgendaFiltroEsp('${safe}')" class="px-3 py-1 rounded-full border font-semibold text-[11px] transition ${act ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-slate-900 text-slate-300 border-slate-700'}">${escapeHtml(n)} (${cnt})</button>`;
+            })).join('');
+    }
+
+    // 2. Chips de Estado
+    const estBar = document.getElementById('agendaEstadoChips');
+    if (estBar) {
+        const estados = [
+            ['ALL', 'Todas'],
+            ['ESPERANDO_PAGO', 'Esperando Pago'],
+            ['CONFIRMADA', 'Confirmadas'],
+            ['COMPLETADA', 'Completadas']
+        ];
+        estBar.innerHTML = estados.map(([k, lbl]) => `
+            <button type="button" onclick="setAgendaFiltroEstado('${k}')"
+                class="px-2.5 py-1 rounded-lg border font-bold transition ${agendaFiltroEstado === k ? 'bg-indigo-500/25 text-indigo-200 border-indigo-500/50' : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'}">
+                ${lbl}
+            </button>
+        `).join('');
+    }
+
+    // 3. Filtrar y agrupar por Día (ej. "Hoy", "Mañana", "25 Nov")
+    const filtradas = listRes.filter(r => {
+        const matchEsp = agendaFiltroEsp === 'ALL' || (r.mesa_nombre || 'Sin asignar') === agendaFiltroEsp;
+        const matchSt = agendaFiltroEstado === 'ALL' || (r.estado_reserva || 'PENDIENTE') === agendaFiltroEstado;
+        return matchEsp && matchSt;
+    });
+
+    const resGrid = document.getElementById('reservacionesListGrid');
+    if (!resGrid) return;
+    if (filtradas.length === 0) {
+        resGrid.innerHTML = `<div class="p-6 text-center rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400">No hay ${esCita ? 'citas' : 'reservaciones'} con este filtro.</div>`;
+        return;
+    }
+
+    const gruposDia = {};
+    filtradas.forEach(r => {
+        const raw = String(r.fecha_hora || 'Por confirmar').trim();
+        const parts = raw.split(/\s+/);
+        // Agrupar por prefijo de día ("Hoy", "Mañana", "25 Nov", "Lunes", etc.)
+        let diaKey = parts[0] || 'Agenda';
+        if (parts.length >= 2 && /^\d{1,2}$/.test(parts[0])) diaKey = `${parts[0]} ${parts[1]}`;
+        if (!gruposDia[diaKey]) gruposDia[diaKey] = [];
+        gruposDia[diaKey].push(r);
+    });
+
+    resGrid.innerHTML = Object.entries(gruposDia).map(([dia, items]) => `
+        <div class="space-y-2">
+            <div class="flex items-center gap-2 pb-1 border-b border-slate-800/70">
+                <span class="w-6 h-6 rounded-lg bg-indigo-500/15 text-indigo-300 flex items-center justify-center text-[11px]">
+                    <i class="fa-regular fa-calendar"></i>
+                </span>
+                <span class="text-xs font-extrabold uppercase tracking-wider text-white">${escapeHtml(dia)}</span>
+                <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-bold">${items.length} ${items.length === 1 ? (esCita ? 'cita' : 'reserva') : (esCita ? 'citas' : 'reservas')}</span>
+            </div>
+            <div class="space-y-2">
+                ${items.map(r => {
+                    const st = r.estado_reserva || 'PENDIENTE';
+                    const badgeCls = st === 'CONFIRMADA'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                        : st === 'COMPLETADA'
+                            ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                            : st === 'CANCELADA'
+                                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+                                : 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+                    const rawFh = String(r.fecha_hora || '');
+                    const horaTxt = rawFh.replace(dia, '').trim() || rawFh;
+                    return `
+                        <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+                            <div class="flex items-start sm:items-center gap-3 min-w-0">
+                                <div class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-center shrink-0 min-w-[82px]">
+                                    <div class="text-[10px] text-slate-400 uppercase font-bold">${escapeHtml(dia)}</div>
+                                    <div class="text-xs font-extrabold text-emerald-400">${escapeHtml(horaTxt)}</div>
+                                </div>
+                                <div class="min-w-0 space-y-0.5">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="font-extrabold text-sm text-white">${escapeHtml(r.nombre_cliente)}</span>
+                                        <span class="text-[10px] font-mono text-slate-400">#${escapeHtml(r.folio || r.id)}</span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls}">${escapeHtml(st)}</span>
+                                    </div>
+                                    <div class="text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                        <span><i class="fa-solid ${esCita ? 'fa-user-doctor' : 'fa-chair'} mr-1 text-indigo-400"></i>${escapeHtml(r.mesa_nombre || 'Sin asignar')}</span>
+                                        ${r.telefono_cliente ? `<span>· <i class="fa-brands fa-whatsapp text-emerald-400 mr-0.5"></i>${escapeHtml(r.telefono_cliente)}</span>` : ''}
+                                        ${Number(r.monto_anticipo || 0) > 0 ? `<span>· Anticipo: <strong class="text-amber-300">${sym}${Number(r.monto_anticipo).toFixed(2)}</strong></span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+                                ${st !== 'CONFIRMADA' && st !== 'COMPLETADA' ? `<button type="button" onclick="cambiarEstadoReservacion(${r.id}, 'CONFIRMADA')" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 font-bold transition">Confirmar</button>` : ''}
+                                ${r.telefono_cliente ? `<button type="button" onclick="enviarRecordatorioCita(${r.id})" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/35 text-emerald-300 font-bold transition flex items-center gap-1" title="Enviar recordatorio por WhatsApp"><i class="fa-brands fa-whatsapp"></i><span>Recordar</span></button>` : ''}
+                                ${st !== 'COMPLETADA' ? `<button type="button" onclick="cambiarEstadoReservacion(${r.id}, 'COMPLETADA')" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/25 hover:bg-indigo-600/40 text-indigo-300 font-bold transition">Atendida</button>` : ''}
+                                ${st !== 'CANCELADA' ? `<button type="button" onclick="cambiarEstadoReservacion(${r.id}, 'CANCELADA')" class="px-2.5 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/35 text-rose-300 font-bold transition">Cancelar</button>` : ''}
+                            </div>
+                        </div>`;
+                }).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+window.renderAgendaCalendarioView = renderAgendaCalendarioView;
 
 async function toggleSucursalAbiertaRapida(sucId, nuevoEstado, tiempoMin, anchoTicket) {
     try {
