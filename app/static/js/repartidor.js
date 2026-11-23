@@ -228,14 +228,16 @@ function _renderListaRepartidores(targetId, lista, esFlotaSaas) {
     const box = document.getElementById(targetId);
     if (!box) return;
     if (!lista || lista.length === 0) {
-        box.innerHTML = `<div class="text-center text-slate-400 py-5">No hay repartidores registrados todavía. Usa el formulario superior para agregar uno.</div>`;
+        box.innerHTML = `<div class="text-center text-slate-400 py-5">No hay repartidores registrados todavía.</div>`;
         return;
     }
+    const isSA = currentUser && currentUser.rol === 'SUPER_ADMIN';
     box.innerHTML = lista.map(r => `
         <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
             <div class="space-y-0.5 min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="font-bold text-sm text-white">${escapeHtml(r.nombre_completo)}</span>
+                    ${r.comercio_nombre ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"><i class="fa-solid fa-store mr-1"></i>${escapeHtml(r.comercio_nombre)}</span>` : ''}
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${r.activo ? (r.disponible ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30') : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
                         ${!r.activo ? 'CUENTA PAUSADA' : (r.disponible ? 'EN LÍNEA' : 'DESCONECTADO')}
                     </span>
@@ -243,16 +245,24 @@ function _renderListaRepartidores(targetId, lista, esFlotaSaas) {
                 </div>
                 <p class="text-xs text-slate-400 truncate">${escapeHtml(r.email)} · WhatsApp: <span class="font-mono">${escapeHtml(r.telefono_whatsapp || '—')}</span></p>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-                <button type="button" onclick="resetRepartidorPass(${r.id}, ${esFlotaSaas ? 'true' : 'false'})"
-                    class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1">
-                    <i class="fa-solid fa-key"></i> <span>Clave</span>
-                </button>
-                <button type="button" onclick="toggleRepartidorActivo(${r.id}, ${!r.activo}, ${esFlotaSaas ? 'true' : 'false'})"
-                    class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${r.activo ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300' : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300'}">
-                    ${r.activo ? 'Pausar' : 'Activar'}
-                </button>
-            </div>
+            ${isSA ? `
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onclick="resetRepartidorPass(${r.id}, ${esFlotaSaas ? 'true' : 'false'})"
+                        class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1">
+                        <i class="fa-solid fa-key"></i> <span>Clave</span>
+                    </button>
+                    <button type="button" onclick="toggleRepartidorActivo(${r.id}, ${!r.activo}, ${esFlotaSaas ? 'true' : 'false'})"
+                        class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${r.activo ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300' : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300'}">
+                        ${r.activo ? 'Pausar' : 'Activar'}
+                    </button>
+                    <button type="button" onclick="eliminarRepartidorAdmin(${r.id}, '${escapeHtml(r.nombre_completo).replace(/'/g, "\\'")}')"
+                        class="px-2.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-rose-300 text-xs font-bold transition flex items-center gap-1" title="Eliminar repartidor del sistema">
+                        <i class="fa-solid fa-trash-can"></i> <span>Eliminar</span>
+                    </button>
+                </div>
+            ` : `
+                <span class="text-[11px] text-slate-400 italic">Para eliminar o cambiarlo, contacta al administrador</span>
+            `}
         </div>
     `).join('');
 }
@@ -297,7 +307,15 @@ async function cargarRepartidoresComercio() {
     }
     try {
         const data = await apiFetch(`/api/v1/delivery/repartidores?tenant_id=${activeTenantId}`);
-        _renderListaRepartidores('repComercioList', data.repartidores || [], false);
+        const reps = data.repartidores || [];
+        const maxRep = Number(data.max_repartidores_propios || 1);
+        const formEl = document.getElementById('formCrearRepartidorComercio');
+        const limEl = document.getElementById('repComercioLimiteNotice');
+        const reached = reps.length >= maxRep && currentUser?.rol !== 'SUPER_ADMIN';
+        if (formEl) formEl.classList.toggle('hidden', reached);
+        if (limEl) limEl.classList.toggle('hidden', !reached);
+
+        _renderListaRepartidores('repComercioList', reps, false);
         _renderListaEnCamino('repComercioEnCaminoList', data.en_camino || [], false);
     } catch (err) {
         showToast(err.message, true);
@@ -309,15 +327,64 @@ async function cargarFlotaSuperAdmin() {
     try {
         const data = await apiFetch('/api/v1/delivery/repartidores');
         const reps = data.repartidores || [];
+        const propios = data.repartidores_propios || [];
+        const permisos = data.comercios_permisos || [];
         const cntEl = document.getElementById('saTabCountRepartidores');
-        if (cntEl) cntEl.textContent = String(reps.length);
+        if (cntEl) cntEl.textContent = String(reps.length + propios.length);
+
+        const permBox = document.getElementById('saRepPermisosComerciosList');
+        if (permBox) {
+            permBox.innerHTML = permisos.map(c => `
+                <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2.5">
+                    <div class="min-w-0">
+                        <div class="font-bold text-white truncate">${escapeHtml(c.nombre_comercial)}</div>
+                        <div class="text-[11px] text-slate-400">Repartidores propios: <strong>${c.repartidores_propios_count}/${c.max_repartidores_propios}</strong></div>
+                    </div>
+                    <button type="button" onclick="togglePermisoPropioComercio(${c.tenant_id}, ${!c.permite_repartidor_propio})"
+                        class="px-3 py-1.5 rounded-xl text-[11px] font-bold transition shrink-0 ${c.permite_repartidor_propio
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                            : 'bg-slate-800 text-slate-300 border border-slate-700 hover:text-white'}">
+                        <i class="fa-solid ${c.permite_repartidor_propio ? 'fa-toggle-on' : 'fa-toggle-off'} mr-1"></i>
+                        <span>${c.permite_repartidor_propio ? 'Autorizado (1)' : 'No autorizado'}</span>
+                    </button>
+                </div>
+            `).join('') || `<div class="text-slate-400 py-3">Sin comercios registrados.</div>`;
+        }
+
         _renderListaRepartidores('saRepFlotaList', reps, true);
+        _renderListaRepartidores('saRepPropiosList', propios, false);
         _renderListaEnCamino('saRepEnCaminoList', data.en_camino || [], true);
     } catch (err) {
         showToast(err.message, true);
     }
 }
 window.cargarFlotaSuperAdmin = cargarFlotaSuperAdmin;
+
+async function togglePermisoPropioComercio(tenantId, habilitar) {
+    try {
+        await apiFetch(`/api/v1/delivery/comercio/${tenantId}/permiso-propio`, {
+            method: 'PATCH',
+            body: { permite_repartidor_propio: !!habilitar, max_repartidores_propios: 1 }
+        });
+        showToast(habilitar ? 'Permiso de Repartidor Propio (máx. 1) habilitado.' : 'Permiso revocado (comercio regresado a Flota SaaS).');
+        await cargarFlotaSuperAdmin();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.togglePermisoPropioComercio = togglePermisoPropioComercio;
+
+async function eliminarRepartidorAdmin(uid, nombre) {
+    if (!window.confirm(`¿Eliminar definitivamente al repartidor "${nombre}" del sistema?`)) return;
+    try {
+        await apiFetch(`/api/v1/delivery/repartidores/${uid}`, { method: 'DELETE' });
+        showToast('Repartidor eliminado del sistema.');
+        await cargarFlotaSuperAdmin();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.eliminarRepartidorAdmin = eliminarRepartidorAdmin;
 
 async function handleCrearRepartidor(e, esFlotaSaas) {
     e.preventDefault();

@@ -528,6 +528,9 @@ function escapeHtml(str) {
             if (tabName === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) {
                 tabName = 'pedidos';
             }
+            if (tabName === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN') {
+                tabName = 'pedidos';
+            }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
             const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas', 'repartidores', 'configuracion'];
             
@@ -544,10 +547,11 @@ function escapeHtml(str) {
                 if (btn) {
                     const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
                     const hideInvCls = (t === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) ? ' hidden' : '';
+                    const hideRepCls = (t === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN') ? ' hidden' : '';
                     if (t === tabName) {
-                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls;
+                        btn.className = 'ui-nav-btn is-active' + adminOnlyCls + hideInvCls + hideRepCls;
                     } else {
-                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls;
+                        btn.className = 'ui-nav-btn' + adminOnlyCls + hideInvCls + hideRepCls;
                     }
                 }
             });
@@ -2195,7 +2199,17 @@ function escapeHtml(str) {
 
             const dCfg = c.delivery_config || {};
             const selDel = document.getElementById('cfgModoDelivery');
-            if (selDel) selDel.value = dCfg.modo_delivery || 'FLOTA_SAAS';
+            if (selDel) {
+                const optPropio = selDel.querySelector('option[value="PROPIO"]');
+                const canPropio = !!(dCfg.permite_repartidor_propio || currentUser?.rol === 'SUPER_ADMIN');
+                if (optPropio) {
+                    optPropio.disabled = !canPropio;
+                    optPropio.textContent = canPropio
+                        ? 'Repartidor Propio del Negocio (Máx. 1)'
+                        : 'Repartidor Propio (Requiere autorización del SuperAdmin)';
+                }
+                selDel.value = dCfg.modo_delivery || 'FLOTA_SAAS';
+            }
             const cbPin = document.getElementById('cfgDeliveryPin');
             if (cbPin) cbPin.checked = dCfg.requiere_pin_entrega !== false;
             const cbWa = document.getElementById('cfgDeliveryAvisoWa');

@@ -25,6 +25,7 @@ from app.models.saas_models import (
     ComercioLogo,
     ConexionWhatsappComercio,
     ConfigDeliveryComercio,
+    PermisoDeliveryComercio,
     PerfilRepartidor,
     AsignacionDelivery,
     BeneficioCliente,

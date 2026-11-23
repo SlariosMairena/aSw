@@ -196,9 +196,27 @@
                     </div>
 
                     <!-- ========================================================= -->
-                    <!-- TAB 4: FLOTA DE REPARTIDORES SAAS Y RESCATE EN CAMINO      -->
+                    <!-- TAB 4: FLOTA DE REPARTIDORES SAAS Y PERMISOS POR COMERCIO  -->
                     <!-- ========================================================= -->
                     <div id="saTabRepartidores" class="hidden space-y-5">
+                        <!-- Control de Permisos por Comercio (Autorizar Repartidor Propio Máx. 1) -->
+                        <div class="glass rounded-2xl p-5 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-toggle-on text-emerald-400"></i>
+                                        <span>Autorizar Repartidor Propio por Comercio (Máx. 1)</span>
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Solo los comercios autorizados aquí verán la pestaña <strong>Repartidores</strong> y podrán registrar 1 repartidor propio (no pueden eliminarlo sin contactarte).</p>
+                                </div>
+                                <button type="button" onclick="cargarFlotaSuperAdmin()"
+                                    class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+                                    <i class="fa-solid fa-rotate mr-1"></i>Actualizar
+                                </button>
+                            </div>
+                            <div id="saRepPermisosComerciosList" class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs"></div>
+                        </div>
+
                         <!-- Entregas activas EN_CAMINO en toda la plataforma -->
                         <div class="glass rounded-2xl p-5 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
@@ -209,10 +227,6 @@
                                     </h3>
                                     <p class="text-xs text-slate-400 mt-0.5">Libera cualquier pedido atascado para reasignarlo de inmediato a otro repartidor disponible.</p>
                                 </div>
-                                <button type="button" onclick="cargarFlotaSuperAdmin()"
-                                    class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
-                                    <i class="fa-solid fa-rotate mr-1"></i>Actualizar
-                                </button>
                             </div>
                             <div id="saRepEnCaminoList" class="space-y-2.5 text-xs"></div>
                         </div>
@@ -222,7 +236,7 @@
                             <div class="pb-2.5 border-b border-slate-800/60">
                                 <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
                                     <i class="fa-solid fa-motorcycle text-emerald-400"></i>
-                                    <span>Flota Compartida SaaS (Repartidores Globales)</span>
+                                    <span>Flota Compartida SaaS (Tus Repartidores Globales)</span>
                                 </h3>
                                 <p class="text-xs text-slate-400 mt-0.5">Estos repartidores cubren todos los comercios configurados en modo <strong>Flota Compartida del SaaS</strong>.</p>
                             </div>
@@ -247,6 +261,18 @@
                                 </div>
                             </form>
                             <div id="saRepFlotaList" class="space-y-2.5 text-xs"></div>
+                        </div>
+
+                        <!-- Repartidores Propios registrados por Comercios (solo SuperAdmin puede eliminarlos) -->
+                        <div class="glass rounded-2xl p-5 space-y-3">
+                            <div class="pb-2.5 border-b border-slate-800/60">
+                                <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-store text-amber-400"></i>
+                                    <span>Repartidores Propios de Comercios</span>
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Solo tú (SuperAdmin) puedes pausar o eliminar el repartidor propio de un cliente si te solicita cambiarlo.</p>
+                            </div>
+                            <div id="saRepPropiosList" class="space-y-2.5 text-xs"></div>
                         </div>
                     </div>
                 </div>

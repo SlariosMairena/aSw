@@ -24,6 +24,7 @@ from app.models.saas_models import (
     MensajeChatWhatsApp,
     Pedido,
     PerfilRepartidor,
+    PermisoDeliveryComercio,
     SesionChatWhatsApp,
     SucursalComercio,
     TenantComercio,
@@ -64,6 +65,23 @@ def get_or_create_delivery_config(db: Session, tenant_id: int) -> ConfigDelivery
         db.add(cfg)
         db.flush()
     return cfg
+
+
+def get_or_create_permiso_delivery(db: Session, tenant_id: int) -> PermisoDeliveryComercio:
+    perm = (
+        db.query(PermisoDeliveryComercio)
+        .filter(PermisoDeliveryComercio.tenant_id == tenant_id)
+        .first()
+    )
+    if not perm:
+        perm = PermisoDeliveryComercio(
+            tenant_id=tenant_id,
+            permite_repartidor_propio=False,
+            max_repartidores_propios=1,
+        )
+        db.add(perm)
+        db.flush()
+    return perm
 
 
 def ensure_delivery_assignment(db: Session, pedido: Pedido) -> Optional[AsignacionDelivery]:
@@ -199,6 +217,41 @@ class DisponibilidadRequest(BaseModel):
 # =====================================================================
 # ENDPOINTS DE CONFIGURACIÓN Y GESTIÓN DE REPARTIDORES
 # =====================================================================
+class PermisoDeliveryUpdate(BaseModel):
+    permite_repartidor_propio: bool
+    max_repartidores_propios: int = 1
+
+
+@router.patch("/comercio/{tenant_id}/permiso-propio")
+def actualizar_permiso_repartidor_propio(
+    tenant_id: int,
+    payload: PermisoDeliveryUpdate,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Exclusivo SUPER_ADMIN: habilita o revoca la opción de Repartidor Propio (máx. 1) para un comercio."""
+    if current_user.rol != "SUPER_ADMIN":
+        raise HTTPException(status_code=403, detail="Solo el SuperAdmin puede gestionar este permiso.")
+
+    perm = get_or_create_permiso_delivery(db, tenant_id)
+    perm.permite_repartidor_propio = bool(payload.permite_repartidor_propio)
+    perm.max_repartidores_propios = max(1, min(1, int(payload.max_repartidores_propios or 1)))
+
+    # Si se revoca el permiso y el comercio estaba en PROPIO, regresarlo a FLOTA_SAAS
+    if not perm.permite_repartidor_propio:
+        cfg = get_or_create_delivery_config(db, tenant_id)
+        if cfg.modo_delivery == "PROPIO":
+            cfg.modo_delivery = "FLOTA_SAAS"
+
+    db.commit()
+    return {
+        "status": "ok",
+        "tenant_id": tenant_id,
+        "permite_repartidor_propio": bool(perm.permite_repartidor_propio),
+        "max_repartidores_propios": int(perm.max_repartidores_propios),
+    }
+
+
 @router.put("/comercio/{tenant_id}/config")
 def actualizar_config_delivery_comercio(
     tenant_id: int,
@@ -210,6 +263,14 @@ def actualizar_config_delivery_comercio(
     verify_tenant_isolation(current_user, tenant_id)
     if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
         raise HTTPException(status_code=403, detail="Solo administradores pueden cambiar la configuración de delivery.")
+
+    if payload.modo_delivery == "PROPIO" and current_user.rol != "SUPER_ADMIN":
+        perm = get_or_create_permiso_delivery(db, tenant_id)
+        if not perm.permite_repartidor_propio:
+            raise HTTPException(
+                status_code=403,
+                detail="Tu comercio no tiene habilitada la opción de Repartidor Propio. Contacta al administrador de la plataforma.",
+            )
 
     cfg = get_or_create_delivery_config(db, tenant_id)
     cfg.modo_delivery = payload.modo_delivery
@@ -296,7 +357,62 @@ def listar_repartidores(
         for a, p, com in asig_q.order_by(AsignacionDelivery.id.desc()).all()
     ]
 
+    repartidores_propios = []
+    comercios_permisos = []
+    perm_actual = None
+
+    if current_user.rol == "COMERCIO_ADMIN":
+        perm_actual = get_or_create_permiso_delivery(db, current_user.tenant_id)
+    elif tenant_id is not None:
+        perm_actual = get_or_create_permiso_delivery(db, tenant_id)
+    else:
+        # Vista global SuperAdmin: incluir repartidores propios de comercios y tabla de permisos por comercio
+        prop_rows = (
+            db.query(Usuario, PerfilRepartidor, TenantComercio)
+            .join(PerfilRepartidor, PerfilRepartidor.usuario_id == Usuario.id)
+            .join(TenantComercio, TenantComercio.id == Usuario.tenant_id)
+            .filter(Usuario.rol == "REPARTIDOR", PerfilRepartidor.es_flota_saas.is_(False))
+            .order_by(Usuario.id.desc())
+            .all()
+        )
+        repartidores_propios = [
+            {
+                "id": u.id,
+                "nombre_completo": u.nombre_completo,
+                "email": u.email,
+                "activo": u.activo,
+                "tenant_id": u.tenant_id,
+                "comercio_nombre": com.nombre_comercial,
+                "telefono_whatsapp": p.telefono_whatsapp,
+                "vehiculo": p.vehiculo,
+                "es_flota_saas": False,
+                "disponible": p.disponible,
+            }
+            for u, p, com in prop_rows
+        ]
+        all_tenants = db.query(TenantComercio).order_by(TenantComercio.id.asc()).all()
+        perm_map = {
+            pm.tenant_id: pm
+            for pm in db.query(PermisoDeliveryComercio).all()
+        }
+        prop_count_map: Dict[int, int] = {}
+        for rp in repartidores_propios:
+            tid_rp = rp["tenant_id"]
+            prop_count_map[tid_rp] = prop_count_map.get(tid_rp, 0) + 1
+        comercios_permisos = [
+            {
+                "tenant_id": t.id,
+                "nombre_comercial": t.nombre_comercial,
+                "permite_repartidor_propio": bool(perm_map[t.id].permite_repartidor_propio) if t.id in perm_map else False,
+                "repartidores_propios_count": prop_count_map.get(t.id, 0),
+                "max_repartidores_propios": int(perm_map[t.id].max_repartidores_propios) if t.id in perm_map else 1,
+            }
+            for t in all_tenants
+        ]
+
     return {
+        "permite_repartidor_propio": bool(perm_actual.permite_repartidor_propio) if perm_actual else True,
+        "max_repartidores_propios": int(perm_actual.max_repartidores_propios) if perm_actual else 1,
         "repartidores": [
             {
                 "id": u.id,
@@ -311,6 +427,8 @@ def listar_repartidores(
             }
             for u, p in rows
         ],
+        "repartidores_propios": repartidores_propios,
+        "comercios_permisos": comercios_permisos,
         "en_camino": en_camino,
     }
 
@@ -322,15 +440,16 @@ def actualizar_repartidor(
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Activa/pausa un repartidor, cambia su disponibilidad o restablece su contraseña."""
-    if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
-        raise HTTPException(status_code=403, detail="Sin permisos.")
+    """Exclusivo SUPER_ADMIN: activa/pausa un repartidor, cambia disponibilidad o restablece clave."""
+    if current_user.rol != "SUPER_ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el administrador de la plataforma puede modificar o pausar repartidores. Contáctalo para solicitar el cambio.",
+        )
 
     u = db.query(Usuario).filter(Usuario.id == usuario_id, Usuario.rol == "REPARTIDOR").first()
     if not u:
         raise HTTPException(status_code=404, detail="Repartidor no encontrado.")
-    if current_user.rol == "COMERCIO_ADMIN" and u.tenant_id != current_user.tenant_id:
-        raise HTTPException(status_code=403, detail="No puedes gestionar repartidores de otro comercio.")
 
     perf = db.query(PerfilRepartidor).filter(PerfilRepartidor.usuario_id == u.id).first()
     if payload.activo is not None:
@@ -349,6 +468,39 @@ def actualizar_repartidor(
         "activo": u.activo,
         "disponible": bool(perf.disponible) if perf else False,
     }
+
+
+@router.delete("/repartidores/{usuario_id}")
+def eliminar_repartidor(
+    usuario_id: int,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Exclusivo SUPER_ADMIN: elimina un repartidor (Flota SaaS o propio de un comercio)."""
+    if current_user.rol != "SUPER_ADMIN":
+        raise HTTPException(
+            status_code=403,
+            detail="Solo el administrador de la plataforma puede eliminar repartidores. Contáctalo para solicitarlo.",
+        )
+
+    u = db.query(Usuario).filter(Usuario.id == usuario_id, Usuario.rol == "REPARTIDOR").first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Repartidor no encontrado.")
+
+    # Desvincular asignaciones históricas o en curso para integridad referencial
+    asigs = db.query(AsignacionDelivery).filter(AsignacionDelivery.repartidor_usuario_id == u.id).all()
+    for a in asigs:
+        a.repartidor_usuario_id = None
+        if a.estado_delivery == "EN_CAMINO":
+            a.estado_delivery = "PENDIENTE"
+            a.repartidor_nombre = None
+            a.repartidor_telefono = None
+            a.tomado_en = None
+
+    db.query(PerfilRepartidor).filter(PerfilRepartidor.usuario_id == u.id).delete()
+    db.delete(u)
+    db.commit()
+    return {"status": "ok", "eliminado_id": usuario_id}
 
 
 @router.post("/pedidos/{pedido_id}/liberar")
@@ -478,6 +630,23 @@ def crear_repartidor(
         raise HTTPException(status_code=400, detail="Ya existe un usuario con ese correo.")
 
     if current_user.rol == "COMERCIO_ADMIN":
+        perm = get_or_create_permiso_delivery(db, current_user.tenant_id)
+        if not perm.permite_repartidor_propio:
+            raise HTTPException(
+                status_code=403,
+                detail="Tu comercio no tiene habilitada la opción de Repartidor Propio. Contacta al administrador de la plataforma.",
+            )
+        existentes = (
+            db.query(Usuario)
+            .filter(Usuario.tenant_id == current_user.tenant_id, Usuario.rol == "REPARTIDOR")
+            .count()
+        )
+        max_allowed = max(1, int(perm.max_repartidores_propios or 1))
+        if existentes >= max_allowed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Límite alcanzado: solo puedes tener {max_allowed} repartidor propio. Si deseas eliminarlo o cambiarlo, contacta al administrador de la plataforma.",
+            )
         es_flota = False
         target_tid = current_user.tenant_id
     else:

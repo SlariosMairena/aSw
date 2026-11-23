@@ -937,6 +937,20 @@ class ConfigDeliveryComercio(Base):
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
 
+class PermisoDeliveryComercio(Base):
+    """Control exclusivo del SuperAdmin: autoriza si un comercio puede tener su propio repartidor (máx. 1)."""
+
+    __tablename__ = "permisos_delivery_comercio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    permite_repartidor_propio = Column(Boolean, default=False, nullable=False)
+    max_repartidores_propios = Column(Integer, default=1, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+
 class PerfilRepartidor(Base):
     """Datos operativos del usuario con rol REPARTIDOR (sin alterar tabla usuarios)."""
 

@@ -1294,6 +1294,8 @@ def comercio_dashboard(
                 "modo_delivery": deliv_cfg.modo_delivery,
                 "requiere_pin_entrega": deliv_cfg.requiere_pin_entrega,
                 "notificar_whatsapp_repartidor": deliv_cfg.notificar_whatsapp_repartidor,
+                "permite_repartidor_propio": bool(__import__("app.api.delivery_api", fromlist=["get_or_create_permiso_delivery"]).get_or_create_permiso_delivery(db, comercio.id).permite_repartidor_propio),
+                "max_repartidores_propios": 1,
             },
             "fidelidad_config": {
                 "activo": bool(fid_cfg.activo),
@@ -2643,6 +2645,8 @@ def estadisticas_ventas_comercio(
                 "modo_delivery": deliv_cfg.modo_delivery,
                 "requiere_pin_entrega": deliv_cfg.requiere_pin_entrega,
                 "notificar_whatsapp_repartidor": deliv_cfg.notificar_whatsapp_repartidor,
+                "permite_repartidor_propio": bool(__import__("app.api.delivery_api", fromlist=["get_or_create_permiso_delivery"]).get_or_create_permiso_delivery(db, comercio.id).permite_repartidor_propio),
+                "max_repartidores_propios": 1,
             },
             "giro": comercio.giro,
             "moneda": comercio.moneda,

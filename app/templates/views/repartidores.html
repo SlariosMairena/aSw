@@ -66,13 +66,19 @@
                 <input id="repComVehiculo" type="text" value="Moto" placeholder="Vehículo (Moto/Bici)"
                     class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
             </div>
-            <div class="flex justify-end">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-[11px] text-slate-400">Cupo autorizado por la plataforma: <strong>máximo 1 repartidor propio</strong>.</span>
                 <button type="submit"
                     class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
-                    <i class="fa-solid fa-user-plus"></i> <span>Agregar Repartidor Propio</span>
+                    <i class="fa-solid fa-user-plus"></i> <span>Registrar Mi Repartidor</span>
                 </button>
             </div>
         </form>
+
+        <div id="repComercioLimiteNotice" class="hidden p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-amber-300 text-xs flex items-center gap-2.5">
+            <i class="fa-solid fa-circle-info shrink-0"></i>
+            <span>Ya tienes registrado tu repartidor propio (límite: <strong>1</strong>). Si deseas eliminarlo o cambiarlo por otra persona, <strong>contacta al administrador de la plataforma</strong>.</span>
+        </div>
 
         <div id="repComercioList" class="space-y-2.5 text-xs"></div>
     </div>
