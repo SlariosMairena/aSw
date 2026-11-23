@@ -917,6 +917,7 @@ async function cargarClientesComercio() {
         }
         const canEditVip = typeof isComercioAdminOrSuper === 'function' ? isComercioAdminOrSuper() : false;
         const fidCfg = data.fidelidad_config || {};
+        window._lastClientesFidelidadCfg = fidCfg;
         const sellosActivo = !!fidCfg.activo;
         const sellosMeta = Number(fidCfg.sellos_meta || 5);
         tbody.innerHTML = clientesDirectoryCache.map((c, idx) => {
@@ -930,39 +931,26 @@ async function cargarClientesComercio() {
                 ? `<span class="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-400 border border-amber-500/40"><i class="fa-solid fa-crown"></i> VIP</span>`
                 : '';
 
-            const sellosBadge = sellosActivo
-                ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30" title="Tarjeta de Sellos">
-                        <i class="fa-solid fa-award"></i> ${sellos}/${sellosMeta}${premios > 0 ? ` · ${premios} premio` : ''}
-                   </span>`
+            const pills = [];
+            if (isEg) {
+                pills.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-truck-fast"></i> Envío Gratis</span>`);
+            }
+            if (descPct > 0) {
+                pills.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30"><i class="fa-solid fa-percent"></i> -${descPct}%</span>`);
+            }
+            if (sellosActivo) {
+                pills.push(`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" title="Tarjeta de Sellos"><i class="fa-solid fa-award"></i> ${sellos}/${sellosMeta}${premios > 0 ? ` · ${premios} premio` : ''}</span>`);
+            }
+            const vipCell = pills.length > 0
+                ? `<div class="flex flex-wrap items-center justify-center gap-1">${pills.join('')}</div>`
+                : `<span class="text-slate-500 text-[11px]">Normal</span>`;
+
+            const vipEditBtn = canEditVip
+                ? `<button type="button" onclick="openModalClienteVip(${idx})" class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition" title="Configurar beneficios VIP del cliente">
+                        <i class="fa-solid fa-crown mr-1"></i> VIP
+                   </button>`
                 : '';
 
-            const vipCell = canEditVip
-                ? `<div class="flex flex-wrap items-center justify-center gap-1.5">
-                        <button type="button" onclick="actualizarVipCliente(${c.id}, { envio_gratis: ${!isEg} })"
-                            title="${isEg ? 'Quitar Envío Gratis VIP' : 'Autorizar Envío Gratis VIP (avisa por WhatsApp)'}"
-                            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${isEg
-                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
-                                : 'bg-slate-800/70 text-slate-400 border border-slate-700 hover:text-white'}">
-                            <i class="fa-solid ${isEg ? 'fa-truck-fast' : 'fa-tag'}"></i>
-                            <span>${isEg ? 'Envío Gratis' : 'Envío Normal'}</span>
-                        </button>
-                        <select onchange="actualizarVipCliente(${c.id}, { descuento_pct: Number(this.value) })"
-                            title="Descuento VIP automático en todos sus pedidos"
-                            class="bg-slate-900 border ${descPct > 0 ? 'border-amber-500/50 text-amber-300' : 'border-slate-700 text-slate-300'} rounded-full px-2 py-1 text-[11px] font-bold outline-none cursor-pointer">
-                            <option value="0" ${descPct === 0 ? 'selected' : ''}>0% OFF</option>
-                            <option value="5" ${descPct === 5 ? 'selected' : ''}>5% OFF</option>
-                            <option value="10" ${descPct === 10 ? 'selected' : ''}>10% OFF</option>
-                            <option value="15" ${descPct === 15 ? 'selected' : ''}>15% OFF</option>
-                            <option value="20" ${descPct === 20 ? 'selected' : ''}>20% OFF</option>
-                        </select>
-                        ${sellosBadge}
-                   </div>`
-                : `<div class="flex flex-wrap items-center justify-center gap-1">
-                        ${isEg ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300"><i class="fa-solid fa-truck-fast"></i> Envío Gratis</span>` : ''}
-                        ${descPct > 0 ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300">${descPct}% OFF</span>` : ''}
-                        ${sellosBadge}
-                        ${(!isEg && descPct === 0 && !sellosBadge) ? `<span class="text-slate-500 text-[11px]">Normal</span>` : ''}
-                   </div>`;
             return `
             <tr class="hover:bg-slate-800/40">
                 <td class="px-4 py-3 font-bold text-white">${escapeHtml(c.nombre_cliente)}${vipNameBadge}</td>
@@ -973,9 +961,12 @@ async function cargarClientesComercio() {
                 </td>
                 <td class="px-4 py-3 text-center">${vipCell}</td>
                 <td class="px-4 py-3 text-right">
-                    <button type="button" onclick="enviarClienteAPos(${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 font-bold text-xs transition">
-                        <i class="fa-solid fa-cash-register mr-1"></i> Nuevo Pedido POS
-                    </button>
+                    <div class="inline-flex items-center justify-end gap-1.5">
+                        ${vipEditBtn}
+                        <button type="button" onclick="enviarClienteAPos(${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 font-bold text-xs transition">
+                            <i class="fa-solid fa-cash-register mr-1"></i> Pedido POS
+                        </button>
+                    </div>
                 </td>
             </tr>`;
         }).join('');
@@ -985,22 +976,92 @@ async function cargarClientesComercio() {
 }
 window.cargarClientesComercio = cargarClientesComercio;
 
-async function actualizarVipCliente(clienteId, patchObj) {
+function selectVipDescChip(pct) {
+    const val = Number(pct || 0);
+    const inp = document.getElementById('vipModalDescuentoPct');
+    if (inp) inp.value = String(val);
+    const lbl = document.getElementById('vipModalDescLabel');
+    if (lbl) lbl.textContent = val > 0 ? `${val}% de descuento` : 'Sin descuento';
+    document.querySelectorAll('#vipModalDescChips .vip-desc-chip').forEach(btn => {
+        const active = Number(btn.dataset.pct) === val;
+        btn.className = active
+            ? 'vip-desc-chip py-1.5 rounded-lg border text-[11px] font-extrabold transition bg-[#1B4332] border-[#1B4332] text-white keep-white shadow-sm'
+            : 'vip-desc-chip py-1.5 rounded-lg border text-[11px] font-bold transition bg-slate-950 border-slate-700 text-slate-300 hover:border-slate-500';
+    });
+}
+window.selectVipDescChip = selectVipDescChip;
+
+function openModalClienteVip(idx) {
+    const cli = clientesDirectoryCache[idx];
+    if (!cli) return;
+    document.getElementById('vipModalClienteId').value = String(cli.id);
+    document.getElementById('vipModalNombre').textContent = cli.nombre_cliente || 'Cliente';
+    document.getElementById('vipModalSub').textContent = `${cli.telefono_whatsapp || ''} • ${cli.total_pedidos || 0} pedidos`;
+    document.getElementById('vipModalEnvioGratis').checked = !!cli.envio_gratis;
+    document.getElementById('vipModalEsVip').checked = !!cli.es_vip;
+    document.getElementById('vipModalNotificarWa').checked = true;
+    selectVipDescChip(Number(cli.descuento_pct || 0));
+
+    const fidCfg = window._lastClientesFidelidadCfg || {};
+    const sellosBox = document.getElementById('vipModalSellosBox');
+    if (sellosBox) {
+        if (fidCfg.activo) {
+            const meta = Number(fidCfg.sellos_meta || 5);
+            const cur = Number(cli.sellos_actuales || 0);
+            const prem = Number(cli.premios_disponibles || 0);
+            document.getElementById('vipModalSellosText').textContent = `Tarjeta de Sellos: ${cur} de ${meta}`;
+            const pBadge = document.getElementById('vipModalPremiosBadge');
+            if (pBadge) {
+                if (prem > 0) {
+                    pBadge.textContent = `${prem} premio disponible`;
+                    pBadge.classList.remove('hidden');
+                } else {
+                    pBadge.classList.add('hidden');
+                }
+            }
+            sellosBox.classList.remove('hidden');
+        } else {
+            sellosBox.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('modalClienteVip')?.classList.remove('hidden');
+}
+window.openModalClienteVip = openModalClienteVip;
+
+function closeModalClienteVip() {
+    document.getElementById('modalClienteVip')?.classList.add('hidden');
+}
+window.closeModalClienteVip = closeModalClienteVip;
+
+async function handleGuardarClienteVip(e) {
+    e.preventDefault();
     if (!activeTenantId) return;
+    const clienteId = Number(document.getElementById('vipModalClienteId')?.value || 0);
+    if (!clienteId) return;
+    const btn = document.getElementById('btnGuardarClienteVip');
+    if (btn) btn.disabled = true;
     try {
         const res = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/clientes/${clienteId}/vip`, {
             method: 'PATCH',
-            body: { ...patchObj, notificar_whatsapp: true }
+            body: {
+                envio_gratis: !!document.getElementById('vipModalEnvioGratis')?.checked,
+                es_vip: !!document.getElementById('vipModalEsVip')?.checked,
+                descuento_pct: Number(document.getElementById('vipModalDescuentoPct')?.value || 0),
+                notificar_whatsapp: !!document.getElementById('vipModalNotificarWa')?.checked
+            }
         });
+        closeModalClienteVip();
         const waMsg = res.wa_notificado ? ' Se envió aviso por WhatsApp al cliente.' : '';
-        showToast(`Beneficios VIP actualizados.${waMsg}`);
+        showToast(`Beneficios VIP guardados.${waMsg}`);
         await cargarClientesComercio();
     } catch (err) {
         showToast(err.message, true);
+    } finally {
+        if (btn) btn.disabled = false;
     }
 }
-window.actualizarVipCliente = actualizarVipCliente;
-window.toggleClienteEnvioGratis = (id, val) => actualizarVipCliente(id, { envio_gratis: !!val });
+window.handleGuardarClienteVip = handleGuardarClienteVip;
 
 function enviarClienteAPos(idx) {
     const cli = clientesDirectoryCache[idx];

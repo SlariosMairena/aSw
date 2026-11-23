@@ -1,0 +1,100 @@
+<!-- ========================================================= -->
+<!-- MODAL: EDITAR BENEFICIOS VIP Y FIDELIDAD DEL CLIENTE      -->
+<!-- ========================================================= -->
+<div id="modalClienteVip" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-700 space-y-5">
+        <div class="flex items-start justify-between gap-3 pb-3 border-b border-slate-800/60">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-crown"></i>
+                </span>
+                <div class="min-w-0">
+                    <h3 id="vipModalNombre" class="text-base font-extrabold text-white truncate">Beneficios VIP</h3>
+                    <p id="vipModalSub" class="text-[11px] text-slate-400 truncate">WhatsApp • Pedidos</p>
+                </div>
+            </div>
+            <button type="button" onclick="closeModalClienteVip()" class="text-slate-400 hover:text-white px-1.5 py-1 transition" aria-label="Cerrar">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <form onsubmit="handleGuardarClienteVip(event)" class="space-y-4 text-xs">
+            <input type="hidden" id="vipModalClienteId" value="">
+            <input type="hidden" id="vipModalDescuentoPct" value="0">
+
+            <!-- Resumen de Tarjeta de Sellos (si el programa está activo) -->
+            <div id="vipModalSellosBox" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 text-amber-300 font-bold">
+                    <i class="fa-solid fa-award"></i>
+                    <span id="vipModalSellosText">Tarjeta de Sellos: 0 / 5</span>
+                </div>
+                <span id="vipModalPremiosBadge" class="hidden px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-extrabold"></span>
+            </div>
+
+            <!-- Toggles principales -->
+            <div class="space-y-2.5">
+                <label class="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-emerald-500/40 transition">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-truck-fast"></i>
+                        </span>
+                        <div>
+                            <div class="font-bold text-white">Envío Gratis a Domicilio</div>
+                            <div class="text-[10px] text-slate-400">Aplica envío C$0 en Web, Bot y POS</div>
+                        </div>
+                    </div>
+                    <input id="vipModalEnvioGratis" type="checkbox" class="w-4 h-4 accent-[#1B4332] rounded shrink-0">
+                </label>
+
+                <label class="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:border-amber-500/40 transition">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                            <i class="fa-solid fa-crown"></i>
+                        </span>
+                        <div>
+                            <div class="font-bold text-white">Etiqueta Cliente VIP</div>
+                            <div class="text-[10px] text-slate-400">Destaca sus pedidos con corona VIP en el Kanban</div>
+                        </div>
+                    </div>
+                    <input id="vipModalEsVip" type="checkbox" class="w-4 h-4 accent-[#1B4332] rounded shrink-0">
+                </label>
+            </div>
+
+            <!-- Descuento VIP (%) con chips rápidos -->
+            <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-white flex items-center gap-1.5">
+                        <i class="fa-solid fa-percent text-[#D6402B]"></i>
+                        <span>Descuento VIP Automático</span>
+                    </span>
+                    <span id="vipModalDescLabel" class="text-[11px] font-extrabold text-amber-400">Sin descuento</span>
+                </div>
+                <div id="vipModalDescChips" class="grid grid-cols-5 gap-1.5">
+                    <button type="button" data-pct="0" onclick="selectVipDescChip(0)" class="vip-desc-chip py-1.5 rounded-lg border text-[11px] font-bold transition">0%</button>
+                    <button type="button" data-pct="5" onclick="selectVipDescChip(5)" class="vip-desc-chip py-1.5 rounded-lg border text-[11px] font-bold transition">5%</button>
+                    <button type="button" data-pct="10" onclick="selectVipDescChip(10)" class="vip-desc-chip py-1.5 rounded-lg border text-[11px] font-bold transition">10%</button>
+                    <button type="button" data-pct="15" onclick="selectVipDescChip(15)" class="vip-desc-chip py-1.5 rounded-lg border text-[11px] font-bold transition">15%</button>
+                    <button type="button" data-pct="20" onclick="selectVipDescChip(20)" class="vip-desc-chip py-1.5 rounded-lg border text-[11px] font-bold transition">20%</button>
+                </div>
+            </div>
+
+            <!-- Opción aviso WhatsApp -->
+            <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer px-1">
+                <input id="vipModalNotificarWa" type="checkbox" checked class="w-4 h-4 accent-[#1B4332] rounded">
+                <span>Avisar al cliente por <strong>WhatsApp</strong> si se activan nuevas ventajas</span>
+            </label>
+
+            <!-- Botones -->
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/60">
+                <button type="button" onclick="closeModalClienteVip()"
+                    class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition">
+                    Cancelar
+                </button>
+                <button type="submit" id="btnGuardarClienteVip"
+                    class="px-4 py-2 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Beneficios</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
