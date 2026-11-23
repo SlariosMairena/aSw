@@ -524,11 +524,13 @@ function escapeHtml(str) {
         function syncRepartidoresTabState() {
             const btn = document.getElementById('tabBtn_repartidores');
             if (!btn) return;
-            const isLocked = !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN';
+            const dCfg = currentComercioData?.comercio?.delivery_config || {};
+            const deliveryOff = dCfg.modo_delivery === 'DESACTIVADO';
+            const isLocked = deliveryOff && currentUser?.rol !== 'SUPER_ADMIN';
             btn.classList.toggle('ui-nav-locked', isLocked);
             btn.title = isLocked
-                ? 'Opción inhabilitada — Contacta al administrador para activar Repartidor Propio'
-                : 'Gestionar repartidor propio';
+                ? 'Delivery desactivado — Actívalo en Configuración para ver entregas'
+                : 'Ver entregas en camino y gestión de repartidor';
             const lbl = btn.querySelector('span');
             if (lbl) {
                 lbl.innerHTML = isLocked
@@ -545,8 +547,8 @@ function escapeHtml(str) {
             if (tabName === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) {
                 tabName = 'pedidos';
             }
-            if (tabName === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN') {
-                showToast('Repartidor Propio no está habilitado para tu comercio. Contacta al administrador.', true);
+            if (tabName === 'repartidores' && currentComercioData?.comercio?.delivery_config?.modo_delivery === 'DESACTIVADO' && currentUser?.rol !== 'SUPER_ADMIN') {
+                showToast('Tu negocio tiene el Delivery desactivado. Actívalo en Configuración para ver entregas.', true);
                 return;
             }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
@@ -565,10 +567,10 @@ function escapeHtml(str) {
                 if (btn) {
                     const adminOnlyCls = btn.classList.contains('comercio-admin-only') ? ' comercio-admin-only' : '';
                     const hideInvCls = (t === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) ? ' hidden' : '';
-                    const isRepLocked = (t === 'repartidores' && !currentComercioData?.comercio?.delivery_config?.permite_repartidor_propio && currentUser?.rol !== 'SUPER_ADMIN');
+                    const isRepLocked = (t === 'repartidores' && currentComercioData?.comercio?.delivery_config?.modo_delivery === 'DESACTIVADO' && currentUser?.rol !== 'SUPER_ADMIN');
                     const lockedRepCls = isRepLocked ? ' ui-nav-locked' : '';
                     if (t === 'repartidores') {
-                        btn.title = isRepLocked ? 'Opción inhabilitada — Contacta al administrador para activar Repartidor Propio' : 'Gestionar repartidor propio';
+                        btn.title = isRepLocked ? 'Delivery desactivado — Actívalo en Configuración' : 'Ver entregas en camino y repartidor';
                         const lbl = btn.querySelector('span');
                         if (lbl) lbl.innerHTML = isRepLocked ? 'Repartidores <i class="fa-solid fa-lock text-[10px] ml-1 opacity-75"></i>' : 'Repartidores';
                     }

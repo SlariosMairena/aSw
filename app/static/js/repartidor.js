@@ -309,11 +309,21 @@ async function cargarRepartidoresComercio() {
         const data = await apiFetch(`/api/v1/delivery/repartidores?tenant_id=${activeTenantId}`);
         const reps = data.repartidores || [];
         const maxRep = Number(data.max_repartidores_propios || 1);
+        const canPropio = !!(data.permite_repartidor_propio || currentUser?.rol === 'SUPER_ADMIN');
         const formEl = document.getElementById('formCrearRepartidorComercio');
         const limEl = document.getElementById('repComercioLimiteNotice');
+        const noAuthEl = document.getElementById('repComercioNoAutorizadoNotice');
         const reached = reps.length >= maxRep && currentUser?.rol !== 'SUPER_ADMIN';
-        if (formEl) formEl.classList.toggle('hidden', reached);
-        if (limEl) limEl.classList.toggle('hidden', !reached);
+
+        if (!canPropio) {
+            if (formEl) formEl.classList.add('hidden');
+            if (limEl) limEl.classList.add('hidden');
+            if (noAuthEl) noAuthEl.classList.remove('hidden');
+        } else {
+            if (noAuthEl) noAuthEl.classList.add('hidden');
+            if (formEl) formEl.classList.toggle('hidden', reached);
+            if (limEl) limEl.classList.toggle('hidden', !reached);
+        }
 
         _renderListaRepartidores('repComercioList', reps, false);
         _renderListaEnCamino('repComercioEnCaminoList', data.en_camino || [], false);
