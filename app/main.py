@@ -189,11 +189,14 @@ def health_check():
     Endpoint ultraligero para Render / UptimeRobot / Docker HEALTHCHECK.
     No ejecuta consultas pesadas para permitir que Neon.tech descanse cuando no hay pedidos.
     """
+    from app.core.redis_client import get_redis_health
+
     return {
         "status": "ok",
         "service": settings.APP_NAME,
         "environment": settings.ENVIRONMENT,
         "database_engine": "postgresql_neon" if settings.is_postgres else "sqlite_local",
+        "redis": get_redis_health(),
         "whatsapp_provider": settings.WHATSAPP_PROVIDER,
         "payment_mode": settings.PAYMENT_OPERATION_MODE,
         "table_reservations_enabled": settings.ENABLE_TABLE_RESERVATIONS_WITH_PAYMENT,

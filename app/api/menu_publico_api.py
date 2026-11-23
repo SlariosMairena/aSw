@@ -157,6 +157,35 @@ def obtener_menu_publico_json(
     comercio = suc.comercio
     giro_code = normalize_giro_code(comercio.giro)
 
+    from app.core.redis_client import cache_get_json, cache_set_json
+
+    cache_key = f"menu_pub:{suc.id}"
+    cached_static = cache_get_json(cache_key)
+
+    ultima_direccion = ""
+    tel_clean = clean_whatsapp_phone(tel or "")
+    beneficios_cli = get_cliente_beneficios(db, comercio.id, tel_clean)
+    cliente_envio_gratis = bool(beneficios_cli.get("envio_gratis"))
+    if tel_clean:
+        cli = (
+            db.query(ClienteFrecuente)
+            .filter(
+                ClienteFrecuente.tenant_id == comercio.id,
+                ClienteFrecuente.telefono_whatsapp == tel_clean,
+            )
+            .first()
+        )
+        if cli and cli.ultima_direccion:
+            ultima_direccion = cli.ultima_direccion
+
+    if cached_static is not None:
+        return {
+            **cached_static,
+            "ultima_direccion": ultima_direccion,
+            "cliente_envio_gratis": cliente_envio_gratis,
+            "cliente_beneficios": beneficios_cli,
+        }
+
     agotados_ids = {
         r.plato_id
         for r in db.query(StockSucursal)
@@ -228,22 +257,6 @@ def obtener_menu_publico_json(
         if any(pl["categoria_id"] == c.id for pl in platos_data)
     ]
 
-    ultima_direccion = ""
-    tel_clean = clean_whatsapp_phone(tel or "")
-    beneficios_cli = get_cliente_beneficios(db, comercio.id, tel_clean)
-    cliente_envio_gratis = bool(beneficios_cli.get("envio_gratis"))
-    if tel_clean:
-        cli = (
-            db.query(ClienteFrecuente)
-            .filter(
-                ClienteFrecuente.tenant_id == comercio.id,
-                ClienteFrecuente.telefono_whatsapp == tel_clean,
-            )
-            .first()
-        )
-        if cli and cli.ultima_direccion:
-            ultima_direccion = cli.ultima_direccion
-
     logo_row = (
         db.query(ComercioLogo.actualizado_en)
         .filter(ComercioLogo.tenant_id == comercio.id)
@@ -255,7 +268,7 @@ def obtener_menu_publico_json(
         else None
     )
 
-    return {
+    static_payload = {
         "comercio": {
             "nombre_comercial": comercio.nombre_comercial,
             "giro": giro_code,
@@ -292,6 +305,10 @@ def obtener_menu_publico_json(
         },
         "categorias": cats_data,
         "platos": platos_data,
+    }
+    cache_set_json(cache_key, static_payload, ttl_seconds=45)
+    return {
+        **static_payload,
         "ultima_direccion": ultima_direccion,
         "cliente_envio_gratis": cliente_envio_gratis,
         "cliente_beneficios": beneficios_cli,

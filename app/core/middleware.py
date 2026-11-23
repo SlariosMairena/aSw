@@ -57,6 +57,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         bucket_key = f"{client_ip}:{'auth' if is_auth_route else 'general'}"
         limit = self.auth_max_requests if is_auth_route else self.max_requests
 
+        # Rate limiting distribuido con Redis si REDIS_URL está configurado
+        from app.core.redis_client import get_redis, rate_limit_hit
+
+        if get_redis() is not None:
+            allowed, _cnt = rate_limit_hit(bucket_key, 60, limit)
+            if not allowed:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "detail": "Demasiadas solicitudes. Por seguridad espera un momento e intenta de nuevo."
+                    },
+                )
+            return await call_next(request)
+
         now = time.time()
         window_start = now - 60.0
         timestamps = self._buckets[bucket_key]

@@ -30,6 +30,10 @@ class Settings:
         # Esquema aislado en PostgreSQL para no mezclar tablas si compartes el servidor Neon con otro proyecto (ej. bicu_db)
         self.DB_SCHEMA: str = os.getenv("DB_SCHEMA", "saas_whatsapp").strip()
 
+        # 2.5 Caché y Bus Pub/Sub Redis (Opcional — fallback automático a memoria si no se define REDIS_URL)
+        self.REDIS_URL: str = os.getenv("REDIS_URL", "").strip()
+        self.REDIS_KEY_PREFIX: str = os.getenv("REDIS_KEY_PREFIX", "ordenapro:").strip()
+
         # 3. Seguridad ISO/IEC 27001 & OWASP ASVS
         self.SECRET_KEY: str = os.getenv(
             "SECRET_KEY",
