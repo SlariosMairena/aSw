@@ -977,3 +977,22 @@ class AsignacionDelivery(Base):
     entregado_en = Column(DateTime(timezone=True), nullable=True)
     creado_en = Column(DateTime(timezone=True), default=utcnow, nullable=False)
 
+
+# =====================================================================
+# 14. BENEFICIOS VIP POR CLIENTE (ENVÍO GRATIS AUTORIZADO POR EL DUEÑO)
+# =====================================================================
+class BeneficioCliente(Base):
+    """Ventajas comerciales otorgadas por el dueño a un cliente frecuente (sin alterar clientes_frecuentes)."""
+
+    __tablename__ = "beneficios_cliente"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    cliente_id = Column(
+        Integer, ForeignKey("clientes_frecuentes.id"), nullable=False, unique=True, index=True
+    )
+    envio_gratis = Column(Boolean, default=False, nullable=False)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+

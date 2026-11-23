@@ -28,6 +28,7 @@ from app.core.deps import (
 from app.core.inventory_sync import deduct_inventory_for_delivered_order
 from app.core.realtime import publish_tenant_event
 from app.models.saas_models import (
+    BeneficioCliente,
     ClienteFrecuente,
     DetallePedido,
     IngredienteOpcionPlato,
@@ -529,9 +530,14 @@ def crear_pedido_manual_pos(
             )
         )
 
+    tel_clean = "".join(ch for ch in (payload.telefono_cliente or "00000000") if ch.isdigit()) or "00000000"
+    nom_cli = payload.nombre_cliente.strip() or "Cliente en Local"
+
     costo_envio = 0.0
     if tipo_ent == "DOMICILIO":
-        if payload.zona_envio_id:
+        if cliente_tiene_envio_gratis(db, tenant_id, tel_clean):
+            costo_envio = 0.0
+        elif payload.zona_envio_id:
             zona_obj = (
                 db.query(ZonaEnvioSucursal)
                 .filter(
@@ -545,9 +551,6 @@ def crear_pedido_manual_pos(
         else:
             costo_envio = float(suc.costo_envio_base or 0.0)
     total = round(subtotal + costo_envio, 2)
-
-    tel_clean = "".join(ch for ch in (payload.telefono_cliente or "00000000") if ch.isdigit()) or "00000000"
-    nom_cli = payload.nombre_cliente.strip() or "Cliente en Local"
 
     cli_obj = None
     if tel_clean != "00000000":
@@ -673,8 +676,30 @@ def crear_pedido_manual_pos(
 
 
 # =====================================================================
-# B.4 — DIRECTORIO DE CLIENTES FRECUENTES
+# B.4 — DIRECTORIO DE CLIENTES FRECUENTES Y BENEFICIO ENVÍO GRATIS VIP
 # =====================================================================
+def cliente_tiene_envio_gratis(db: Session, tenant_id: int, telefono_limpio: str) -> bool:
+    """Devuelve True si el dueño autorizó envío gratis VIP para este cliente."""
+    tel = "".join(ch for ch in (telefono_limpio or "") if ch.isdigit())
+    if not tel or tel == "00000000":
+        return False
+    row = (
+        db.query(BeneficioCliente.envio_gratis)
+        .join(ClienteFrecuente, BeneficioCliente.cliente_id == ClienteFrecuente.id)
+        .filter(
+            ClienteFrecuente.tenant_id == tenant_id,
+            ClienteFrecuente.telefono_whatsapp == tel,
+            BeneficioCliente.envio_gratis.is_(True),
+        )
+        .first()
+    )
+    return bool(row and row[0])
+
+
+class ClienteEnvioGratisPayload(BaseModel):
+    envio_gratis: bool
+
+
 @router.get("/comercio/{tenant_id}/clientes")
 def listar_clientes_frecuentes(
     tenant_id: int,
@@ -704,6 +729,13 @@ def listar_clientes_frecuentes(
         gasto_por_tel[tel] = round(gasto_por_tel.get(tel, 0.0) + float(p.total or 0.0), 2)
         conteo_por_tel[tel] = conteo_por_tel.get(tel, 0) + 1
 
+    beneficios_rows = (
+        db.query(BeneficioCliente.cliente_id, BeneficioCliente.envio_gratis)
+        .filter(BeneficioCliente.tenant_id == tenant_id)
+        .all()
+    )
+    envio_gratis_map = {cid: bool(eg) for cid, eg in beneficios_rows}
+
     return {
         "clientes": [
             {
@@ -713,11 +745,53 @@ def listar_clientes_frecuentes(
                 "ultima_direccion": c.ultima_direccion or "",
                 "ultima_zona_envio": c.ultima_zona_envio or "",
                 "total_pedidos": max(c.total_pedidos_realizados, conteo_por_tel.get(c.telefono_whatsapp, 0)),
+                "total_pedidos_realizados": max(c.total_pedidos_realizados, conteo_por_tel.get(c.telefono_whatsapp, 0)),
                 "total_gastado": gasto_por_tel.get(c.telefono_whatsapp, 0.0),
+                "envio_gratis": envio_gratis_map.get(c.id, False),
                 "actualizado_en": c.actualizado_en.strftime("%d/%m/%Y") if c.actualizado_en else "",
             }
             for c in clientes
         ]
+    }
+
+
+@router.patch("/comercio/{tenant_id}/clientes/{cliente_id}/envio-gratis")
+def actualizar_envio_gratis_cliente(
+    tenant_id: int,
+    cliente_id: int,
+    payload: ClienteEnvioGratisPayload,
+    current_user: Usuario = Depends(require_comercio_admin),
+    db: Session = Depends(get_db),
+):
+    """Permite al dueño otorgar o revocar el beneficio de Envío Gratis VIP a un cliente."""
+    verify_tenant_isolation(current_user, tenant_id)
+    cli = (
+        db.query(ClienteFrecuente)
+        .filter(ClienteFrecuente.id == cliente_id, ClienteFrecuente.tenant_id == tenant_id)
+        .first()
+    )
+    if not cli:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado.")
+
+    ben = (
+        db.query(BeneficioCliente)
+        .filter(BeneficioCliente.cliente_id == cli.id)
+        .first()
+    )
+    if not ben:
+        ben = BeneficioCliente(
+            tenant_id=tenant_id,
+            cliente_id=cli.id,
+            envio_gratis=bool(payload.envio_gratis),
+        )
+        db.add(ben)
+    else:
+        ben.envio_gratis = bool(payload.envio_gratis)
+    db.commit()
+    return {
+        "status": "ok",
+        "cliente_id": cli.id,
+        "envio_gratis": bool(ben.envio_gratis),
     }
 
 

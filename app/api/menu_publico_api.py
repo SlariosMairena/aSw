@@ -38,6 +38,7 @@ from app.models.saas_models import (
     TenantComercio,
     ZonaEnvioSucursal,
 )
+from app.api.operaciones_api import cliente_tiene_envio_gratis
 from app.services.payment_service import simulated_gateway
 from app.services.whatsapp_provider import clean_whatsapp_phone, send_whatsapp_text
 
@@ -224,6 +225,7 @@ def obtener_menu_publico_json(
     ]
 
     ultima_direccion = ""
+    cliente_envio_gratis = False
     tel_clean = clean_whatsapp_phone(tel or "")
     if tel_clean:
         cli = (
@@ -236,6 +238,7 @@ def obtener_menu_publico_json(
         )
         if cli and cli.ultima_direccion:
             ultima_direccion = cli.ultima_direccion
+        cliente_envio_gratis = cliente_tiene_envio_gratis(db, comercio.id, tel_clean)
 
     logo_row = (
         db.query(ComercioLogo.actualizado_en)
@@ -286,6 +289,7 @@ def obtener_menu_publico_json(
         "categorias": cats_data,
         "platos": platos_data,
         "ultima_direccion": ultima_direccion,
+        "cliente_envio_gratis": cliente_envio_gratis,
     }
 
 
@@ -377,6 +381,7 @@ def crear_pedido_desde_menu_publico(
 
     costo_envio = 0.0
     zona_nombre = None
+    es_vip_envio_gratis = cliente_tiene_envio_gratis(db, comercio.id, tel_clean)
     if tipo_ent == "DOMICILIO":
         if payload.zona_envio_id:
             z = (
@@ -389,12 +394,12 @@ def crear_pedido_desde_menu_publico(
                 .first()
             )
             if z:
-                costo_envio = float(z.costo_envio or 0.0)
+                costo_envio = 0.0 if es_vip_envio_gratis else float(z.costo_envio or 0.0)
                 zona_nombre = z.nombre_zona
             else:
-                costo_envio = float(suc.costo_envio_base or 0.0)
+                costo_envio = 0.0 if es_vip_envio_gratis else float(suc.costo_envio_base or 0.0)
         else:
-            costo_envio = float(suc.costo_envio_base or 0.0)
+            costo_envio = 0.0 if es_vip_envio_gratis else float(suc.costo_envio_base or 0.0)
 
     total = round(subtotal + costo_envio, 2)
     metodo_pago = (payload.metodo_pago or "EFECTIVO").upper().strip()

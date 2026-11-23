@@ -27,6 +27,7 @@ from app.models.saas_models import (
     ConfigDeliveryComercio,
     PerfilRepartidor,
     AsignacionDelivery,
+    BeneficioCliente,
 )
 
 __all__ = [

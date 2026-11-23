@@ -912,29 +912,60 @@ async function cargarClientesComercio() {
         const data = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/clientes${qs}`);
         clientesDirectoryCache = data.clientes || [];
         if (clientesDirectoryCache.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500">Sin clientes registrados con este filtro.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-500">Sin clientes registrados con este filtro.</td></tr>`;
             return;
         }
-        tbody.innerHTML = clientesDirectoryCache.map((c, idx) => `
+        const canEditVip = typeof isComercioAdminOrSuper === 'function' ? isComercioAdminOrSuper() : false;
+        tbody.innerHTML = clientesDirectoryCache.map((c, idx) => {
+            const isVip = !!c.envio_gratis;
+            const vipCell = canEditVip
+                ? `<button type="button" onclick="toggleClienteEnvioGratis(${c.id}, ${!isVip})"
+                        title="${isVip ? 'Quitar Envío Gratis VIP' : 'Autorizar Envío Gratis VIP para este cliente'}"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${isVip
+                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30'
+                            : 'bg-slate-800/70 text-slate-400 border border-slate-700 hover:text-white hover:border-slate-500'}">
+                        <i class="fa-solid ${isVip ? 'fa-truck-fast' : 'fa-tag'}"></i>
+                        <span>${isVip ? 'Envío Gratis' : 'Normal'}</span>
+                   </button>`
+                : (isVip
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-truck-fast"></i> Envío Gratis</span>`
+                    : `<span class="text-slate-500 text-[11px]">Normal</span>`);
+            return `
             <tr class="hover:bg-slate-800/40">
                 <td class="px-4 py-3 font-bold text-white">${escapeHtml(c.nombre_cliente)}</td>
                 <td class="px-4 py-3 text-emerald-300 font-mono">${escapeHtml(c.telefono_whatsapp)}</td>
                 <td class="px-4 py-3 text-slate-300">${escapeHtml(c.ultima_direccion || 'Sin direccion guardada')}${c.ultima_zona_envio ? ` <span class="text-amber-300">(${escapeHtml(c.ultima_zona_envio)})</span>` : ''}</td>
                 <td class="px-4 py-3 text-center">
-                    <span class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">${c.total_pedidos_realizados || 0}</span>
+                    <span class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">${c.total_pedidos || c.total_pedidos_realizados || 0}</span>
                 </td>
+                <td class="px-4 py-3 text-center">${vipCell}</td>
                 <td class="px-4 py-3 text-right">
                     <button type="button" onclick="enviarClienteAPos(${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 font-bold text-xs transition">
                         <i class="fa-solid fa-cash-register mr-1"></i> Nuevo Pedido POS
                     </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-rose-400">${escapeHtml(err.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-rose-400">${escapeHtml(err.message)}</td></tr>`;
     }
 }
 window.cargarClientesComercio = cargarClientesComercio;
+
+async function toggleClienteEnvioGratis(clienteId, nuevoValor) {
+    if (!activeTenantId) return;
+    try {
+        await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/clientes/${clienteId}/envio-gratis`, {
+            method: 'PATCH',
+            body: { envio_gratis: !!nuevoValor }
+        });
+        showToast(nuevoValor ? 'Beneficio de Envío Gratis VIP activado para este cliente.' : 'Envío Gratis VIP desactivado.');
+        await cargarClientesComercio();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.toggleClienteEnvioGratis = toggleClienteEnvioGratis;
 
 function enviarClienteAPos(idx) {
     const cli = clientesDirectoryCache[idx];

@@ -852,9 +852,15 @@ def _create_order_from_session(
         )
 
     tipo_entrega = state.get("tipo_entrega") or "RECOGER_LOCAL"
+    tel_clean = clean_whatsapp_phone(sesion.telefono_cliente) or "00000000"
+    from app.api.operaciones_api import cliente_tiene_envio_gratis
+
+    es_vip_envio_gratis = cliente_tiene_envio_gratis(db, comercio.id, tel_clean)
     costo_envio = 0.0
     if tipo_entrega == "DOMICILIO":
-        if state.get("zona_envio_id"):
+        if es_vip_envio_gratis:
+            costo_envio = 0.0
+        elif state.get("zona_envio_id"):
             z = (
                 db.query(ZonaEnvioSucursal)
                 .filter(
@@ -868,7 +874,6 @@ def _create_order_from_session(
             costo_envio = float(sucursal.costo_envio_base or 0.0)
 
     total = round(subtotal + costo_envio, 2)
-    tel_clean = clean_whatsapp_phone(sesion.telefono_cliente) or "00000000"
     nom_cli = sesion.nombre_cliente or "Cliente WhatsApp"
 
     cli = (
@@ -1212,6 +1217,7 @@ def _handle_solo_ia_turn(
         "cliente": {
             "nombre": sesion.nombre_cliente or "Cliente",
             "ultima_direccion": cli_prev.ultima_direccion if cli_prev else None,
+            "envio_gratis_vip": __import__("app.api.operaciones_api", fromlist=["cliente_tiene_envio_gratis"]).cliente_tiene_envio_gratis(db, comercio.id, telefono),
         },
         "pedido_activo_en_curso": pedido_activo_ctx,
         "carrito_actual": {

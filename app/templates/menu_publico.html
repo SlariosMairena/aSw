@@ -517,16 +517,26 @@
             const sub = cart.reduce((a, it) => a + (it.precio_base + it.precio_extras) * it.cantidad, 0);
             const tipo = document.getElementById('chkTipoEntrega').value;
             let envio = 0;
+            const esVipGratis = !!menuData?.cliente_envio_gratis;
             if (tipo === 'DOMICILIO') {
-                const zSel = document.getElementById('chkZonaSelect');
-                if (!document.getElementById('chkZonaWrap').classList.contains('hidden') && zSel.selectedOptions[0]) {
-                    envio = Number(zSel.selectedOptions[0].dataset.costo || 0);
+                if (esVipGratis) {
+                    envio = 0;
                 } else {
-                    envio = Number(menuData?.sucursal?.costo_envio_base || 0);
+                    const zSel = document.getElementById('chkZonaSelect');
+                    if (!document.getElementById('chkZonaWrap').classList.contains('hidden') && zSel.selectedOptions[0]) {
+                        envio = Number(zSel.selectedOptions[0].dataset.costo || 0);
+                    } else {
+                        envio = Number(menuData?.sucursal?.costo_envio_base || 0);
+                    }
                 }
             }
             document.getElementById('chkSubtotal').textContent = `${sym()}${sub.toFixed(2)}`;
-            document.getElementById('chkEnvio').textContent = `${sym()}${envio.toFixed(2)}`;
+            const chkEnvioEl = document.getElementById('chkEnvio');
+            if (tipo === 'DOMICILIO' && esVipGratis) {
+                chkEnvioEl.innerHTML = `<span class="text-emerald-400 font-extrabold">GRATIS (VIP)</span>`;
+            } else {
+                chkEnvioEl.textContent = `${sym()}${envio.toFixed(2)}`;
+            }
             document.getElementById('chkTotal').textContent = `${sym()}${(sub + envio).toFixed(2)}`;
         }
 
