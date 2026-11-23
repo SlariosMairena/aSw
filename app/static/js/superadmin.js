@@ -10,7 +10,8 @@
             return {
                 comercios: document.getElementById('saTabComercios'),
                 facturacion: document.getElementById('saTabFacturacion'),
-                auditoria: document.getElementById('saTabAuditoria')
+                auditoria: document.getElementById('saTabAuditoria'),
+                repartidores: document.getElementById('saTabRepartidores')
             };
         }
 
@@ -25,6 +26,9 @@
                 const active = btn.getAttribute('data-sa-tab') === saCurrentTab;
                 btn.classList.toggle('is-active', active);
             });
+            if (saCurrentTab === 'repartidores' && typeof cargarFlotaSuperAdmin === 'function') {
+                cargarFlotaSuperAdmin();
+            }
         }
 
         function setSaEstadoFilter(estado) {

@@ -24,6 +24,11 @@
                             <span class="pointer-events-none flex-1">Seguridad ISO</span>
                             <span id="saTabCountAudit" class="pointer-events-none text-[10px] px-2 py-0.5 rounded-full bg-white/15 text-[#F4F7F5] font-bold">0</span>
                         </button>
+                        <button type="button" data-sa-tab="repartidores" onclick="switchSuperAdminTab('repartidores')" class="sa-tab-btn ui-nav-btn">
+                            <i class="fa-solid fa-motorcycle w-4 text-center pointer-events-none"></i>
+                            <span class="pointer-events-none flex-1">Flota Delivery</span>
+                            <span id="saTabCountRepartidores" class="pointer-events-none text-[10px] px-2 py-0.5 rounded-full bg-white/15 text-[#F4F7F5] font-bold">0</span>
+                        </button>
 
                         <div class="hidden lg:block my-2 border-t border-white/10"></div>
 
@@ -187,6 +192,61 @@
                                 </div>
                             </div>
                             <div id="saAuditLogsList" class="space-y-2 max-h-[520px] overflow-y-auto pr-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- ========================================================= -->
+                    <!-- TAB 4: FLOTA DE REPARTIDORES SAAS Y RESCATE EN CAMINO      -->
+                    <!-- ========================================================= -->
+                    <div id="saTabRepartidores" class="hidden space-y-5">
+                        <!-- Entregas activas EN_CAMINO en toda la plataforma -->
+                        <div class="glass rounded-2xl p-5 space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+                                        <span>Entregas en Camino (Rescate ante Fallas o Accidentes)</span>
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">Libera cualquier pedido atascado para reasignarlo de inmediato a otro repartidor disponible.</p>
+                                </div>
+                                <button type="button" onclick="cargarFlotaSuperAdmin()"
+                                    class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition">
+                                    <i class="fa-solid fa-rotate mr-1"></i>Actualizar
+                                </button>
+                            </div>
+                            <div id="saRepEnCaminoList" class="space-y-2.5 text-xs"></div>
+                        </div>
+
+                        <!-- Crear nuevo repartidor de Flota SaaS -->
+                        <div class="glass rounded-2xl p-5 space-y-4">
+                            <div class="pb-2.5 border-b border-slate-800/60">
+                                <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-motorcycle text-emerald-400"></i>
+                                    <span>Flota Compartida SaaS (Repartidores Globales)</span>
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">Estos repartidores cubren todos los comercios configurados en modo <strong>Flota Compartida del SaaS</strong>.</p>
+                            </div>
+                            <form id="formCrearRepartidorSaas" onsubmit="handleCrearRepartidor(event, true)" class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                                    <input id="repSaasNombre" type="text" required placeholder="Nombre completo *"
+                                        class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                                    <input id="repSaasEmail" type="email" required placeholder="repartidor2@saas.com *"
+                                        class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                                    <input id="repSaasPass" type="text" required value="Delivery#2026!" placeholder="Contraseña *"
+                                        class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none">
+                                    <input id="repSaasTel" type="text" required placeholder="WhatsApp (50588...)*"
+                                        class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                                    <input id="repSaasVehiculo" type="text" value="Moto 150cc" placeholder="Vehículo"
+                                        class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                                </div>
+                                <div class="flex justify-end">
+                                    <button type="submit"
+                                        class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                                        <i class="fa-solid fa-user-plus"></i> <span>Crear Repartidor Flota SaaS</span>
+                                    </button>
+                                </div>
+                            </form>
+                            <div id="saRepFlotaList" class="space-y-2.5 text-xs"></div>
                         </div>
                     </div>
                 </div>

@@ -231,13 +231,24 @@ def actualizar_config_delivery_comercio(
     }
 
 
+class EstadoRepartidorRequest(BaseModel):
+    activo: Optional[bool] = None
+    disponible: Optional[bool] = None
+    nueva_password: Optional[str] = None
+
+
+class LiberarPedidoRequest(BaseModel):
+    motivo: str = "Falla en transporte / emergencia"
+    desconectar_repartidor: bool = True
+
+
 @router.get("/repartidores")
 def listar_repartidores(
     tenant_id: Optional[int] = None,
     current_user: Usuario = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Lista repartidores de Flota SaaS (SuperAdmin) o propios de un comercio."""
+    """Lista repartidores (Flota SaaS o propios) y pedidos actualmente EN_CAMINO para rescate rápido."""
     if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
         raise HTTPException(status_code=403, detail="Sin permisos.")
 
@@ -250,8 +261,41 @@ def listar_repartidores(
         q = q.filter(Usuario.tenant_id == current_user.tenant_id)
     elif tenant_id is not None:
         q = q.filter(Usuario.tenant_id == tenant_id)
+    else:
+        q = q.filter(PerfilRepartidor.es_flota_saas.is_(True))
 
     rows = q.order_by(Usuario.id.desc()).all()
+
+    # Pedidos EN_CAMINO activos en este ámbito (para liberar en caso de emergencia)
+    asig_q = (
+        db.query(AsignacionDelivery, Pedido, TenantComercio)
+        .join(Pedido, Pedido.id == AsignacionDelivery.pedido_id)
+        .join(TenantComercio, TenantComercio.id == Pedido.tenant_id)
+        .filter(
+            AsignacionDelivery.estado_delivery == "EN_CAMINO",
+            Pedido.estado_pedido.notin_(("ENTREGADO", "CANCELADO")),
+        )
+    )
+    if current_user.rol == "COMERCIO_ADMIN":
+        asig_q = asig_q.filter(Pedido.tenant_id == current_user.tenant_id)
+    elif tenant_id is not None:
+        asig_q = asig_q.filter(Pedido.tenant_id == tenant_id)
+
+    en_camino = [
+        {
+            "pedido_id": p.id,
+            "folio": p.folio,
+            "comercio_nombre": com.nombre_comercial,
+            "nombre_cliente": p.nombre_cliente,
+            "direccion_entrega": p.direccion_entrega or "",
+            "repartidor_nombre": a.repartidor_nombre or "Sin asignar",
+            "repartidor_telefono": a.repartidor_telefono or "",
+            "pin_entrega": a.pin_entrega,
+            "costo_envio": float(p.costo_envio or 0.0),
+        }
+        for a, p, com in asig_q.order_by(AsignacionDelivery.id.desc()).all()
+    ]
+
     return {
         "repartidores": [
             {
@@ -266,7 +310,156 @@ def listar_repartidores(
                 "disponible": p.disponible,
             }
             for u, p in rows
-        ]
+        ],
+        "en_camino": en_camino,
+    }
+
+
+@router.patch("/repartidores/{usuario_id}")
+def actualizar_repartidor(
+    usuario_id: int,
+    payload: EstadoRepartidorRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Activa/pausa un repartidor, cambia su disponibilidad o restablece su contraseña."""
+    if current_user.rol not in ("SUPER_ADMIN", "COMERCIO_ADMIN"):
+        raise HTTPException(status_code=403, detail="Sin permisos.")
+
+    u = db.query(Usuario).filter(Usuario.id == usuario_id, Usuario.rol == "REPARTIDOR").first()
+    if not u:
+        raise HTTPException(status_code=404, detail="Repartidor no encontrado.")
+    if current_user.rol == "COMERCIO_ADMIN" and u.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="No puedes gestionar repartidores de otro comercio.")
+
+    perf = db.query(PerfilRepartidor).filter(PerfilRepartidor.usuario_id == u.id).first()
+    if payload.activo is not None:
+        u.activo = bool(payload.activo)
+        if not u.activo and perf:
+            perf.disponible = False
+    if payload.disponible is not None and perf:
+        perf.disponible = bool(payload.disponible)
+    if payload.nueva_password and len(payload.nueva_password.strip()) >= 6:
+        u.password_hash = hash_password(payload.nueva_password.strip())
+
+    db.commit()
+    return {
+        "status": "ok",
+        "id": u.id,
+        "activo": u.activo,
+        "disponible": bool(perf.disponible) if perf else False,
+    }
+
+
+@router.post("/pedidos/{pedido_id}/liberar")
+def liberar_pedido_delivery(
+    pedido_id: int,
+    payload: LiberarPedidoRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Libera un pedido EN_CAMINO por emergencia (falla de moto, accidente, sobrecarga)
+    para que otro repartidor disponible lo tome inmediatamente conservando el mismo PIN.
+    """
+    if current_user.rol not in ("REPARTIDOR", "COMERCIO_ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(status_code=403, detail="Sin permisos para liberar entregas.")
+
+    pedido = db.query(Pedido).filter(Pedido.id == pedido_id).first()
+    if not pedido or pedido.tipo_entrega != "DOMICILIO":
+        raise HTTPException(status_code=404, detail="Pedido a domicilio no encontrado.")
+
+    if current_user.rol == "COMERCIO_ADMIN" and pedido.tenant_id != current_user.tenant_id:
+        raise HTTPException(status_code=403, detail="No puedes liberar pedidos de otro comercio.")
+
+    asig = db.query(AsignacionDelivery).filter(AsignacionDelivery.pedido_id == pedido.id).first()
+    if not asig or asig.estado_delivery == "ENTREGADO":
+        raise HTTPException(status_code=400, detail="Este pedido ya fue entregado o no tiene asignación activa.")
+
+    if current_user.rol == "REPARTIDOR" and asig.repartidor_usuario_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Solo puedes liberar pedidos asignados a ti.")
+
+    prev_rep_id = asig.repartidor_usuario_id
+    prev_rep_nombre = asig.repartidor_nombre or current_user.nombre_completo
+    motivo = (payload.motivo or "Incidencia en entrega").strip()[:140]
+
+    # Pausar disponibilidad del repartidor afectado si reportó falla/accidente
+    if payload.desconectar_repartidor and prev_rep_id:
+        perf_prev = db.query(PerfilRepartidor).filter(PerfilRepartidor.usuario_id == prev_rep_id).first()
+        if perf_prev:
+            perf_prev.disponible = False
+
+    asig.repartidor_usuario_id = None
+    asig.repartidor_nombre = None
+    asig.repartidor_telefono = None
+    asig.estado_delivery = "PENDIENTE"
+    asig.tomado_en = None
+
+    nota_inc = f"[Delivery liberado por {prev_rep_nombre}: {motivo}]"
+    pedido.notas_especiales = f"{pedido.notas_especiales} | {nota_inc}" if pedido.notas_especiales else nota_inc
+
+    if pedido.sesion_chat_id:
+        db.add(
+            MensajeChatWhatsApp(
+                sesion_id=pedido.sesion_chat_id,
+                tenant_id=pedido.tenant_id,
+                remitente="BOT",
+                tipo_contenido="TEXTO",
+                contenido=f"Estamos asignando un nuevo repartidor para tu pedido *#{pedido.folio}* para entregártelo lo antes posible. Tu código PIN sigue siendo *{asig.pin_entrega}*.",
+            )
+        )
+
+    db.commit()
+
+    # Alerta URGENTE a los demás repartidores disponibles
+    cfg = get_or_create_delivery_config(db, pedido.tenant_id)
+    alertados = 0
+    if cfg.notificar_whatsapp_repartidor and cfg.modo_delivery != "DESACTIVADO":
+        q_otros = (
+            db.query(Usuario, PerfilRepartidor)
+            .join(PerfilRepartidor, PerfilRepartidor.usuario_id == Usuario.id)
+            .filter(
+                Usuario.rol == "REPARTIDOR",
+                Usuario.activo.is_(True),
+                PerfilRepartidor.disponible.is_(True),
+            )
+        )
+        if prev_rep_id:
+            q_otros = q_otros.filter(Usuario.id != prev_rep_id)
+        if cfg.modo_delivery == "FLOTA_SAAS":
+            q_otros = q_otros.filter(PerfilRepartidor.es_flota_saas.is_(True))
+        else:
+            q_otros = q_otros.filter(Usuario.tenant_id == pedido.tenant_id, PerfilRepartidor.es_flota_saas.is_(False))
+
+        comercio = db.query(TenantComercio).filter(TenantComercio.id == pedido.tenant_id).first()
+        sym = (comercio.simbolo_moneda if comercio else "C$") or "C$"
+        msg_urg = (
+            f"🚨 *REASIGNACIÓN URGENTE DE DELIVERY*\n"
+            f"Comercio: *{comercio.nombre_comercial if comercio else 'Comercio'}*\n"
+            f"Pedido: *#{pedido.folio}* ({motivo})\n"
+            f"Dirección: {pedido.direccion_entrega or 'Ver panel'}\n"
+            f"Envío: *{sym}{float(pedido.costo_envio or 0):.2f}*\n\n"
+            f"Entra a tu Panel de Repartidor para tomarlo ahora."
+        )
+        for _u, perf in q_otros.all():
+            if perf.telefono_whatsapp:
+                try:
+                    send_whatsapp_text(perf.telefono_whatsapp, msg_urg)
+                    alertados += 1
+                except Exception:
+                    pass
+
+    publish_tenant_event(
+        pedido.tenant_id,
+        "PEDIDO_ACTUALIZADO",
+        {"pedido_id": pedido.id, "folio": pedido.folio, "estado_delivery": "PENDIENTE"},
+    )
+    return {
+        "status": "ok",
+        "pedido_id": pedido.id,
+        "estado_delivery": "PENDIENTE",
+        "repartidores_alertados": alertados,
+        "repartidor_desconectado": bool(payload.desconectar_repartidor and prev_rep_id),
     }
 
 

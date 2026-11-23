@@ -522,14 +522,14 @@ function escapeHtml(str) {
         // CARGA DEL PANEL DEL RESTAURANTE / COCINA
         // =========================================================
         function switchComercioTab(tabName) {
-            if ((tabName === 'estadisticas' || tabName === 'configuracion') && !isComercioAdminOrSuper()) {
+            if ((tabName === 'estadisticas' || tabName === 'configuracion' || tabName === 'repartidores') && !isComercioAdminOrSuper()) {
                 tabName = 'pedidos';
             }
             if (tabName === 'inventario' && !currentComercioData?.comercio?.inventario_habilitado) {
                 tabName = 'pedidos';
             }
             console.log('[switchComercioTab] Activando pestaña:', tabName);
-            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas', 'configuracion'];
+            const tabs = ['pedidos', 'menu', 'inventario', 'sucursales', 'clientes', 'estadisticas', 'repartidores', 'configuracion'];
             
             tabs.forEach(t => {
                 const el = document.getElementById(`tabContent_${t}`);
@@ -578,6 +578,10 @@ function escapeHtml(str) {
                 }
                 if (typeof cargarEquipoComercio === 'function') {
                     cargarEquipoComercio();
+                }
+            } else if (tabName === 'repartidores') {
+                if (typeof cargarRepartidoresComercio === 'function') {
+                    cargarRepartidoresComercio();
                 }
             }
         }

@@ -107,6 +107,11 @@
                         <i class="fa-solid fa-chart-line w-4 text-center pointer-events-none"></i>
                         <span class="pointer-events-none">Estadísticas</span>
                     </button>
+                    <button type="button" id="tabBtn_repartidores" data-comercio-tab="repartidores"
+                        class="comercio-admin-only ui-nav-btn">
+                        <i class="fa-solid fa-motorcycle w-4 text-center pointer-events-none"></i>
+                        <span class="pointer-events-none">Repartidores</span>
+                    </button>
                     <button type="button" id="tabBtn_configuracion" data-comercio-tab="configuracion"
                         class="comercio-admin-only ui-nav-btn">
                         <i class="fa-solid fa-gear w-4 text-center pointer-events-none"></i>
@@ -148,6 +153,9 @@
 
                 <!-- Pestaña G: Configuración del Negocio, Moneda y Delivery -->
                 {% include 'views/configuracion.html' %}
+
+                <!-- Pestaña H: Repartidores y Rescate de Entregas -->
+                {% include 'views/repartidores.html' %}
             </div>
         </div>
     </section>

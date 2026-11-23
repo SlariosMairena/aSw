@@ -144,6 +144,14 @@ function renderRepartidorEnCaminoCard(it) {
                     <i class="fa-solid fa-check-double"></i> <span>Confirmar Entrega</span>
                 </button>
             </div>
+
+            <!-- Botón de Emergencia: Falla mecánica / Accidente / Liberar pedido -->
+            <div class="pt-1 flex justify-end">
+                <button type="button" onclick="liberarPedidoRepartidor(${it.pedido_id})"
+                    class="px-3 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-rose-400 font-bold text-[11px] transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <span>Reportar falla / Liberar pedido</span>
+                </button>
+            </div>
         </div>
     `;
 }
@@ -193,4 +201,207 @@ async function confirmarEntregaRepartidor(pedidoId, requierePin) {
     }
 }
 window.confirmarEntregaRepartidor = confirmarEntregaRepartidor;
+
+async function liberarPedidoRepartidor(pedidoId) {
+    const motivo = window.prompt(
+        'Indica el motivo para liberar este pedido (se alertará de urgencia a otro repartidor y pasarás a modo Pausa):',
+        'Falla mecánica en moto'
+    );
+    if (!motivo || !motivo.trim()) return;
+    try {
+        const res = await apiFetch(`/api/v1/delivery/pedidos/${pedidoId}/liberar`, {
+            method: 'POST',
+            body: { motivo: motivo.trim(), desconectar_repartidor: true }
+        });
+        showToast(`Pedido liberado. Se alertó a ${res.repartidores_alertados || 0} repartidores disponibles.`);
+        await loadRepartidorPanel();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.liberarPedidoRepartidor = liberarPedidoRepartidor;
+
+// =========================================================
+// GESTIÓN DE REPARTIDORES EN NAVEGACIÓN (COMERCIO & SUPERADMIN)
+// =========================================================
+function _renderListaRepartidores(targetId, lista, esFlotaSaas) {
+    const box = document.getElementById(targetId);
+    if (!box) return;
+    if (!lista || lista.length === 0) {
+        box.innerHTML = `<div class="text-center text-slate-400 py-5">No hay repartidores registrados todavía. Usa el formulario superior para agregar uno.</div>`;
+        return;
+    }
+    box.innerHTML = lista.map(r => `
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-0.5 min-w-0">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-bold text-sm text-white">${escapeHtml(r.nombre_completo)}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${r.activo ? (r.disponible ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30') : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                        ${!r.activo ? 'CUENTA PAUSADA' : (r.disponible ? 'EN LÍNEA' : 'DESCONECTADO')}
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-800 text-slate-300">${escapeHtml(r.vehiculo || 'Moto')}</span>
+                </div>
+                <p class="text-xs text-slate-400 truncate">${escapeHtml(r.email)} · WhatsApp: <span class="font-mono">${escapeHtml(r.telefono_whatsapp || '—')}</span></p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="resetRepartidorPass(${r.id}, ${esFlotaSaas ? 'true' : 'false'})"
+                    class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1">
+                    <i class="fa-solid fa-key"></i> <span>Clave</span>
+                </button>
+                <button type="button" onclick="toggleRepartidorActivo(${r.id}, ${!r.activo}, ${esFlotaSaas ? 'true' : 'false'})"
+                    class="px-2.5 py-1.5 rounded-lg text-xs font-bold transition ${r.activo ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300' : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300'}">
+                    ${r.activo ? 'Pausar' : 'Activar'}
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function _renderListaEnCamino(targetId, lista, esFlotaSaas) {
+    const box = document.getElementById(targetId);
+    if (!box) return;
+    if (!lista || lista.length === 0) {
+        box.innerHTML = `<div class="text-center text-slate-400 py-4">No hay entregas en camino en este momento.</div>`;
+        return;
+    }
+    box.innerHTML = lista.map(p => `
+        <div class="p-3.5 rounded-xl bg-slate-900 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+            <div class="space-y-0.5 min-w-0">
+                <div class="font-bold text-white flex flex-wrap items-center gap-2">
+                    <span>#${escapeHtml(p.folio)} · ${escapeHtml(p.comercio_nombre)}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300">
+                        <i class="fa-solid fa-motorcycle mr-1"></i>${escapeHtml(p.repartidor_nombre)}
+                    </span>
+                </div>
+                <p class="text-xs text-slate-400 truncate">Cliente: ${escapeHtml(p.nombre_cliente)} · ${escapeHtml(p.direccion_entrega)}</p>
+            </div>
+            <button type="button" onclick="liberarPedidoDeliveryAdmin(${p.pedido_id}, ${esFlotaSaas ? 'true' : 'false'})"
+                class="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 font-bold text-xs transition flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-triangle-exclamation"></i> <span>Liberar / Reasignar</span>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function cargarRepartidoresComercio() {
+    if (!activeTenantId || !isComercioAdminOrSuper()) return;
+    const modo = currentComercioData?.comercio?.delivery_config?.modo_delivery || 'FLOTA_SAAS';
+    const badge = document.getElementById('repComercioModoBadge');
+    if (badge) {
+        const map = {
+            FLOTA_SAAS: 'Modo actual: Flota Compartida SaaS',
+            PROPIO: 'Modo actual: Repartidor Propio',
+            DESACTIVADO: 'Modo actual: Delivery Desactivado'
+        };
+        badge.textContent = map[modo] || modo;
+    }
+    try {
+        const data = await apiFetch(`/api/v1/delivery/repartidores?tenant_id=${activeTenantId}`);
+        _renderListaRepartidores('repComercioList', data.repartidores || [], false);
+        _renderListaEnCamino('repComercioEnCaminoList', data.en_camino || [], false);
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.cargarRepartidoresComercio = cargarRepartidoresComercio;
+
+async function cargarFlotaSuperAdmin() {
+    try {
+        const data = await apiFetch('/api/v1/delivery/repartidores');
+        const reps = data.repartidores || [];
+        const cntEl = document.getElementById('saTabCountRepartidores');
+        if (cntEl) cntEl.textContent = String(reps.length);
+        _renderListaRepartidores('saRepFlotaList', reps, true);
+        _renderListaEnCamino('saRepEnCaminoList', data.en_camino || [], true);
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.cargarFlotaSuperAdmin = cargarFlotaSuperAdmin;
+
+async function handleCrearRepartidor(e, esFlotaSaas) {
+    e.preventDefault();
+    const pfx = esFlotaSaas ? 'repSaas' : 'repCom';
+    const nombre = document.getElementById(`${pfx}Nombre`)?.value.trim();
+    const email = document.getElementById(`${pfx}Email`)?.value.trim();
+    const password = document.getElementById(`${pfx}Pass`)?.value;
+    const telefono = document.getElementById(`${pfx}Tel`)?.value.trim();
+    const vehiculo = document.getElementById(`${pfx}Vehiculo`)?.value.trim() || 'Moto';
+
+    try {
+        await apiFetch('/api/v1/delivery/repartidores', {
+            method: 'POST',
+            body: {
+                nombre_completo: nombre,
+                email,
+                password,
+                telefono_whatsapp: telefono,
+                vehiculo,
+                es_flota_saas: !!esFlotaSaas,
+                tenant_id: esFlotaSaas ? null : activeTenantId
+            }
+        });
+        document.getElementById(`${pfx}Nombre`).value = '';
+        document.getElementById(`${pfx}Email`).value = '';
+        document.getElementById(`${pfx}Tel`).value = '';
+        showToast('Repartidor registrado correctamente.');
+        if (esFlotaSaas) await cargarFlotaSuperAdmin();
+        else await cargarRepartidoresComercio();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.handleCrearRepartidor = handleCrearRepartidor;
+
+async function toggleRepartidorActivo(uid, nuevoActivo, esFlotaSaas) {
+    try {
+        await apiFetch(`/api/v1/delivery/repartidores/${uid}`, {
+            method: 'PATCH',
+            body: { activo: !!nuevoActivo }
+        });
+        showToast(nuevoActivo ? 'Repartidor activado.' : 'Repartidor pausado.');
+        if (esFlotaSaas) await cargarFlotaSuperAdmin();
+        else await cargarRepartidoresComercio();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.toggleRepartidorActivo = toggleRepartidorActivo;
+
+async function resetRepartidorPass(uid, esFlotaSaas) {
+    const nueva = window.prompt('Nueva contraseña para el repartidor (mín. 6 caracteres):', 'Delivery#2026!');
+    if (!nueva) return;
+    try {
+        await apiFetch(`/api/v1/delivery/repartidores/${uid}`, {
+            method: 'PATCH',
+            body: { nueva_password: nueva }
+        });
+        showToast('Contraseña del repartidor actualizada.');
+        if (esFlotaSaas) await cargarFlotaSuperAdmin();
+        else await cargarRepartidoresComercio();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.resetRepartidorPass = resetRepartidorPass;
+
+async function liberarPedidoDeliveryAdmin(pedidoId, esFlotaSaas) {
+    const motivo = window.prompt(
+        'Motivo de liberación/reasignación de emergencia:',
+        'Incidencia de repartidor (reasignación manual)'
+    );
+    if (!motivo || !motivo.trim()) return;
+    try {
+        const res = await apiFetch(`/api/v1/delivery/pedidos/${pedidoId}/liberar`, {
+            method: 'POST',
+            body: { motivo: motivo.trim(), desconectar_repartidor: true }
+        });
+        showToast(`Entrega liberada. Alertados: ${res.repartidores_alertados || 0} repartidores.`);
+        if (esFlotaSaas) await cargarFlotaSuperAdmin();
+        else await cargarRepartidoresComercio();
+    } catch (err) {
+        showToast(err.message, true);
+    }
+}
+window.liberarPedidoDeliveryAdmin = liberarPedidoDeliveryAdmin;
 

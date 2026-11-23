@@ -1,0 +1,80 @@
+<!-- ========================================================= -->
+<!-- PESTAÑA: REPARTIDORES Y RESCATE DE ENTREGAS EN CAMINO      -->
+<!-- ========================================================= -->
+<div id="tabContent_repartidores" class="hidden space-y-5">
+    <!-- Cabecera -->
+    <div class="glass rounded-2xl p-5 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-[#1B4332]/15 text-[#1B4332] border border-[#1B4332]/25 flex items-center justify-center text-base shrink-0">
+                <i class="fa-solid fa-motorcycle"></i>
+            </span>
+            <div>
+                <h3 class="text-lg font-extrabold text-white">Repartidores y Entregas en Curso</h3>
+                <p class="text-xs text-slate-400">
+                    Registra repartidores propios de tu negocio o libera entregas en camino ante fallas mecánicas o emergencias.
+                </p>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <span id="repComercioModoBadge" class="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+                Modo: Flota SaaS
+            </span>
+            <button type="button" onclick="switchComercioTab('configuracion')"
+                class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-gear"></i> <span>Cambiar modo</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Entregas EN CAMINO (Liberación de emergencia) -->
+    <div class="glass rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-800/60">
+            <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+                <span>Entregas en Camino (Rescate / Reasignación)</span>
+            </h4>
+            <button type="button" onclick="cargarRepartidoresComercio()"
+                class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold transition">
+                <i class="fa-solid fa-rotate mr-1"></i>Actualizar
+            </button>
+        </div>
+        <div id="repComercioEnCaminoList" class="space-y-2.5 text-xs"></div>
+    </div>
+
+    <!-- Crear Nuevo Repartidor Propio + Lista -->
+    <div class="glass rounded-2xl p-5 space-y-4">
+        <div class="pb-2.5 border-b border-slate-800/60">
+            <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
+                <i class="fa-solid fa-id-card text-emerald-400"></i>
+                <span>Repartidores Propios del Negocio</span>
+            </h4>
+            <p class="text-xs text-slate-400 mt-0.5">
+                Agrega varios repartidores para cubrir horas pico o relevos. Cada uno entra con su correo y contraseña a su panel móvil.
+            </p>
+        </div>
+
+        <form id="formCrearRepartidorComercio" onsubmit="handleCrearRepartidor(event, false)" class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                <input id="repComNombre" type="text" required placeholder="Nombre completo *"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                <input id="repComEmail" type="email" required placeholder="repartidor@negocio.com *"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                <input id="repComPass" type="text" required value="Delivery#2026!" placeholder="Contraseña *"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none">
+                <input id="repComTel" type="text" required placeholder="WhatsApp (50588...)*"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+                <input id="repComVehiculo" type="text" value="Moto" placeholder="Vehículo (Moto/Bici)"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
+            </div>
+            <div class="flex justify-end">
+                <button type="submit"
+                    class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                    <i class="fa-solid fa-user-plus"></i> <span>Agregar Repartidor Propio</span>
+                </button>
+            </div>
+        </form>
+
+        <div id="repComercioList" class="space-y-2.5 text-xs"></div>
+    </div>
+</div>
+
