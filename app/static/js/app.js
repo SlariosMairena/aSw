@@ -443,6 +443,28 @@ function escapeHtml(str) {
 
             const tabSucLbl = document.getElementById('tabLabel_sucursales');
             if (tabSucLbl) tabSucLbl.textContent = profile.tabSucLabel;
+            const tabPedLbl = document.getElementById('tabLabel_pedidos');
+            const tabPedIcon = document.getElementById('tabIcon_pedidos');
+            const esCitasGiro = profile.code === 'SERVICIOS_CITAS';
+            if (tabPedLbl) tabPedLbl.textContent = esCitasGiro ? 'Agenda de Citas' : 'Pedidos';
+            if (tabPedIcon) tabPedIcon.className = `fa-solid ${esCitasGiro ? 'fa-calendar-days' : 'fa-clipboard-list'} w-4 text-center pointer-events-none`;
+
+            // Opción 2: en SERVICIOS_CITAS la pantalla principal es directamente la Agenda/Calendario
+            const kanbanWrap = document.getElementById('kanbanPedidosWrapper');
+            const citasWrap = document.getElementById('citasAgendaPrincipalWrap');
+            const bloqueRes = document.getElementById('bloqueReservacionMesas');
+            const resHost = document.getElementById('bloqueReservacionMesasHost');
+            if (kanbanWrap && citasWrap && bloqueRes && resHost) {
+                if (esCitasGiro) {
+                    kanbanWrap.classList.add('hidden');
+                    citasWrap.classList.remove('hidden');
+                    if (bloqueRes.parentElement !== citasWrap) citasWrap.appendChild(bloqueRes);
+                } else {
+                    kanbanWrap.classList.remove('hidden');
+                    citasWrap.classList.add('hidden');
+                    if (bloqueRes.parentElement !== resHost) resHost.appendChild(bloqueRes);
+                }
+            }
             const soundLbl = document.getElementById('btnSoundLabel');
             if (soundLbl) soundLbl.textContent = profile.soundLabel;
 

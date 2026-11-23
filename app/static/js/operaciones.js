@@ -575,17 +575,21 @@ function renderAgendaCalendarioView() {
     const sym = cache.sym || 'C$';
     const esCita = !!cache.esCitaGiro;
 
-    // 1. Chips de Especialista / Consultorio / Mesa
+    // 1. Chips de Especialista / Consultorio / Mesa (se ocultan si es 1 sola persona que administra y atiende)
     const espNames = [...new Set(listRes.map(r => r.mesa_nombre || 'Sin asignar'))];
     const espBar = document.getElementById('agendaEspChips');
     if (espBar) {
-        espBar.innerHTML = [`<button type="button" onclick="setAgendaFiltroEsp('ALL')" class="px-3 py-1 rounded-full border font-bold text-[11px] transition ${agendaFiltroEsp === 'ALL' ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-slate-900 text-slate-300 border-slate-700'}">Todos (${listRes.length})</button>`]
-            .concat(espNames.map(n => {
-                const cnt = listRes.filter(r => (r.mesa_nombre || 'Sin asignar') === n).length;
-                const act = agendaFiltroEsp === n;
-                const safe = n.replace(/'/g, "\\'");
-                return `<button type="button" onclick="setAgendaFiltroEsp('${safe}')" class="px-3 py-1 rounded-full border font-semibold text-[11px] transition ${act ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-slate-900 text-slate-300 border-slate-700'}">${escapeHtml(n)} (${cnt})</button>`;
-            })).join('');
+        if ((cache.mesas || []).length <= 1 && espNames.length <= 1) {
+            espBar.innerHTML = `<span class="text-xs font-bold text-slate-400"><i class="fa-solid fa-user-check text-emerald-400 mr-1.5"></i>Agenda Directa (${listRes.length} ${listRes.length === 1 ? 'cita' : 'citas'})</span>`;
+        } else {
+            espBar.innerHTML = [`<button type="button" onclick="setAgendaFiltroEsp('ALL')" class="px-3 py-1 rounded-full border font-bold text-[11px] transition ${agendaFiltroEsp === 'ALL' ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-slate-900 text-slate-300 border-slate-700'}">Todos (${listRes.length})</button>`]
+                .concat(espNames.map(n => {
+                    const cnt = listRes.filter(r => (r.mesa_nombre || 'Sin asignar') === n).length;
+                    const act = agendaFiltroEsp === n;
+                    const safe = n.replace(/'/g, "\\'");
+                    return `<button type="button" onclick="setAgendaFiltroEsp('${safe}')" class="px-3 py-1 rounded-full border font-semibold text-[11px] transition ${act ? 'bg-[#1B4332] text-white keep-white border-[#1B4332]' : 'bg-slate-900 text-slate-300 border-slate-700'}">${escapeHtml(n)} (${cnt})</button>`;
+                })).join('');
+        }
     }
 
     // 2. Chips de Estado

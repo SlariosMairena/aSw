@@ -1,5 +1,10 @@
-<!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS EN 3 COLUMNAS ACTIVAS + HISTORIAL ENTREGADOS -->
+<!-- PESTAÑA A: TABLERO KANBAN DE PEDIDOS (O AGENDA DE CITAS EN SERVICIOS_CITAS) -->
 <div id="tabContent_pedidos" class="space-y-5">
+    <!-- Contenedor Principal de Agenda / Calendario (solo activo para SERVICIOS_CITAS) -->
+    <div id="citasAgendaPrincipalWrap" class="hidden space-y-5"></div>
+
+    <!-- Contenedor Kanban Tradicional (Restaurantes, Cafeterías, Tiendas, Farmacias, Minisúpers) -->
+    <div id="kanbanPedidosWrapper" class="space-y-5">
     <!-- Barra de Acciones Rapidas: Pedido en Mostrador (POS) y Bot WhatsApp -->
     <div class="glass rounded-2xl px-3.5 sm:px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
         <div class="flex items-center gap-2 text-xs text-slate-300">
@@ -86,5 +91,6 @@
         <div id="wrapperColEntregados" class="mt-4 pt-4 border-t border-slate-800 hidden">
             <div id="colEntregados" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
+    </div>
     </div>
 </div>

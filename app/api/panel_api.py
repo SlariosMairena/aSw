@@ -461,7 +461,8 @@ def crear_nuevo_comercio(
     )
 
     giro_norm = normalize_giro_code(payload.giro)
-    usa_mesas = giro_norm in ("RESTAURANTE", "CAFETERIA")
+    es_citas = giro_norm == "SERVICIOS_CITAS"
+    usa_mesas = giro_norm in ("RESTAURANTE", "CAFETERIA", "SERVICIOS_CITAS")
 
     nuevo_comercio = TenantComercio(
         nombre_comercial=payload.nombre_comercial.strip(),
@@ -475,6 +476,7 @@ def crear_nuevo_comercio(
         moneda=payload.moneda,
         simbolo_moneda=payload.simbolo_moneda,
         tiene_mesas_fisicas=usa_mesas,
+        reservaciones_habilitadas=es_citas,
     )
     db.add(nuevo_comercio)
     db.commit()
@@ -487,9 +489,32 @@ def crear_nuevo_comercio(
         codigo_whatsapp=codigo_wa,
         es_principal=True,
         direccion_fisica=payload.direccion_sucursal,
-        costo_envio_base=payload.costo_envio_base,
+        costo_envio_base=0.0 if es_citas else payload.costo_envio_base,
+        permite_domicilio=not es_citas,
     )
     db.add(sucursal)
+    db.flush()
+
+    if es_citas:
+        # Auto-configuración para 1 sola persona que administra y atiende (puede agregar más después)
+        db.add(
+            ConfigDeliveryComercio(
+                tenant_id=nuevo_comercio.id,
+                modo_delivery="DESACTIVADO",
+                requiere_pin_entrega=False,
+                notificar_whatsapp_repartidor=False,
+            )
+        )
+        db.add(
+            MesaZona(
+                tenant_id=nuevo_comercio.id,
+                sucursal_id=sucursal.id,
+                nombre_mesa=f"Atención Principal — {payload.nombre_dueno.strip()}"[:80],
+                capacidad_personas=1,
+                monto_anticipo_reserva=0.0,
+                activa=True,
+            )
+        )
 
     dueno = Usuario(
         tenant_id=nuevo_comercio.id,
@@ -508,6 +533,7 @@ def crear_nuevo_comercio(
         demo_stats = populate_tenant_demo_data(db, nuevo_comercio, giro_norm)
     else:
         cat_inicial_map = {
+            "SERVICIOS_CITAS": "Consultas y Servicios",
             "FARMACIA": "Analgésicos y Salud",
             "TIENDA": "Catálogo Principal",
             "SUPERMERCADO": "Abarrotes y Canasta Básica",
