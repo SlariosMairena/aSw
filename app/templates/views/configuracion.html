@@ -1,9 +1,9 @@
 <!-- ========================================================= -->
-<!-- PESTAÑA G: CONFIGURACIÓN DEL NEGOCIO, MONEDA & DELIVERY    -->
+<!-- PESTAÑA G: CONFIGURACIÓN DEL NEGOCIO, DELIVERY Y EQUIPO    -->
 <!-- ========================================================= -->
 <div id="tabContent_configuracion" class="hidden space-y-5">
+    <!-- BLOQUE 1: PERFIL DEL NEGOCIO Y DELIVERY -->
     <form onsubmit="handleGuardarConfigComercio(event)" class="space-y-5">
-        <!-- Cabecera de la sección -->
         <div class="glass rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3">
                 <span class="w-10 h-10 rounded-xl bg-[#1B4332]/15 text-[#1B4332] border border-[#1B4332]/25 flex items-center justify-center text-base shrink-0">
@@ -11,21 +11,21 @@
                 </span>
                 <div>
                     <h3 class="text-lg font-extrabold text-white">Configuración del Negocio</h3>
-                    <p class="text-xs text-slate-400">Personaliza el logo, moneda de cobro, métodos de pago y modalidad de delivery</p>
+                    <p class="text-xs text-slate-400">Administra la identidad de tu comercio, modalidad de delivery y tu equipo operativo</p>
                 </div>
             </div>
             <button type="submit"
                 class="px-5 py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition shadow-sm flex items-center gap-2">
-                <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Configuración</span>
+                <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Cambios</span>
             </button>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 text-xs">
-            <!-- COLUMNA 1: IDENTIDAD DEL NEGOCIO Y MONEDA -->
+            <!-- COLUMNA 1: IDENTIDAD DEL NEGOCIO -->
             <div class="glass rounded-2xl p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-2.5 border-b border-slate-800/60">
                     <i class="fa-solid fa-store text-[#D6402B]"></i>
-                    <h4 class="text-sm font-extrabold text-white">Identidad y Moneda</h4>
+                    <h4 class="text-sm font-extrabold text-white">Perfil del Negocio</h4>
                 </div>
 
                 <!-- Logo propio del comercio -->
@@ -55,24 +55,10 @@
                     </div>
                 </div>
 
-                <!-- Nombre y Giro -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Nombre Comercial</label>
-                        <input id="cfgNombreComercial" type="text" required
-                            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Giro del Negocio</label>
-                        <select id="cfgGiro"
-                            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
-                            <option value="RESTAURANTE">Restaurante / Comida Rápida</option>
-                            <option value="CAFETERIA">Cafetería / Repostería</option>
-                            <option value="FARMACIA">Farmacia / Salud</option>
-                            <option value="TIENDA">Tienda / Retail</option>
-                            <option value="SUPERMERCADO">Minisúper / Conveniencia</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-slate-300 font-semibold mb-1">Nombre Comercial</label>
+                    <input id="cfgNombreComercial" type="text" required
+                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
                 </div>
 
                 <div>
@@ -80,65 +66,29 @@
                     <input id="cfgTelefono" type="text" placeholder="+50588889999"
                         class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
                 </div>
-
-                <!-- Preajustes de moneda -->
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1.5">Preajustes Rápidos de Moneda</label>
-                    <div class="flex flex-wrap gap-1.5">
-                        <button type="button" onclick="setMonedaPreset('C$', 'NIO')" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold text-[11px]">
-                            NIO • Córdobas (C$)
-                        </button>
-                        <button type="button" onclick="setMonedaPreset('$', 'USD')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                            USD • Dólares ($)
-                        </button>
-                        <button type="button" onclick="setMonedaPreset('$', 'MXN')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                            MXN • Pesos ($)
-                        </button>
-                        <button type="button" onclick="setMonedaPreset('Q', 'GTQ')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                            GTQ • Quetzales (Q)
-                        </button>
-                        <button type="button" onclick="setMonedaPreset('€', 'EUR')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-bold text-[11px]">
-                            EUR • Euros (€)
-                        </button>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Símbolo de Moneda</label>
-                        <input id="cfgSimboloMoneda" type="text" required placeholder="C$"
-                            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-emerald-400 font-bold text-sm focus:outline-none focus:border-emerald-500">
-                    </div>
-                    <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Código ISO Moneda</label>
-                        <input id="cfgMonedaIso" type="text" required placeholder="NIO"
-                            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-bold text-sm focus:outline-none focus:border-emerald-500">
-                    </div>
-                </div>
             </div>
 
-            <!-- COLUMNA 2: DELIVERY Y MÉTODOS DE PAGO -->
+            <!-- COLUMNA 2: DELIVERY Y ENVÍOS -->
             <div class="glass rounded-2xl p-5 space-y-4">
                 <div class="flex items-center gap-2 pb-2.5 border-b border-slate-800/60">
                     <i class="fa-solid fa-motorcycle text-[#1B4332]"></i>
-                    <h4 class="text-sm font-extrabold text-white">Delivery y Métodos de Pago</h4>
+                    <h4 class="text-sm font-extrabold text-white">Delivery y Envíos a Domicilio</h4>
                 </div>
 
-                <!-- Modo de Delivery -->
                 <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
                     <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Modo de Delivery (Envíos a Domicilio)</label>
+                        <label class="block text-slate-300 font-semibold mb-1">Modo de Delivery</label>
                         <select id="cfgModoDelivery"
                             class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
                             <option value="FLOTA_SAAS">Flota Compartida del SaaS (Repartidores de la plataforma)</option>
                             <option value="PROPIO">Repartidor Propio del Negocio</option>
                             <option value="DESACTIVADO">Sin Delivery (Solo Retiro en Local / Mesa)</option>
                         </select>
-                        <p class="text-[10px] text-slate-400 mt-1">
+                        <p class="text-[10px] text-slate-400 mt-1.5">
                             Al guardar, se sincroniza automáticamente en todas las sucursales, Bot de WhatsApp, Mini-Menú Web y POS.
                         </p>
                     </div>
-                    <div class="space-y-2 text-[11px] text-slate-300">
+                    <div class="space-y-2.5 pt-1 text-[11px] text-slate-300">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input id="cfgDeliveryPin" type="checkbox" checked class="w-4 h-4 accent-[#1B4332] rounded">
                             <span>Exigir <strong>PIN de 4 dígitos</strong> al repartidor para confirmar entrega</span>
@@ -150,37 +100,62 @@
                     </div>
                 </div>
 
-                <!-- Formas de pago aceptadas -->
-                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2.5">
-                    <label class="block text-slate-300 font-semibold">Métodos de Pago Aceptados</label>
-                    <div class="flex flex-wrap gap-4">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input id="cfgAceptaEfectivo" type="checkbox" class="w-4 h-4 accent-emerald-500 rounded">
-                            <span class="text-slate-200 font-semibold">Acepta Efectivo</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input id="cfgAceptaTransferencia" type="checkbox" class="w-4 h-4 accent-emerald-500 rounded">
-                            <span class="text-slate-200 font-semibold">Acepta Transferencias</span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Datos Bancarios -->
-                <div>
-                    <label class="block text-slate-300 font-semibold mb-1">Datos Bancarios para Transferencias</label>
-                    <textarea id="cfgDatosBancarios" rows="3"
-                        placeholder="Banco: BAC Credomatic | Cuenta Córdobas: 365-123456-0 | Titular: ..."
-                        class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
-                    <span class="text-[10px] text-slate-400">Este texto se enviará automáticamente al cliente por WhatsApp cuando elija pagar por transferencia.</span>
-                </div>
-
-                <div class="pt-2 lg:hidden">
+                <div class="pt-1 lg:hidden">
                     <button type="submit"
                         class="w-full py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition shadow-sm flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Configuración</span>
+                        <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Cambios</span>
                     </button>
                 </div>
             </div>
         </div>
     </form>
+
+    <!-- BLOQUE 2: EQUIPO Y USUARIOS DEL NEGOCIO -->
+    <div class="glass rounded-2xl p-5 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
+            <div>
+                <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-[#1B4332]"></i>
+                    <span>Equipo y Usuarios del Negocio</span>
+                </h4>
+                <p class="text-xs text-slate-400 mt-0.5">
+                    Administra tu personal <strong>Staff (Sucursal/Despacho)</strong>. El Staff opera pedidos, chat, tickets y disponibilidad sin ver finanzas ni editar precios.
+                </p>
+            </div>
+            <button type="button" onclick="cargarEquipoComercio()"
+                class="px-3 py-1.5 rounded-xl bg-[#EDE5D7] hover:bg-[#E2D6C1] border border-[#DFD5C3] text-[#1A241E] text-xs font-semibold transition flex items-center gap-1.5">
+                <i class="fa-solid fa-rotate"></i> <span>Actualizar lista</span>
+            </button>
+        </div>
+
+        <!-- Formulario crear nuevo Staff -->
+        <form id="formCrearStaffComercio" onsubmit="handleCrearStaffComercio(event)" class="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-3">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <i class="fa-solid fa-user-plus"></i>
+                <span>Agregar Nuevo Personal Staff</span>
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                <input id="eqNuevoNombre" type="text" required placeholder="Nombre completo *"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500">
+                <input id="eqNuevoEmail" type="email" required placeholder="correo@tunegocio.com *"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500">
+                <input id="eqNuevoPass" type="text" required value="Staff#2026!" placeholder="Contraseña *"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none font-mono focus:border-emerald-500">
+                <select id="eqNuevaSucursal"
+                    class="bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-emerald-500">
+                    <option value="">Todas las sucursales</option>
+                </select>
+            </div>
+            <div class="flex justify-end">
+                <button type="submit"
+                    class="bg-[#1B4332] hover:bg-[#143326] text-white keep-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Crear Usuario Staff</span>
+                </button>
+            </div>
+        </form>
+
+        <!-- Lista de usuarios del comercio -->
+        <div id="eqUsuariosList" class="space-y-2.5"></div>
+    </div>
 </div>

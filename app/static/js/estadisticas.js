@@ -226,10 +226,12 @@ function renderEstadisticasComercio(data) {
 // =========================================================
 // GESTIÓN DE EQUIPO STAFF POR EL DUEÑO (COMERCIO_ADMIN)
 // =========================================================
-async function openModalEquipoComercio() {
+async function cargarEquipoComercio() {
     if (!activeTenantId || !isComercioAdminOrSuper()) return;
-    document.getElementById('eqUsuariosList').innerHTML = `<div class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Cargando equipo...</div>`;
-    document.getElementById('modalEquipoComercio')?.classList.remove('hidden');
+    const listEl = document.getElementById('eqUsuariosList');
+    if (listEl) {
+        listEl.innerHTML = `<div class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Cargando equipo...</div>`;
+    }
 
     try {
         const data = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/usuarios`);
@@ -242,6 +244,15 @@ async function openModalEquipoComercio() {
         renderEquipoComercioList(data.usuarios || []);
     } catch (err) {
         showToast(err.message, true);
+    }
+}
+window.cargarEquipoComercio = cargarEquipoComercio;
+
+async function openModalEquipoComercio() {
+    if (typeof switchComercioTab === 'function') {
+        switchComercioTab('configuracion');
+    } else {
+        await cargarEquipoComercio();
     }
 }
 
@@ -301,7 +312,7 @@ async function handleCrearStaffComercio(e) {
         document.getElementById('eqNuevoNombre').value = '';
         document.getElementById('eqNuevoEmail').value = '';
         showToast('Personal Staff agregado correctamente.');
-        await openModalEquipoComercio();
+        await cargarEquipoComercio();
     } catch (err) {
         showToast(err.message, true);
     }
@@ -315,7 +326,7 @@ async function toggleStaffComercioActivo(usuarioId, nuevoActivo) {
             body: { activo: nuevoActivo }
         });
         showToast(nuevoActivo ? 'Usuario Staff activado.' : 'Usuario Staff pausado.');
-        await openModalEquipoComercio();
+        await cargarEquipoComercio();
     } catch (err) {
         showToast(err.message, true);
     }
@@ -331,7 +342,7 @@ async function resetStaffComercioPass(usuarioId) {
             body: { nueva_password: nueva }
         });
         showToast('Contraseña actualizada.');
-        await openModalEquipoComercio();
+        await cargarEquipoComercio();
     } catch (err) {
         showToast(err.message, true);
     }

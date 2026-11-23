@@ -576,6 +576,9 @@ function escapeHtml(str) {
                 if (typeof populateConfigComercioForm === 'function') {
                     populateConfigComercioForm();
                 }
+                if (typeof cargarEquipoComercio === 'function') {
+                    cargarEquipoComercio();
+                }
             }
         }
         window.switchComercioTab = switchComercioTab;
@@ -2175,15 +2178,11 @@ function escapeHtml(str) {
             pendingComercioEliminarLogo = false;
             setComercioLogoPreviewUI(c.logo_url || null, c.logo_url ? 'Logo actual guardado' : 'WebP ligero (~10 KB) • Panel, Menú Web y Ticket');
 
-            document.getElementById('cfgSimboloMoneda').value = c.simbolo_moneda || 'C$';
-            document.getElementById('cfgMonedaIso').value = c.moneda || 'NIO';
-            document.getElementById('cfgNombreComercial').value = c.nombre_comercial || '';
-            const cfgGiroEl = document.getElementById('cfgGiro');
-            if (cfgGiroEl) cfgGiroEl.value = getGiroProfile(c.giro).code;
-            document.getElementById('cfgTelefono').value = c.telefono_propietario || '';
-            document.getElementById('cfgDatosBancarios').value = c.datos_bancarios_texto || '';
-            document.getElementById('cfgAceptaEfectivo').checked = c.acepta_efectivo !== false;
-            document.getElementById('cfgAceptaTransferencia').checked = c.acepta_transferencia !== false;
+            const elNombre = document.getElementById('cfgNombreComercial');
+            if (elNombre) elNombre.value = c.nombre_comercial || '';
+            const elTel = document.getElementById('cfgTelefono');
+            if (elTel) elTel.value = c.telefono_propietario || '';
+
             const dCfg = c.delivery_config || {};
             const selDel = document.getElementById('cfgModoDelivery');
             if (selDel) selDel.value = dCfg.modo_delivery || 'FLOTA_SAAS';
@@ -2207,8 +2206,10 @@ function escapeHtml(str) {
         }
 
         function setMonedaPreset(simbolo, iso) {
-            document.getElementById('cfgSimboloMoneda').value = simbolo;
-            document.getElementById('cfgMonedaIso').value = iso;
+            const s = document.getElementById('cfgSimboloMoneda');
+            const m = document.getElementById('cfgMonedaIso');
+            if (s) s.value = simbolo;
+            if (m) m.value = iso;
         }
 
         async function handleGuardarConfigComercio(e) {
@@ -2216,14 +2217,8 @@ function escapeHtml(str) {
             if (!activeTenantId) return;
 
             const body = {
-                simbolo_moneda: document.getElementById('cfgSimboloMoneda').value.trim(),
-                moneda: document.getElementById('cfgMonedaIso').value.trim().toUpperCase(),
-                nombre_comercial: document.getElementById('cfgNombreComercial').value.trim(),
-                giro: document.getElementById('cfgGiro')?.value || undefined,
-                telefono_propietario: document.getElementById('cfgTelefono').value.trim(),
-                datos_bancarios_texto: document.getElementById('cfgDatosBancarios').value.trim(),
-                acepta_efectivo: document.getElementById('cfgAceptaEfectivo').checked,
-                acepta_transferencia: document.getElementById('cfgAceptaTransferencia').checked
+                nombre_comercial: document.getElementById('cfgNombreComercial')?.value.trim() || undefined,
+                telefono_propietario: document.getElementById('cfgTelefono')?.value.trim() || ''
             };
 
             try {
