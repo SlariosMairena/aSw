@@ -946,10 +946,10 @@ async function cargarClientesComercio() {
                 : `<span class="text-slate-500 text-[11px]">Normal</span>`;
 
             const vipEditBtn = canEditVip
-                ? `<button type="button" onclick="openModalClienteVip(${idx})" class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition" title="Configurar beneficios VIP del cliente">
-                        <i class="fa-solid fa-crown mr-1"></i> VIP
+                ? `<button type="button" onclick="openModalClienteVip(${idx})" class="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 font-bold text-xs transition" title="Configurar beneficios VIP del cliente">
+                        <i class="fa-solid fa-crown mr-1"></i> Beneficios VIP
                    </button>`
-                : '';
+                : `<span class="text-slate-500 text-[11px]">—</span>`;
 
             return `
             <tr class="hover:bg-slate-800/40">
@@ -960,14 +960,7 @@ async function cargarClientesComercio() {
                     <span class="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">${c.total_pedidos || c.total_pedidos_realizados || 0}</span>
                 </td>
                 <td class="px-4 py-3 text-center">${vipCell}</td>
-                <td class="px-4 py-3 text-right">
-                    <div class="inline-flex items-center justify-end gap-1.5">
-                        ${vipEditBtn}
-                        <button type="button" onclick="enviarClienteAPos(${idx})" class="px-3 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 font-bold text-xs transition">
-                            <i class="fa-solid fa-cash-register mr-1"></i> Pedido POS
-                        </button>
-                    </div>
-                </td>
+                <td class="px-4 py-3 text-right">${vipEditBtn}</td>
             </tr>`;
         }).join('');
     } catch (err) {
