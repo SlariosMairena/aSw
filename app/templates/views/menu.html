@@ -1,40 +1,40 @@
 <!-- PESTAÑA B: CATÁLOGO DE MENÚ, PRECIOS Y EXTRAS (ANCHO COMPLETO Y TARJETAS COMPACTAS) -->
 <div id="tabContent_menu" class="hidden space-y-5">
     <!-- Barra Superior Unificada -->
-    <div id="menuCatalogoCol" class="glass rounded-2xl p-5 space-y-4">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-800">
-            <div>
-                <h3 class="text-base font-bold text-white flex items-center gap-2">
+    <div id="menuCatalogoCol" class="glass rounded-2xl p-4 sm:p-5 space-y-4">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 pb-4 border-b border-slate-800">
+            <div class="min-w-0">
+                <h3 class="text-base font-bold text-white flex flex-wrap items-center gap-2">
                     <i id="catalogTitleIcon" class="fa-solid fa-utensils text-indigo-400"></i>
                     <span id="catalogTitleText">Catálogo del Menú</span>
                     <span id="catalogTotalCountBadge" class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-bold">0 productos</span>
                 </h3>
-                <p class="text-xs text-slate-400 mt-0.5">
-                    Vista limpia agrupada por categoría. Toca cualquier precio para editarlo rápido o despliega <strong>Opciones</strong> en un producto para gestionar ingredientes, extras y recetas.
+                <p class="text-xs text-slate-400 mt-1">
+                    Toca cualquier precio para editarlo rápido o despliega <strong>Opciones</strong> en un producto para ingredientes, extras y recetas.
                 </p>
             </div>
 
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="relative w-44 sm:w-56">
+            <div class="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full lg:w-auto">
+                <div class="relative w-full sm:w-52">
                     <span class="absolute left-3 top-2.5 text-slate-400 text-xs"><i class="fa-solid fa-magnifying-glass"></i></span>
                     <input id="searchMenuInput" type="text" oninput="filterCatalogCards()" placeholder="Buscar producto..."
                         class="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-emerald-500">
                 </div>
                 <select id="filterCategoryMenuSelect" onchange="onMenuCategorySelectChange()"
-                    class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none">
+                    class="w-full sm:w-auto px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none">
                     <option value="">Todas las categorías</option>
                 </select>
                 <button type="button" onclick="openModalNuevoPlato()"
-                    class="comercio-admin-only px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-lg shadow-emerald-500/20 transition flex items-center gap-1.5">
+                    class="comercio-admin-only w-full sm:w-auto justify-center px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs shadow-sm transition flex items-center gap-1.5">
                     <i class="fa-solid fa-plus"></i> <span id="btnNuevoPlatoLabel">Nuevo Producto</span>
                 </button>
             </div>
         </div>
 
         <!-- KPIs Compactos + Píldoras Rápidas de Categorías -->
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
             <div id="menuCategoriasChipsBar" class="flex flex-wrap gap-1.5"></div>
-            <div class="flex items-center gap-2 text-xs shrink-0">
+            <div class="flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs shrink-0">
                 <span class="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 font-semibold">
                     <strong id="statDisponiblesCount">0</strong> Disponibles
                 </span>

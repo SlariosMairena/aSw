@@ -1469,59 +1469,61 @@ function escapeHtml(str) {
                             const safeName = pl.nombre.replace(/'/g, "\\'");
 
                             return `
-                                <div class="p-4 rounded-2xl transition border flex flex-col justify-between gap-3 ${
+                                <div class="p-3.5 sm:p-4 rounded-2xl transition border flex flex-col justify-between gap-3 min-w-0 ${
                                     isAgotado
                                         ? 'bg-slate-950/70 border-rose-900/40 opacity-85'
                                         : 'bg-slate-900/90 hover:border-slate-700 border-slate-800 shadow-sm'
                                 }">
-                                    <!-- Fila superior: Miniatura (si tiene), Nombre, Precio y Estado -->
-                                    <div class="space-y-1.5">
-                                        <div class="flex items-start justify-between gap-2.5">
-                                            ${pl.imagen_url ? `
-                                                <img src="${pl.imagen_url}" alt="${escapeHtml(pl.nombre)}" loading="lazy"
-                                                    class="w-11 h-11 rounded-lg object-cover border border-[#DFD5C3] shrink-0">
-                                            ` : ''}
-                                            <div class="min-w-0 flex-1">
-                                                <div class="flex flex-wrap items-center gap-1.5">
-                                                    <h5 class="font-bold text-sm text-white leading-snug">${escapeHtml(pl.nombre)}</h5>
-                                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                                        pl.disponible_global
-                                                            ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                                                            : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
-                                                    }">
-                                                        ${pl.disponible_global ? 'Disponible' : 'Agotado'}
+                                    <!-- Fila superior: Miniatura + Contenido (Título, Precio, Estado y Descripción) -->
+                                    <div class="flex items-start gap-3 min-w-0">
+                                        ${pl.imagen_url ? `
+                                            <img src="${pl.imagen_url}" alt="${escapeHtml(pl.nombre)}" loading="lazy"
+                                                class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-[#DFD5C3] shrink-0">
+                                        ` : ''}
+                                        <div class="min-w-0 flex-1 space-y-1">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <h5 class="font-bold text-sm text-white leading-snug break-words min-w-0">${escapeHtml(pl.nombre)}</h5>
+                                                ${esAdmin ? `
+                                                    <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${safeName}', '${sym}')"
+                                                        title="Clic para editar precio rápido"
+                                                        class="text-xs sm:text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2 sm:px-2.5 py-1 rounded-xl border border-emerald-500/30 transition flex items-center gap-1 shrink-0 cursor-pointer">
+                                                        <span>${sym}${pl.precio_base.toFixed(2)}</span>
+                                                        <i class="fa-solid fa-pen text-[9px] opacity-70"></i>
+                                                    </button>
+                                                ` : `
+                                                    <span class="text-xs sm:text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-2 sm:px-2.5 py-1 rounded-xl border border-emerald-500/30 shrink-0">
+                                                        ${sym}${pl.precio_base.toFixed(2)}
                                                     </span>
-                                                    ${agotadoEnSuc ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">Agotado Sucursal</span>` : ''}
-                                                </div>
-                                                ${pl.descripcion ? `<p class="text-xs text-slate-400 truncate mt-0.5" title="${escapeHtml(pl.descripcion)}">${escapeHtml(pl.descripcion)}</p>` : ''}
+                                                `}
                                             </div>
-                                            ${esAdmin ? `
-                                                <button type="button" onclick="editarPrecioRapidoPlato(${pl.id}, ${pl.precio_base}, '${safeName}', '${sym}')"
-                                                    title="Clic para editar precio rápido"
-                                                    class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/25 px-2.5 py-1 rounded-xl border border-emerald-500/30 transition flex items-center gap-1 shrink-0 cursor-pointer">
-                                                    <span>${sym}${pl.precio_base.toFixed(2)}</span>
-                                                    <i class="fa-solid fa-pen text-[9px] opacity-70"></i>
-                                                </button>
-                                            ` : `
-                                                <span class="text-sm font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/30 shrink-0">
-                                                    ${sym}${pl.precio_base.toFixed(2)}
+                                            <div class="flex flex-wrap items-center gap-1.5">
+                                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                                    pl.disponible_global
+                                                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                                                        : 'bg-rose-500/15 text-rose-300 border border-rose-500/30'
+                                                }">
+                                                    ${pl.disponible_global ? 'Disponible' : 'Agotado'}
                                                 </span>
-                                            `}
+                                                ${agotadoEnSuc ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">Agotado Sucursal</span>` : ''}
+                                            </div>
+                                            ${pl.descripcion ? `<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed" title="${escapeHtml(pl.descripcion)}">${escapeHtml(pl.descripcion)}</p>` : ''}
                                         </div>
                                     </div>
 
-                                    <!-- Barra compacta de acciones principales -->
-                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                                    <!-- Barra compacta de acciones principales (responsiva en móvil) -->
+                                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2.5 border-t border-slate-800/80">
                                         <button type="button" onclick="togglePlatoCardDetails(${pl.id})"
-                                            class="px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold transition flex items-center gap-1.5">
-                                            <i class="fa-solid fa-sliders text-indigo-400"></i>
-                                            <span>Opciones (${profile.usesRemovableIngredients ? `${ingCount} ing. · ` : ''}${exCount} ext.)</span>
-                                            <i id="platoChev_${pl.id}" class="fa-solid fa-chevron-${isOpen ? 'up' : 'down'} text-[10px]"></i>
+                                            class="w-full sm:w-auto justify-between sm:justify-center px-3 py-1.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold transition flex items-center gap-1.5">
+                                            <span class="flex items-center gap-1.5 truncate">
+                                                <i class="fa-solid fa-sliders text-indigo-400 shrink-0"></i>
+                                                <span class="truncate">Opciones (${profile.usesRemovableIngredients ? `${ingCount} ing. · ` : ''}${exCount} ext.)</span>
+                                            </span>
+                                            <i id="platoChev_${pl.id}" class="fa-solid fa-chevron-${isOpen ? 'up' : 'down'} text-[10px] shrink-0"></i>
                                         </button>
 
-                                        <div class="flex items-center gap-1.5">
+                                        <div class="grid ${esAdmin ? 'grid-cols-2' : 'grid-cols-1'} sm:flex items-center gap-1.5 w-full sm:w-auto">
                                             <button type="button" onclick="togglePlatoDisponibilidad(${pl.id})"
-                                                class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 ${
+                                                class="justify-center px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition flex items-center gap-1 ${
                                                     pl.disponible_global
                                                         ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30'
                                                         : 'bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold'
@@ -1531,7 +1533,7 @@ function escapeHtml(str) {
                                             </button>
                                             ${esAdmin ? `
                                                 <button type="button" onclick="cargarPlatoEnFormularioParaEditar(${pl.id})"
-                                                    class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center gap-1">
+                                                    class="justify-center px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 transition flex items-center gap-1">
                                                     <i class="fa-solid fa-pen-to-square"></i> <span>Editar</span>
                                                 </button>
                                             ` : ''}
@@ -1542,7 +1544,7 @@ function escapeHtml(str) {
                                     <div id="platoDetails_${pl.id}" class="${isOpen ? '' : 'hidden'} pt-2.5 border-t border-slate-800 space-y-2.5">
                                         ${profile.usesRemovableIngredients ? `
                                             <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                                                <div class="flex items-center justify-between text-[11px]">
+                                                <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
                                                     <span class="text-emerald-300 font-semibold"><i class="fa-solid fa-leaf mr-1"></i> Ingredientes Base (${sym}0)</span>
                                                     <span class="text-[10px] text-slate-500">Toca para apagar/encender</span>
                                                 </div>
@@ -1563,7 +1565,7 @@ function escapeHtml(str) {
                                         ` : ''}
 
                                         <div class="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
-                                            <div class="flex items-center justify-between text-[11px]">
+                                            <div class="flex flex-wrap items-center justify-between gap-1 text-[11px]">
                                                 <span class="text-amber-300 font-semibold"><i class="fa-solid fa-circle-plus mr-1"></i> ${profile.usesRemovableIngredients ? 'Extras y Variantes' : 'Presentaciones / Variantes'}</span>
                                                 <span class="text-[10px] text-slate-500">Toca para apagar o editar precio</span>
                                             </div>
