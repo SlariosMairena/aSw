@@ -76,9 +76,15 @@
     </script>
 </head>
 <body class="h-full flex flex-col theme-crema">
+    <script>
+        if (document.documentElement.classList.contains('theme-dark')) {
+            document.body.classList.add('theme-dark');
+        }
+    </script>
 
     <!-- 1. BARRA DE NAVEGACIÓN SUPERIOR -->
     {% include 'components/navbar.html' %}
+    <script>syncThemeToggleUI();</script>
 
     <!-- 2. VISTAS PRINCIPALES -->
     <!-- Loader instantáneo de restauración de sesión (evita flash del Login al recargar) -->
