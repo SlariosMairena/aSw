@@ -2692,7 +2692,92 @@ function escapeHtml(str) {
             const minWrap = document.getElementById('cfgBotPedidoMinWrap');
             if (minWrap) minWrap.classList.toggle('hidden', esCitas);
 
+            applyBotConfigGiroPlaceholders(c.giro);
             updateBotConfigPreview();
+        }
+
+        function applyBotConfigGiroPlaceholders(giroRaw) {
+            const g = getGiroProfile(giroRaw).code;
+            const presets = {
+                SERVICIOS_CITAS: {
+                    asistente: 'Ej. Sofía, Recepción',
+                    saludo: 'Ej. ¡Hola! Bienvenido, será un gusto ayudarle a consultar servicios o agendar su cita.',
+                    promo: 'Ej. Limpieza dental con 15% OFF • Combo corte + barba esta semana',
+                    cerrado: 'Ej. En este momento estamos fuera de horario, pero puede consultar servicios o solicitar cita.',
+                    permitirLbl: 'Permitir consultar servicios o solicitar cita aunque la sede esté cerrada',
+                    politicasLbl: 'Políticas de Citas y Requisitos Previos',
+                    politicas: 'Ej. Llegar 10 minutos antes de su cita. Reprogramaciones con mínimo 3 horas de aviso.',
+                    escalamiento: 'Ej. urgencia, dolor, factura, seguro medico, convenio',
+                    reglas: 'Ej. La primera valoración es sin costo. Recordar confirmar disponibilidad antes de asistir.'
+                },
+                FARMACIA: {
+                    asistente: 'Ej. Asistente de Farmacia',
+                    saludo: 'Ej. ¡Hola! Bienvenido a nuestra farmacia, estamos listos para ayudarle con su pedido.',
+                    promo: 'Ej. 10% de descuento en vitaminas y cuidado personal esta semana',
+                    cerrado: 'Ej. Abrimos mañana a las 8:00 AM, pero puedes revisar nuestro catálogo de productos.',
+                    permitirLbl: 'Permitir ver el catálogo de medicamentos aunque la sucursal esté cerrada',
+                    politicasLbl: 'Políticas de Despacho y Recetas',
+                    politicas: 'Ej. Medicamentos controlados requieren receta médica vigente al momento de la entrega.',
+                    escalamiento: 'Ej. receta, dosis, medico, farmaceutico, factura, seguro',
+                    reglas: 'Ej. Si preguntan por antibióticos o dosis pediátricas, derivar siempre a un farmacéutico.'
+                },
+                TIENDA: {
+                    asistente: 'Ej. Valeria, Asesora de Tienda',
+                    saludo: 'Ej. ¡Hola! Bienvenido a nuestra tienda, te ayudamos a elegir talla y modelo.',
+                    promo: 'Ej. Envío gratis en compras mayores a C$1,500 • Nueva colección disponible',
+                    cerrado: 'Ej. Abrimos mañana a las 9:00 AM, pero puedes explorar el catálogo con fotos.',
+                    permitirLbl: 'Permitir ver el catálogo o dejar pedidos aunque la tienda esté cerrada',
+                    politicasLbl: 'Políticas de Cambios, Tallas y Garantía',
+                    politicas: 'Ej. Cambios de talla dentro de 7 días con etiqueta. No se aceptan cambios en accesorios.',
+                    escalamiento: 'Ej. factura, mayoreo, cambio de talla, garantia',
+                    reglas: 'Ej. Antes de confirmar una prenda, recordar verificar siempre la talla disponible en catálogo.'
+                },
+                SUPERMERCADO: {
+                    asistente: 'Ej. Asistente de Despensa',
+                    saludo: 'Ej. ¡Hola! Bienvenido a nuestro minisúper, enviamos tu despensa rápido a casa.',
+                    promo: 'Ej. Oferta del día en canasta básica y bebidas familiares',
+                    cerrado: 'Ej. Abrimos mañana a las 7:00 AM, pero puedes preparar tu lista de compras.',
+                    permitirLbl: 'Permitir ver productos o dejar lista de compras aunque esté cerrado',
+                    politicasLbl: 'Políticas de Entrega y Sustitución de Productos',
+                    politicas: 'Ej. Revisar productos frescos al recibir. Entregas en 25 a 40 minutos.',
+                    escalamiento: 'Ej. factura, mayoreo, distribuidor, producto faltante',
+                    reglas: 'Ej. Si falta una marca exacta en stock, preguntar al cliente antes de sustituirla.'
+                },
+                CAFETERIA: {
+                    asistente: 'Ej. Camila, Barista Virtual',
+                    saludo: 'Ej. ¡Hola! Bienvenido a nuestra barra de café de especialidad y repostería.',
+                    promo: 'Ej. Combo mañana: Cappuccino + Croissant con 15% de descuento',
+                    cerrado: 'Ej. Abrimos mañana a las 7:00 AM, pero puedes revisar nuestro menú de bebidas y postres.',
+                    permitirLbl: 'Permitir ver el menú o dejar pedidos programados aunque esté cerrado',
+                    politicasLbl: 'Políticas de Barra y Pedidos Especiales',
+                    politicas: 'Ej. Leches vegetales disponibles (almendra y avena). Pasteles enteros con 24h de anticipación.',
+                    escalamiento: 'Ej. factura, evento, pastel personalizado, mayoreo',
+                    reglas: 'Ej. Si piden café frío, ofrecer siempre opción de leche de almendra o deslactosada.'
+                },
+                RESTAURANTE: {
+                    asistente: 'Ej. Sofía, Asistente de Cocina',
+                    saludo: 'Ej. ¡Hola! Bienvenido a nuestra cocina artesanal, todo preparado al momento.',
+                    promo: 'Ej. Hoy 2x1 en pizzas medianas y bebida gratis en combos',
+                    cerrado: 'Ej. Abrimos mañana a las 11:00 AM, pero puedes revisar nuestro menú con fotos.',
+                    permitirLbl: 'Permitir ver el menú o dejar pedidos programados aunque esté cerrado',
+                    politicasLbl: 'Políticas de Cocina, Entregas y Reservas',
+                    politicas: 'Ej. Pedidos grandes con 30 min de anticipación. Aceptamos efectivo y transferencia.',
+                    escalamiento: 'Ej. factura, ruc, evento, catering, queja',
+                    reglas: 'Ej. No hacemos envíos fuera del casco urbano. Pedidos de más de 5 platos requieren anticipo.'
+                }
+            };
+            const p = presets[g] || presets.RESTAURANTE;
+            const setPh = (id, ph) => { const el = document.getElementById(id); if (el) el.placeholder = ph; };
+            const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+            setPh('cfgBotNombreAsistente', p.asistente);
+            setPh('cfgBotSaludo', p.saludo);
+            setPh('cfgBotPromo', p.promo);
+            setPh('cfgBotMensajeCerrado', p.cerrado);
+            setPh('cfgBotPoliticasFaq', p.politicas);
+            setPh('cfgBotPalabrasEscalamiento', p.escalamiento);
+            setPh('cfgBotReglasExtra', p.reglas);
+            setTxt('cfgBotPermitirCerradoLabel', p.permitirLbl);
+            setTxt('cfgBotPoliticasLabel', p.politicasLbl);
         }
 
         function updateBotConfigPreview() {
