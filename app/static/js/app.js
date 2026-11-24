@@ -3092,27 +3092,30 @@ function escapeHtml(str) {
             } else {
                 lines.push(`¡Hola! Bienvenido a ${nombreNeg}.`);
             }
-            if (promo) lines.push(`Destacado hoy: ${promo}`);
-            lines.push('');
+            if (promo) lines.push(`✨ Hoy: ${promo}`);
             if (giro === 'SERVICIOS_CITAS') {
-                lines.push(`A) Ver nuestros servicios y precios: ${slugLink}`);
-                lines.push('B) Consultar servicios por chat');
-                if (permRes) lines.push('C) Agendar una cita');
+                lines.push(`📋 Servicios y precios: ${slugLink}`);
+                lines.push('💬 Consultar por chat – pregúntame sobre cualquier servicio.');
+                if (permRes) lines.push('📅 Agendar cita – dime servicio, fecha y hora.');
             } else if (giro === 'FARMACIA') {
-                lines.push(`A) Ver nuestro catálogo de productos: ${slugLink}`);
-                lines.push('B) Hacer pedido por chat');
+                lines.push(`💊 Catálogo Web: ${slugLink}`);
+                lines.push('🛒 Pedir por chat – dime el medicamento o producto que buscas.');
             } else if (giro === 'TIENDA') {
-                lines.push(`A) Ver nuestro catálogo con fotos: ${slugLink}`);
-                lines.push('B) Comprar por chat');
+                lines.push(`🛍️ Catálogo Web: ${slugLink}`);
+                lines.push('💬 Comprar por chat – dime qué artículo o talla buscas.');
             } else if (giro === 'SUPERMERCADO') {
-                lines.push(`A) Ver nuestro catálogo de productos: ${slugLink}`);
-                lines.push('B) Enviar mi lista de compras por chat');
+                lines.push(`🛒 Catálogo Web: ${slugLink}`);
+                lines.push('📝 Pedir por chat – envíame tu lista de compras.');
+            } else if (giro === 'CAFETERIA') {
+                lines.push(`📋 Menú Web: ${slugLink}`);
+                lines.push('☕ Pedir por chat – elige tus bebidas o postres.');
+                if (permRes) lines.push('🪑 Reservar mesa – dime fecha y hora.');
             } else {
-                lines.push(`A) Ver nuestro menú con fotos: ${slugLink}`);
-                lines.push('B) Pedir por chat');
-                if (permRes) lines.push('C) Reservar mesa');
+                lines.push(`📋 Menú Web: ${slugLink}`);
+                lines.push('🛒 Pedir por chat – elige lo que deseas.');
+                if (permRes) lines.push('🪑 Reservar mesa – dime fecha y hora.');
             }
-            lines.push('\n¿Qué prefieres?');
+            lines.push('¿Qué prefieres?');
             box.textContent = lines.join('\n');
         }
         window.updateBotConfigPreview = updateBotConfigPreview;

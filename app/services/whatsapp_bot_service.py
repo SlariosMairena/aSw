@@ -1226,44 +1226,43 @@ def _build_fixed_welcome_message(
 
     promo = (cfg.get("promo_del_dia") or "").strip()
     if promo:
-        lines.append(f"*Destacado hoy:* {promo}")
+        lines.append(f"✨ *Hoy:* {promo}")
 
     if not sucursal.abierto_ahora:
         msg_cerrado = (cfg.get("mensaje_cerrado") or "").strip()
         if msg_cerrado:
-            lines.append(f"_{msg_cerrado}_")
+            lines.append(f"🕒 _{msg_cerrado}_")
         else:
             lines.append(
-                f"_En este momento estamos cerrados (Horario: {sucursal.horario_apertura} a {sucursal.horario_cierre}), pero puedes revisar nuestras opciones._"
+                f"🕒 _Ahora estamos cerrados ({sucursal.horario_apertura} a {sucursal.horario_cierre}), pero puedes ver nuestras opciones._"
             )
 
-    lines.append("")
     if g_code == "SERVICIOS_CITAS":
-        lines.append(f"A) Ver nuestros servicios y precios: {menu_link}")
-        lines.append("B) Consultar servicios por chat")
+        lines.append(f"📋 Servicios y precios: {menu_link}")
+        lines.append("💬 Consultar por chat – pregúntame sobre cualquier servicio.")
         if perm_res:
-            lines.append("C) Agendar una cita")
+            lines.append("📅 Agendar cita – dime servicio, fecha y hora.")
     elif g_code == "FARMACIA":
-        lines.append(f"A) Ver nuestro catálogo de productos: {menu_link}")
-        lines.append("B) Hacer pedido por chat")
+        lines.append(f"💊 Catálogo Web: {menu_link}")
+        lines.append("🛒 Pedir por chat – dime el medicamento o producto que buscas.")
     elif g_code == "TIENDA":
-        lines.append(f"A) Ver nuestro catálogo con fotos: {menu_link}")
-        lines.append("B) Comprar por chat")
+        lines.append(f"🛍️ Catálogo Web: {menu_link}")
+        lines.append("💬 Comprar por chat – dime qué artículo o talla buscas.")
     elif g_code == "SUPERMERCADO":
-        lines.append(f"A) Ver nuestro catálogo de productos: {menu_link}")
-        lines.append("B) Enviar mi lista de compras por chat")
+        lines.append(f"🛒 Catálogo Web: {menu_link}")
+        lines.append("📝 Pedir por chat – envíame tu lista de compras.")
     elif g_code == "CAFETERIA":
-        lines.append(f"A) Ver nuestro menú con fotos: {menu_link}")
-        lines.append("B) Pedir por chat")
+        lines.append(f"📋 Menú Web: {menu_link}")
+        lines.append("☕ Pedir por chat – elige tus bebidas o postres.")
         if perm_res:
-            lines.append("C) Reservar mesa")
+            lines.append("🪑 Reservar mesa – dime fecha y hora.")
     else:
-        lines.append(f"A) Ver nuestro menú con fotos: {menu_link}")
-        lines.append("B) Pedir por chat")
+        lines.append(f"📋 Menú Web: {menu_link}")
+        lines.append("🛒 Pedir por chat – elige lo que deseas.")
         if perm_res:
-            lines.append("C) Reservar mesa")
+            lines.append("🪑 Reservar mesa – dime fecha y hora.")
 
-    lines.append("\n¿Qué prefieres?")
+    lines.append("¿Qué prefieres?")
     return "\n".join(lines)
 
 
@@ -1310,8 +1309,8 @@ def _match_solo_ia_deterministic_turn(
         "quiero hablar con alguien", "quiero un asesor",
     } or (custom_esc and _fuzzy_contains_any(norm, custom_esc, cutoff=0.84)):
         return (
-            f"¡Con gusto! Te comunico ahora mismo con el equipo de *{comercio.nombre_comercial}*. "
-            "En un momento te responden por aquí.",
+            f"👤 ¡Con gusto! Te comunico con el equipo de *{comercio.nombre_comercial}*.\n"
+            "💬 En un momento te responden por aquí.",
             True,
         )
 
@@ -1327,12 +1326,12 @@ def _match_solo_ia_deterministic_turn(
         norm in {"ubicacion", "donde estan", "donde quedan", "como llegar", "mapa", "maps", "direccion", "direccion del local"}
         or any(k in norm for k in ("donde estan", "donde quedan", "como llegar", "ubicacion"))
     ):
-        parts = [f"*{comercio.nombre_comercial}* ({sucursal.nombre_sucursal})"]
+        parts = [f"📍 *{comercio.nombre_comercial}* ({sucursal.nombre_sucursal})"]
         if ubi_txt:
-            parts.append(f"Ubicación: {ubi_txt}")
+            parts.append(f"🧭 {ubi_txt}")
         if ubi_url:
-            parts.append(f"Mapa: {ubi_url}")
-        parts.append("\n¿Deseas ver nuestras opciones? Escribe *inicio* o dime en qué te ayudo.")
+            parts.append(f"🗺️ Mapa: {ubi_url}")
+        parts.append("¿Deseas ver nuestras opciones o pedir algo?")
         return ("\n".join(parts), False)
 
     # 2b. Consulta directa y corta de horario
@@ -1340,12 +1339,12 @@ def _match_solo_ia_deterministic_turn(
         norm in {"horario", "horarios", "hora de atencion", "a que hora abren", "a que hora cierran", "estan abiertos", "abren hoy"}
         or ("horario" in tokens and len(tokens) <= 4)
     ):
-        estado_txt = "Actualmente estamos *abiertos*" if sucursal.abierto_ahora else "En este momento estamos *cerrados*"
+        estado_txt = "✅ Actualmente estamos *abiertos*." if sucursal.abierto_ahora else "🕒 En este momento estamos *cerrados*."
         return (
-            f"*{comercio.nombre_comercial}* ({sucursal.nombre_sucursal})\n"
-            f"Horario de atención: *{sucursal.horario_apertura} a {sucursal.horario_cierre}*.\n"
-            f"{estado_txt}.\n\n"
-            f"¿Te gustaría ver las opciones disponibles? Escribe *inicio* o dime qué necesitas.",
+            f"🕒 *{comercio.nombre_comercial}* ({sucursal.nombre_sucursal})\n"
+            f"📅 Horario: *{sucursal.horario_apertura} a {sucursal.horario_cierre}*\n"
+            f"{estado_txt}\n"
+            "¿En qué te puedo ayudar hoy?",
             False,
         )
 
@@ -1365,30 +1364,34 @@ def _match_solo_ia_deterministic_turn(
             False,
         )
 
-    # 4. Selección directa de Opción A (ver menú/catálogo web con fotos)
+    # 4. Selección directa de Opción A / Menú Web
     if norm in {
-        "a", "la a", "opcion a", "inciso a", "link", "enlace",
-        "ver menu", "ver el menu", "ver catalogo", "ver el catalogo",
-        "menu con fotos", "catalogo con fotos", "ver servicios", "ver nuestros servicios",
+        "a", "la a", "opcion a", "inciso a", "1", "link", "enlace",
+        "ver menu", "ver el menu", "menu web", "ver catalogo", "ver el catalogo",
+        "catalogo web", "menu con fotos", "catalogo con fotos", "ver servicios", "ver nuestros servicios",
     }:
         if g_code == "SERVICIOS_CITAS":
-            label_cat = "catálogo de servicios y precios"
-            cta = "consultar un tratamiento o agendar tu cita"
-        elif g_code in ("TIENDA", "FARMACIA", "SUPERMERCADO"):
-            label_cat = "catálogo con fotos"
-            cta = "hacer tu pedido"
-        else:
-            label_cat = "menú con fotos"
-            cta = "pedir"
+            return (
+                f"📋 Servicios y precios: {menu_link}\n"
+                "💬 Si prefieres consultar o agendar aquí por chat, dime qué servicio buscas.",
+                False,
+            )
+        if g_code in ("TIENDA", "FARMACIA", "SUPERMERCADO"):
+            ico = "💊" if g_code == "FARMACIA" else ("🛍️" if g_code == "TIENDA" else "🛒")
+            return (
+                f"{ico} Catálogo Web: {menu_link}\n"
+                "💬 Si prefieres pedir aquí por chat, dime qué producto necesitas.",
+                False,
+            )
         return (
-            f"Aquí tienes nuestro *{label_cat}*:\n{menu_link}\n\n"
-            f"Si prefieres {cta} aquí por chat, solo dime qué deseas.",
+            f"📋 Menú Web: {menu_link}\n"
+            "🛒 Si prefieres pedir aquí por chat, dime qué te gustaría ordenar.",
             False,
         )
 
-    # 5. Selección directa de Opción B (pedir / consultar por chat)
+    # 5. Selección directa de Opción B / Pedir o consultar por chat
     if norm in {
-        "b", "la b", "opcion b", "inciso b",
+        "b", "la b", "opcion b", "inciso b", "2",
         "pedir por chat", "comprar por chat", "por chat", "chat",
         "consultar por chat", "consultar servicios por chat",
         "hacer pedido por chat", "lista de compras",
@@ -1396,49 +1399,52 @@ def _match_solo_ia_deterministic_turn(
         cats_con_items = [c for c in categorias if any(p.categoria_id == c.id for p in platos)]
         lines = []
         if g_code == "SERVICIOS_CITAS":
-            lines.append("¡Con gusto! Estas son nuestras áreas de servicios:\n")
+            lines.append("📋 Estas son nuestras áreas de servicios:")
+            item_ico = "🩺"
         elif g_code == "SUPERMERCADO":
-            lines.append("¡Con gusto! Estos son nuestros pasillos disponibles:\n")
-        elif g_code in ("TIENDA", "FARMACIA"):
-            lines.append("¡Con gusto! Estas son nuestras categorías disponibles:\n")
+            lines.append("🛒 Estos son nuestros pasillos disponibles:")
+            item_ico = "🧺"
+        elif g_code == "FARMACIA":
+            lines.append("💊 Estas son nuestras secciones disponibles:")
+            item_ico = "➕"
+        elif g_code == "TIENDA":
+            lines.append("🛍️ Estas son nuestras categorías disponibles:")
+            item_ico = "🏷️"
         else:
-            lines.append("¡Con gusto! Estas son las categorías de nuestro menú:\n")
+            lines.append("🍽️ Estas son las categorías de nuestro menú:")
+            item_ico = "▫️"
 
         for c in cats_con_items[:8]:
-            lines.append(f"• *{c.nombre}*")
+            lines.append(f"{item_ico} *{c.nombre}*")
 
         if g_code == "SERVICIOS_CITAS":
-            lines.append("\n¿Sobre cuál servicio deseas ver precios o detalles?")
+            lines.append("¿Sobre cuál servicio deseas ver precios o detalles?")
         elif g_code == "SUPERMERCADO":
-            lines.append("\nEscríbeme los productos que necesitas o dime qué pasillo deseas ver.")
+            lines.append("¿Qué productos necesitas? Puedes escribirme tu lista directo.")
         else:
-            lines.append("\n¿Qué te gustaría ver o pedir hoy? Puedes decirme la categoría o el nombre del producto.")
+            lines.append("¿Qué categoría o producto te gustaría ver?")
         return ("\n".join(lines), False)
 
-    # 6. Selección directa de Opción C (reservar mesa o agendar cita)
+    # 6. Selección directa de Opción C / Reservar mesa o agendar cita
     if perm_res and norm in {
-        "c", "la c", "opcion c", "inciso c",
+        "c", "la c", "opcion c", "inciso c", "3",
         "reservar", "reservar mesa", "reserva", "quiero reservar",
         "cita", "agendar", "agendar cita", "agendar una cita", "quiero una cita", "sacar cita",
     }:
         horario = f"{sucursal.horario_apertura} a {sucursal.horario_cierre}"
         if g_code == "SERVICIOS_CITAS":
-            espacios_lines = []
+            lines = [f"📅 Agendemos tu cita en *{comercio.nombre_comercial}*."]
             for m in mesas_act[:5]:
                 ant = float(m.monto_anticipo_reserva or 0.0)
-                ant_txt = f" (Anticipo {sym}{ant:.2f})" if ant > 0 else ""
-                espacios_lines.append(f"• *{m.nombre_mesa}*{ant_txt}")
-            espacios_blk = ("\n\nEspacios disponibles:\n" + "\n".join(espacios_lines)) if espacios_lines else ""
-            return (
-                f"¡Con gusto! Vamos a agendar tu cita en *{comercio.nombre_comercial}*.{espacios_blk}\n\n"
-                f"¿Qué servicio necesitas y para qué *fecha y hora* (con AM/PM) te gustaría agendar?\n"
-                f"_Horario de atención: {horario}._",
-                False,
-            )
+                ant_txt = f" · Anticipo {sym}{ant:.2f}" if ant > 0 else ""
+                lines.append(f"🩺 *{m.nombre_mesa}*{ant_txt}")
+            lines.append(f"🕒 Horario: {horario}")
+            lines.append("¿Qué servicio necesitas y para qué *fecha y hora* (con AM/PM)?")
+            return ("\n".join(lines), False)
         return (
-            f"¡Con gusto! Vamos a reservar tu mesa en *{comercio.nombre_comercial}*.\n\n"
-            f"¿Para cuántas personas sería y para qué *fecha y hora* (con AM/PM) deseas reservar?\n"
-            f"_Horario de atención: {horario}._",
+            f"🪑 Reservemos tu mesa en *{comercio.nombre_comercial}*.\n"
+            f"🕒 Horario: {horario}\n"
+            "¿Para cuántas personas y para qué *fecha y hora* (con AM/PM) deseas reservar?",
             False,
         )
 
@@ -1817,9 +1823,9 @@ def _handle_solo_ia_turn(
             state["costo_envio"] = 0.0
             lista_sr = ", ".join(f"*{n}*" for n in items_solo_retiro if n)
             reply_text = (
-                f"Nota importante: {lista_sr} está clasificado como *solo retiro en sucursal* "
-                f"(no disponible para envío a domicilio).\n\n"
-                f"¿Deseas confirmarlo para *retiro en {sucursal.nombre_sucursal}*?"
+                f"⚠️ {lista_sr} es *solo retiro en sucursal* (sin delivery).\n"
+                f"🏪 Sucursal: *{sucursal.nombre_sucursal}*\n"
+                "¿Lo confirmamos para retirar en local?"
             )
         elif items_req_val:
             sesion.modo_atencion = "HUMANO_ACTIVO"
@@ -1828,19 +1834,19 @@ def _handle_solo_ia_turn(
             g_cur = normalize_giro_code(comercio.giro)
             if g_cur == "FARMACIA":
                 reply_text = (
-                    f"{lista_rv} requiere *receta médica o validación farmacéutica* antes de confirmar tu pedido.\n\n"
-                    f"Por favor envíanos una *foto legible de tu receta* por este chat. "
-                    f"Ya notifiqué a nuestro equipo farmacéutico para revisarlo y confirmarte de inmediato."
+                    f"⚠️ {lista_rv} requiere *receta médica o validación farmacéutica*.\n"
+                    "📸 Envíanos una foto legible de tu receta por este chat.\n"
+                    "👤 Ya notifiqué a nuestro equipo farmacéutico para confirmarte en breve."
                 )
             elif g_cur == "SERVICIOS_CITAS":
                 reply_text = (
-                    f"{lista_rv} requiere *valoración o confirmación previa* de nuestro especialista.\n\n"
-                    f"Ya pasé tu solicitud al equipo de *{comercio.nombre_comercial}* para confirmarte por aquí."
+                    f"⚠️ {lista_rv} requiere *valoración previa* de nuestro especialista.\n"
+                    f"👤 Ya pasé tu solicitud al equipo de *{comercio.nombre_comercial}* para confirmarte por aquí."
                 )
             else:
                 reply_text = (
-                    f"{lista_rv} requiere *validación previa* de nuestro equipo antes de confirmar el pago.\n\n"
-                    f"Ya pasé tu solicitud a un asesor de *{comercio.nombre_comercial}* para atenderte de inmediato por aquí."
+                    f"⚠️ {lista_rv} requiere *validación previa* antes de confirmar el pago.\n"
+                    f"👤 Ya pasé tu solicitud a un asesor de *{comercio.nombre_comercial}* para atenderte en breve."
                 )
         else:
             has_items = bool(items_car)
@@ -1871,11 +1877,10 @@ def _handle_solo_ia_turn(
                 gc = get_giro_notification_copy(comercio.giro)
                 noun_cap = gc["item_noun"].capitalize()
                 reply_text = (
-                    f"*{noun_cap} registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
-                    f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
-                    f"Para confirmar tu {gc['item_noun']} y enviarlo a {copy['prep_word']}, realiza tu pago en este enlace seguro:\n"
-                    f"{checkout_full}\n\n"
-                    f"_Tu {gc['item_noun']} se confirmará automáticamente en cuanto se apruebe el pago._"
+                    f"🧾 *{noun_cap} #{pedido.folio}* – Pendiente de pago\n"
+                    f"💵 Total: *{sym}{pedido.total:.2f}*\n"
+                    f"💳 Completa tu pago aquí: {checkout_full}\n"
+                    f"✅ En cuanto se apruebe pasa automático a {copy['prep_word']}."
                 )
 
     _save_session_state(sesion, state)
