@@ -1603,6 +1603,63 @@ def _handle_solo_ia_turn(
         for m in reversed(prev_msgs[1:])
     ]
 
+    # Fast-path determinista para captura de nombre de reserva/cita cuando el bot acaba de pedirlo
+    # (evita que modelos rápidos como Groq pidan el nombre dos veces seguidas)
+    draft_cur = state.get("reserva_draft") if isinstance(state.get("reserva_draft"), dict) else None
+    last_bot_txt = next((m["texto"] for m in reversed(history) if m.get("de") == "BOT"), "")
+    norm_in = _normalize_text(texto)
+    if (
+        draft_cur
+        and draft_cur.get("fecha_hora")
+        and not draft_cur.get("nombre_cliente")
+        and "nombre" in _normalize_text(last_bot_txt)
+        and 3 <= len(texto.strip()) <= 70
+        and not any(w in norm_in.split() for w in ("cancelar", "no", "menu", "inicio", "asesor", "humano"))
+        and not any(ch.isdigit() for ch in texto)
+    ):
+        draft_cur = dict(draft_cur)
+        draft_cur["nombre_cliente"] = " ".join(w.capitalize() for w in texto.strip().split())[:80]
+        if not draft_cur.get("cantidad_personas"):
+            draft_cur["cantidad_personas"] = 1 if normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS" else 2
+        state["reserva_draft"] = draft_cur
+        es_cita = normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS"
+        espacio_ico = "🩺" if es_cita else "🪑"
+        espacio_nom = draft_cur.get("mesa_nombre") or ("Consultorio asignado" if es_cita else "Mesa asignada")
+        ant = float(draft_cur.get("anticipo") or 0.0)
+        sum_lines = [
+            f"📋 *Resumen de tu {'cita' if es_cita else 'reserva'}:*",
+            f"👤 Nombre: *{draft_cur['nombre_cliente']}*",
+            f"{espacio_ico} {'Espacio' if es_cita else 'Mesa'}: *{espacio_nom}*" + ("" if es_cita else f" ({draft_cur['cantidad_personas']} pers.)"),
+            f"📅 Fecha y hora: *{draft_cur['fecha_hora']}*",
+        ]
+        if ant > 0:
+            sum_lines.append(f"💳 Anticipo: *{sym}{ant:.2f}*")
+        sum_lines.append(f"¿Confirmamos tu {'cita' if es_cita else 'reserva'}?")
+        fixed_name_reply = "\n".join(sum_lines)
+        _save_session_state(sesion, state)
+        db.add(
+            MensajeChatWhatsApp(
+                sesion_id=sesion.id,
+                tenant_id=comercio.id,
+                remitente="BOT",
+                tipo_contenido="TEXTO",
+                contenido=fixed_name_reply,
+            )
+        )
+        db.commit()
+        publish_tenant_event(comercio.id, "NUEVO_MENSAJE", {"sesion_id": sesion.id})
+        return {
+            "reply_text": fixed_name_reply,
+            "reply_image_url": None,
+            "sesion_id": sesion.id,
+            "modo_atencion": sesion.modo_atencion,
+            "estado_conversacion": sesion.estado_conversacion,
+            "pedido_creado": None,
+            "reserva_creada": None,
+            "quick_replies": [],
+            "ai_used": "plantilla_fija",
+        }
+
     # Fast-path determinista para saludos, opciones A/B/C, horario y asesor (0 tokens, orden garantizado)
     beneficios_vip = context_payload["cliente"]["beneficios_vip"]
     fixed_match = _match_solo_ia_deterministic_turn(
