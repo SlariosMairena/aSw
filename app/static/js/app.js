@@ -2692,12 +2692,198 @@ function escapeHtml(str) {
             const minWrap = document.getElementById('cfgBotPedidoMinWrap');
             if (minWrap) minWrap.classList.toggle('hidden', esCitas);
 
-            applyBotConfigGiroPlaceholders(c.giro);
+            applyBotConfigGiroPlaceholders(c.giro, c.nombre_comercial || '');
             updateBotConfigPreview();
         }
 
-        function applyBotConfigGiroPlaceholders(giroRaw) {
+        function getBotGiroSuggestions(giroRaw, nombreComercial = '') {
             const g = getGiroProfile(giroRaw).code;
+            const nomLow = String(nombreComercial || '').toLowerCase();
+            if (g === 'SERVICIOS_CITAS' && (nomLow.includes('barber') || nomLow.includes('salon') || nomLow.includes('estetica'))) {
+                return {
+                    defaultPoliticas: '• Llegar 5 a 10 minutos antes de tu cita para iniciar a tiempo.\n• Reprogramaciones o cancelaciones con mínimo 2 horas de anticipación.\n• Tolerancia máxima de retraso: 10 minutos.',
+                    defaultEscalamiento: 'evento, boda, grupo, factura, reclamo, queja',
+                    defaultReglas: '• Confirmar si desea solo corte, barba o combo completo antes de agendar.\n• Si preguntan por atención sin cita, indicar que se atiende según disponibilidad.',
+                    politicasChips: [
+                        { label: 'Llegar 10 min antes', text: '• Llegar 10 minutos antes de tu cita para iniciar puntualmente.' },
+                        { label: 'Reprogramar 2h antes', text: '• Reprogramaciones o cancelaciones con al menos 2 horas de aviso.' },
+                        { label: 'Tolerancia 10 min', text: '• Tolerancia máxima de retraso de 10 minutos para respetar los demás turnos.' },
+                        { label: 'Estacionamiento', text: '• Contamos con estacionamiento gratuito frente al local.' }
+                    ],
+                    escalamientoChips: ['evento', 'boda', 'grupo', 'factura', 'reclamo', 'descuento especial'],
+                    reglasChips: [
+                        { label: 'Confirmar corte o combo', text: '• Confirmar siempre si el cliente desea corte, barba o combo completo.' },
+                        { label: 'Ofrecer productos', text: '• Mencionar brevemente que también vendemos pomadas y aceites de barba en local.' },
+                        { label: 'Atención sin cita', text: '• Si preguntan por llegar sin cita, explicar que tienen prioridad las citas agendadas.' }
+                    ]
+                };
+            }
+            const map = {
+                SERVICIOS_CITAS: {
+                    defaultPoliticas: '• Llegar 10 minutos antes de su cita para registro previo.\n• Cancelaciones o reprogramaciones con al menos 3 horas de anticipación.\n• Si cuenta con radiografías o estudios previos, puede traerlos a consulta.',
+                    defaultEscalamiento: 'urgencia, dolor fuerte, sangrado, seguro medico, convenio, factura, ruc',
+                    defaultReglas: '• Nunca emitir diagnósticos médicos ni recetar medicamentos; indicar que el especialista lo evaluará en consulta.\n• Si el paciente reporta dolor intenso o urgencia, derivar de inmediato a recepción.',
+                    politicasChips: [
+                        { label: 'Llegar 10 min antes', text: '• Llegar 10 minutos antes de su cita para registro.' },
+                        { label: 'Cancelar 3h antes', text: '• Cancelaciones o reprogramaciones con al menos 3 horas de anticipación.' },
+                        { label: 'Traer estudios', text: '• Si tiene radiografías o exámenes recientes, traerlos a su consulta.' },
+                        { label: 'Métodos de pago', text: '• Aceptamos efectivo y transferencia bancaria.' }
+                    ],
+                    escalamientoChips: ['urgencia', 'dolor fuerte', 'seguro medico', 'convenio', 'factura', 'ruc'],
+                    reglasChips: [
+                        { label: 'Valoración sin costo', text: '• Indicar que la primera valoración inicial es sin costo.' },
+                        { label: 'Priorizar urgencias', text: '• Si el paciente menciona dolor fuerte o urgencia, pasar directo a recepción humana.' },
+                        { label: 'Confirmar anticipo', text: '• Recordar que el horario queda reservado al confirmar el anticipo si aplica.' }
+                    ]
+                },
+                FARMACIA: {
+                    defaultPoliticas: '• Medicamentos controlados o antibióticos requieren receta médica vigente.\n• Verificar el producto al momento de recibir su despacho.\n• No se aceptan devoluciones en medicamentos refrigerados o abiertos.',
+                    defaultEscalamiento: 'receta, dosis, pediatria, embarazo, antibiotico, farmaceutico, factura, seguro',
+                    defaultReglas: '• Nunca diagnosticar enfermedades ni recomendar dosis personalizadas; derivar a un farmacéutico.\n• Confirmar siempre la presentación (blíster, caja o frasco) antes de cerrar el pedido.',
+                    politicasChips: [
+                        { label: 'Receta obligatoria', text: '• Medicamentos controlados y antibióticos requieren receta médica vigente.' },
+                        { label: 'Sin devolución abiertos', text: '• No se aceptan devoluciones en empaques abiertos o productos refrigerados.' },
+                        { label: 'Despacho rápido', text: '• Entregas a domicilio en 25 a 45 minutos dentro de cobertura.' }
+                    ],
+                    escalamientoChips: ['receta', 'dosis', 'pediatria', 'embarazo', 'farmaceutico', 'seguro', 'factura'],
+                    reglasChips: [
+                        { label: 'Confirmar presentación', text: '• Confirmar siempre si desea blíster, caja completa o frasco.' },
+                        { label: 'Derivar dudas clínicas', text: '• Ante preguntas sobre interacciones o dosis en niños, derivar al farmacéutico.' },
+                        { label: 'Envío de receta', text: '• Si piden medicamento con receta, solicitar foto de la receta antes de despachar.' }
+                    ]
+                },
+                TIENDA: {
+                    defaultPoliticas: '• Cambios de talla o modelo dentro de 7 días con etiqueta y comprobante.\n• No se aceptan cambios en accesorios o artículos en liquidación.\n• Envíos el mismo día en pedidos confirmados antes de las 4:00 PM.',
+                    defaultEscalamiento: 'mayoreo, distribuidor, cambio de talla, garantia, factura, ruc, reclamo',
+                    defaultReglas: '• Confirmar siempre talla y color disponibles en catálogo antes de confirmar el pedido.\n• Ofrecer empaque para regalo cuando el cliente mencione que es un obsequio.',
+                    politicasChips: [
+                        { label: 'Cambios 7 días', text: '• Cambios de talla dentro de 7 días con etiqueta y comprobante.' },
+                        { label: 'Sin cambio accesorios', text: '• No se aceptan cambios ni devoluciones en accesorios o liquidación.' },
+                        { label: 'Envío mismo día', text: '• Pedidos confirmados antes de las 4:00 PM salen el mismo día.' },
+                        { label: 'Envíos departamentales', text: '• Realizamos envíos a departamentos previo depósito o transferencia.' }
+                    ],
+                    escalamientoChips: ['mayoreo', 'cambio de talla', 'garantia', 'factura', 'ruc', 'reclamo'],
+                    reglasChips: [
+                        { label: 'Confirmar talla/color', text: '• Nunca confirmar un pedido de ropa/calzado sin validar talla y color exactos.' },
+                        { label: 'Ofrecer empaque regalo', text: '• Si el cliente dice que es para regalo, ofrecer opción de empaque especial.' },
+                        { label: 'No prometer stock fuera', text: '• No prometer tallas que no figuren en el catálogo disponible.' }
+                    ]
+                },
+                SUPERMERCADO: {
+                    defaultPoliticas: '• Revisar productos perecederos y cantidades al recibir su entrega.\n• Tiempo estimado de entrega: 25 a 45 minutos según la zona.\n• Aceptamos efectivo (con vuelto) y transferencia bancaria.',
+                    defaultEscalamiento: 'mayoreo, factura, ruc, producto danado, faltante, reclamo',
+                    defaultReglas: '• Si falta una marca exacta en stock, preguntar siempre al cliente antes de sustituirla.\n• Confirmar si desea bolsa térmica o hielo cuando pida bebidas frías o congelados.',
+                    politicasChips: [
+                        { label: 'Revisar al recibir', text: '• Revisar productos frescos y cantidades al momento de la entrega.' },
+                        { label: 'Tiempo 25-45 min', text: '• Entregas a domicilio en 25 a 45 minutos según zona.' },
+                        { label: 'Pago efectivo/transf.', text: '• Aceptamos efectivo con vuelto y transferencia bancaria.' }
+                    ],
+                    escalamientoChips: ['mayoreo', 'factura', 'ruc', 'faltante', 'producto danado', 'reclamo'],
+                    reglasChips: [
+                        { label: 'No sustituir sin permiso', text: '• Si no hay la marca exacta, preguntar al cliente antes de cambiarla.' },
+                        { label: 'Ofrecer hielo/bolsa', text: '• Cuando pidan bebidas o carnes, ofrecer bolsa térmica o hielo.' },
+                        { label: 'Packs familiares', text: '• Recordar promociones en presentaciones familiares o six-pack.' }
+                    ]
+                },
+                CAFETERIA: {
+                    defaultPoliticas: '• Contamos con leche entera, deslactosada y vegetales (almendra/avena).\n• Pasteles enteros o pedidos de eventos con 24 horas de anticipación.\n• Cambios solo antes de iniciar preparación en barra.',
+                    defaultEscalamiento: 'pastel personalizado, evento, catering, factura, ruc, mayoreo, reclamo',
+                    defaultReglas: '• Al pedir café o bebida preparada, confirmar tamaño y tipo de leche.\n• Sugerir amablemente un postre o croissant cuando pidan solo bebida.',
+                    politicasChips: [
+                        { label: 'Leches vegetales', text: '• Contamos con leche entera, deslactosada, almendra y avena.' },
+                        { label: 'Pasteles 24h antes', text: '• Pasteles enteros o personalizados requieren 24h de anticipación.' },
+                        { label: 'Cambios antes barra', text: '• Modificaciones solo antes de preparar en barra.' }
+                    ],
+                    escalamientoChips: ['pastel personalizado', 'evento', 'catering', 'factura', 'mayoreo', 'reclamo'],
+                    reglasChips: [
+                        { label: 'Confirmar leche/tamaño', text: '• Preguntar siempre tamaño y tipo de leche en bebidas de café.' },
+                        { label: 'Sugerir repostería', text: '• Si solo piden café, sugerir brevemente un croissant o postre del día.' },
+                        { label: 'Bebidas frías', text: '• Confirmar si desean crema batida o menos azúcar en frappés.' }
+                    ]
+                },
+                RESTAURANTE: {
+                    defaultPoliticas: '• Todos nuestros platillos se preparan al momento (25 a 40 min aprox.).\n• Cambios o cancelaciones solo antes de que el pedido entre a cocina.\n• Pedidos grandes (más de 6 platos) requieren confirmación previa.',
+                    defaultEscalamiento: 'factura, ruc, evento, catering, queja, reclamo, pedido frio',
+                    defaultReglas: '• Confirmar siempre si desea retirar algún ingrediente o agregar extras antes de cerrar el pedido.\n• Si pide domicilio, verificar zona y referencia clara para el repartidor.',
+                    politicasChips: [
+                        { label: 'Preparado al momento', text: '• Todos los platillos se preparan al momento (25 a 40 min aprox.).' },
+                        { label: 'Cambios antes cocina', text: '• Cambios o cancelaciones solo antes de pasar a cocina.' },
+                        { label: 'Pedidos grandes', text: '• Pedidos de más de 6 platos o eventos requieren anticipo.' },
+                        { label: 'Factura con RUC', text: '• Emitimos factura fiscal solicitándola antes de despachar.' }
+                    ],
+                    escalamientoChips: ['factura', 'ruc', 'evento', 'catering', 'queja', 'reclamo', 'pedido frio'],
+                    reglasChips: [
+                        { label: 'Confirmar ingredientes', text: '• Preguntar si desea quitar algún ingrediente o agregar queso/bebida extra.' },
+                        { label: 'Zona cobertura', text: '• No realizamos envíos fuera de las zonas configuradas.' },
+                        { label: 'Ofrecer bebidas', text: '• Si el pedido no incluye bebida, preguntar amablemente si desea agregar una.' }
+                    ]
+                }
+            };
+            return map[g] || map.RESTAURANTE;
+        }
+
+        function appendBotSuggestionText(fieldId, textToAdd) {
+            const el = document.getElementById(fieldId);
+            if (!el) return;
+            const cur = (el.value || '').trim();
+            if (cur.toLowerCase().includes(textToAdd.toLowerCase().replace(/^•\s*/, ''))) {
+                showToast('Esa sugerencia ya está agregada.');
+                return;
+            }
+            const next = cur ? `${cur}\n${textToAdd}` : textToAdd;
+            el.value = next.slice(0, Number(el.maxLength || 600));
+            el.focus();
+        }
+        window.appendBotSuggestionText = appendBotSuggestionText;
+
+        function appendBotEscalamientoWord(word) {
+            const el = document.getElementById('cfgBotPalabrasEscalamiento');
+            if (!el) return;
+            const items = (el.value || '').split(',').map(s => s.trim()).filter(Boolean);
+            if (items.some(i => i.toLowerCase() === word.toLowerCase())) {
+                showToast(`"${word}" ya está en la lista.`);
+                return;
+            }
+            items.push(word);
+            el.value = items.join(', ').slice(0, 300);
+            el.focus();
+        }
+        window.appendBotEscalamientoWord = appendBotEscalamientoWord;
+
+        function cargarPlantillaSugeridaBot() {
+            const c = currentComercioData?.comercio || {};
+            const sug = getBotGiroSuggestions(c.giro, c.nombre_comercial || '');
+            const elPol = document.getElementById('cfgBotPoliticasFaq');
+            const elEsc = document.getElementById('cfgBotPalabrasEscalamiento');
+            const elReg = document.getElementById('cfgBotReglasExtra');
+            if (elPol) elPol.value = sug.defaultPoliticas;
+            if (elEsc) elEsc.value = sug.defaultEscalamiento;
+            if (elReg) elReg.value = sug.defaultReglas;
+            showToast('Plantilla recomendada cargada. Recuerda pulsar "Guardar Bot" para aplicarla.');
+        }
+        window.cargarPlantillaSugeridaBot = cargarPlantillaSugeridaBot;
+
+        function applyBotConfigGiroPlaceholders(giroRaw, nombreComercial = '') {
+            const g = getGiroProfile(giroRaw).code;
+            const sug = getBotGiroSuggestions(giroRaw, nombreComercial);
+            const polChipsEl = document.getElementById('cfgBotPoliticasChips');
+            if (polChipsEl) {
+                polChipsEl.innerHTML = sug.politicasChips.map(ch =>
+                    `<button type="button" onclick="appendBotSuggestionText('cfgBotPoliticasFaq', ${JSON.stringify(ch.text).replace(/"/g, '&quot;')})" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[10px] font-semibold transition">+ ${escapeHtml(ch.label)}</button>`
+                ).join('');
+            }
+            const escChipsEl = document.getElementById('cfgBotEscalamientoChips');
+            if (escChipsEl) {
+                escChipsEl.innerHTML = sug.escalamientoChips.map(w =>
+                    `<button type="button" onclick="appendBotEscalamientoWord(${JSON.stringify(w).replace(/"/g, '&quot;')})" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[10px] font-semibold transition">+ ${escapeHtml(w)}</button>`
+                ).join('');
+            }
+            const regChipsEl = document.getElementById('cfgBotReglasChips');
+            if (regChipsEl) {
+                regChipsEl.innerHTML = sug.reglasChips.map(ch =>
+                    `<button type="button" onclick="appendBotSuggestionText('cfgBotReglasExtra', ${JSON.stringify(ch.text).replace(/"/g, '&quot;')})" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[10px] font-semibold transition">+ ${escapeHtml(ch.label)}</button>`
+                ).join('');
+            }
             const presets = {
                 SERVICIOS_CITAS: {
                     asistente: 'Ej. Sofía, Recepción',

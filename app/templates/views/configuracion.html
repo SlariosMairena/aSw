@@ -261,28 +261,47 @@
                 </div>
 
                 <!-- 3. Preguntas Frecuentes, Escalamiento y Reglas Extra -->
-                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-                    <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span>3. Políticas, Derivación a Humano y Reglas Extra</span>
-                    </p>
-                    <div>
-                        <label id="cfgBotPoliticasLabel" class="block text-slate-300 font-semibold mb-1">Políticas / Preguntas Frecuentes (cambios, garantía, requisitos)</label>
-                        <textarea id="cfgBotPoliticasFaq" rows="2" maxlength="600"
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3.5">
+                    <div class="flex items-center justify-between gap-2 flex-wrap">
+                        <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>3. Políticas, Derivación a Humano y Reglas Extra</span>
+                        </p>
+                        <button type="button" onclick="cargarPlantillaSugeridaBot()"
+                            class="px-2.5 py-1 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 text-[10px] font-bold transition flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span>Restaurar plantilla del giro</span>
+                        </button>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label id="cfgBotPoliticasLabel" class="block text-slate-300 font-semibold">Políticas / Preguntas Frecuentes (cambios, garantía, requisitos)</label>
+                        <textarea id="cfgBotPoliticasFaq" rows="3" maxlength="600"
                             placeholder="Ej. Cambios de talla dentro de 7 días con etiqueta. Llegar 10 minutos antes de tu cita."
                             class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span class="text-[10px] text-slate-500 font-semibold">Ideas rápidas:</span>
+                            <div id="cfgBotPoliticasChips" class="flex flex-wrap gap-1.5"></div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Palabras clave que pasan directo a un humano (separadas por coma)</label>
+                    <div class="space-y-1.5">
+                        <label class="block text-slate-300 font-semibold">Palabras clave que pasan directo a un humano (separadas por coma)</label>
                         <input id="cfgBotPalabrasEscalamiento" type="text" maxlength="300"
                             placeholder="Ej. factura, ruc, evento, mayoreo, seguro medico"
                             class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                        <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span class="text-[10px] text-slate-500 font-semibold">Agregar palabra:</span>
+                            <div id="cfgBotEscalamientoChips" class="flex flex-wrap gap-1.5"></div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-slate-300 font-semibold mb-1">Instrucciones Especiales del Negocio para la IA (máx. 600 caracteres)</label>
+                    <div class="space-y-1.5">
+                        <label class="block text-slate-300 font-semibold">Instrucciones Especiales del Negocio para la IA (máx. 600 caracteres)</label>
                         <textarea id="cfgBotReglasExtra" rows="3" maxlength="600"
                             placeholder="Ej. No hacemos envíos fuera del casco urbano. Si preguntan por ortodoncia, indicar que la valoración inicial es gratis."
                             class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span class="text-[10px] text-slate-500 font-semibold">Ideas rápidas:</span>
+                            <div id="cfgBotReglasChips" class="flex flex-wrap gap-1.5"></div>
+                        </div>
                     </div>
                 </div>
             </div>
