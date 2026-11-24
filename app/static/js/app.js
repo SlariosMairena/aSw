@@ -1925,6 +1925,8 @@ function escapeHtml(str) {
                                                     ${pl.disponible_global ? 'Disponible' : 'Agotado'}
                                                 </span>
                                                 ${agotadoEnSuc ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">Agotado Sucursal</span>` : ''}
+                                                ${pl.requiere_validacion ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30" title="${escapeHtml(pl.nota_restriccion || 'Requiere validación antes de confirmar')}"><i class="fa-solid fa-file-medical mr-1"></i>${profile.code === 'FARMACIA' ? 'Receta / Validación' : (profile.code === 'SERVICIOS_CITAS' ? 'Valoración previa' : 'Validación previa')}</span>` : ''}
+                                                ${pl.solo_retiro_local ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30" title="${escapeHtml(pl.nota_restriccion || 'Solo retiro en sucursal')}"><i class="fa-solid fa-store mr-1"></i>Solo retiro</span>` : ''}
                                             </div>
                                             ${pl.descripcion ? `<p class="text-xs text-slate-400 line-clamp-2 leading-relaxed" title="${escapeHtml(pl.descripcion)}">${escapeHtml(pl.descripcion)}</p>` : ''}
                                         </div>
@@ -2346,6 +2348,34 @@ function escapeHtml(str) {
         }
         window.quitarFotoPlatoModal = quitarFotoPlatoModal;
 
+        function syncPlatoRestriccionesLabelsByGiro() {
+            const g = getGiroProfile(currentComercioData?.comercio?.giro).code;
+            const lblReq = document.getElementById('lblPlatoReqValidacion');
+            const lblRet = document.getElementById('lblPlatoSoloRetiro');
+            const wrapRet = document.getElementById('wrapPlatoSoloRetiro');
+            const notaIn = document.getElementById('platoNotaRestriccion');
+            if (g === 'FARMACIA') {
+                if (lblReq) lblReq.textContent = 'Requiere receta médica o validación farmacéutica antes de confirmar';
+                if (lblRet) lblRet.textContent = 'Solo retiro en sucursal (controlado / cadena de frío, sin delivery)';
+                if (notaIn) notaIn.placeholder = 'Ej. Presentar receta médica vigente / Mantener refrigerado';
+                if (wrapRet) wrapRet.classList.remove('hidden');
+            } else if (g === 'SERVICIOS_CITAS') {
+                if (lblReq) lblReq.textContent = 'Requiere valoración o confirmación previa del especialista';
+                if (notaIn) notaIn.placeholder = 'Ej. Traer radiografía panorámica o llegar 15 min antes';
+                if (wrapRet) wrapRet.classList.add('hidden');
+            } else if (g === 'TIENDA') {
+                if (lblReq) lblReq.textContent = 'Requiere validación previa de stock/talla o personalización';
+                if (lblRet) lblRet.textContent = 'Solo retiro en tienda (artículo frágil o sin delivery)';
+                if (notaIn) notaIn.placeholder = 'Ej. Producto bajo pedido (entrega en 48h)';
+                if (wrapRet) wrapRet.classList.remove('hidden');
+            } else {
+                if (lblReq) lblReq.textContent = 'Requiere validación humana previa (ej. pedido especial, evento o alergias)';
+                if (lblRet) lblRet.textContent = 'Solo retiro en local (no disponible para envío a domicilio)';
+                if (notaIn) notaIn.placeholder = 'Ej. Requiere 24h de anticipación / Presentar cédula al entregar';
+                if (wrapRet) wrapRet.classList.remove('hidden');
+            }
+        }
+
         function cargarPlatoEnFormularioParaEditar(platoId) {
             const pl = (currentComercioData.platos || []).find(x => x.id === platoId);
             if (!pl) return;
@@ -2355,6 +2385,14 @@ function escapeHtml(str) {
             document.getElementById('platoNombre').value = pl.nombre;
             document.getElementById('platoPrecio').value = pl.precio_base;
             document.getElementById('platoDesc').value = pl.descripcion || '';
+
+            const cbReq = document.getElementById('platoReqValidacion');
+            const cbRet = document.getElementById('platoSoloRetiro');
+            const inNota = document.getElementById('platoNotaRestriccion');
+            if (cbReq) cbReq.checked = Boolean(pl.requiere_validacion);
+            if (cbRet) cbRet.checked = Boolean(pl.solo_retiro_local);
+            if (inNota) inNota.value = pl.nota_restriccion || '';
+            syncPlatoRestriccionesLabelsByGiro();
 
             pendingPlatoImagenBase64 = null;
             pendingPlatoEliminarImagen = false;
@@ -2386,6 +2424,13 @@ function escapeHtml(str) {
             document.getElementById('platoNombre').value = '';
             document.getElementById('platoPrecio').value = '';
             document.getElementById('platoDesc').value = '';
+            const cbReq = document.getElementById('platoReqValidacion');
+            const cbRet = document.getElementById('platoSoloRetiro');
+            const inNota = document.getElementById('platoNotaRestriccion');
+            if (cbReq) cbReq.checked = false;
+            if (cbRet) cbRet.checked = false;
+            if (inNota) inNota.value = '';
+            syncPlatoRestriccionesLabelsByGiro();
             pendingPlatoImagenBase64 = null;
             pendingPlatoEliminarImagen = false;
             setPlatoImgPreviewUI(null);
@@ -2457,7 +2502,10 @@ function escapeHtml(str) {
                 precio_base: parseFloat(document.getElementById('platoPrecio').value),
                 descripcion: document.getElementById('platoDesc').value,
                 ingredientes_removibles: formIngredientesBaseList,
-                extras_con_costo: formExtrasList
+                extras_con_costo: formExtrasList,
+                requiere_validacion: Boolean(document.getElementById('platoReqValidacion')?.checked),
+                solo_retiro_local: Boolean(document.getElementById('platoSoloRetiro')?.checked),
+                nota_restriccion: (document.getElementById('platoNotaRestriccion')?.value || '').trim()
             };
 
             try {

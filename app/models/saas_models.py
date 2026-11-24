@@ -1078,3 +1078,30 @@ class ConfigBotComercio(Base):
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
 
+# =====================================================================
+# 16. RESTRICCIONES / VALIDACIÓN POR PRODUCTO O SERVICIO (CAPA 2)
+# =====================================================================
+class RestriccionProducto(Base):
+    """
+    Clasificación opt-in por producto/servicio sin alterar productos_platos:
+    - requiere_validacion: receta médica, valoración previa o aprobación humana antes de confirmar/cobrar.
+    - solo_retiro_local: medicamentos controlados, cadena de frío o artículos frágiles no aptos para delivery.
+    - nota_restriccion: indicación breve visible para el cliente y el bot.
+    """
+
+    __tablename__ = "restricciones_producto"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, index=True
+    )
+    plato_id = Column(
+        Integer, ForeignKey("productos_platos.id"), nullable=False, unique=True, index=True
+    )
+    requiere_validacion = Column(Boolean, default=False, nullable=False)
+    solo_retiro_local = Column(Boolean, default=False, nullable=False)
+    nota_restriccion = Column(String(240), nullable=True)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+
+

@@ -122,6 +122,32 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Clasificación y Restricciones de Venta (Capa 2 — Opcional) -->
+                <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-slate-300 font-semibold flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-amber-400"></i>
+                            <span id="lblRestriccionesPlatoTitle">Control y Validación de Venta (opcional)</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">El bot respeta estas reglas automáticamente</span>
+                    </div>
+                    <div class="space-y-2 text-[11px] text-slate-300">
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input id="platoReqValidacion" type="checkbox" class="mt-0.5 w-4 h-4 accent-amber-500 rounded">
+                            <span id="lblPlatoReqValidacion">Requiere validación humana / receta antes de confirmar el pedido</span>
+                        </label>
+                        <label id="wrapPlatoSoloRetiro" class="flex items-start gap-2 cursor-pointer">
+                            <input id="platoSoloRetiro" type="checkbox" class="mt-0.5 w-4 h-4 accent-amber-500 rounded">
+                            <span id="lblPlatoSoloRetiro">Solo retiro en sucursal (no disponible para envío a domicilio)</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input id="platoNotaRestriccion" type="text" maxlength="240"
+                            placeholder="Nota breve para el cliente (ej. Presentar receta médica vigente / Mantener refrigerado)"
+                            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:outline-none focus:border-amber-500 transition">
+                    </div>
+                </div>
             </div>
 
             <!-- PESTAÑA 2: INGREDIENTES BASE REMOVIBLES ($0) -->

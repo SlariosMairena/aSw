@@ -229,6 +229,9 @@ class CrearPlatoRequest(BaseModel):
     tiempo_preparacion_min: int = 15
     ingredientes_removibles: List[str] = []
     extras_con_costo: List[IngredienteInput] = []
+    requiere_validacion: bool = False
+    solo_retiro_local: bool = False
+    nota_restriccion: str = ""
 
 
 classCrearSucursalBase = BaseModel
@@ -1208,8 +1211,12 @@ def comercio_dashboard(
         for pid, ts in img_rows
     }
 
+    from app.services.restriccion_producto_service import get_restricciones_map
+    restr_map = get_restricciones_map(db, tenant_id)
+
     platos_data = []
     for pl in platos:
+        r_info = restr_map.get(pl.id) or {}
         platos_data.append(
             {
                 "id": pl.id,
@@ -1221,6 +1228,9 @@ def comercio_dashboard(
                 "disponible_global": pl.disponible_global,
                 "imagen_url": img_map.get(pl.id),
                 "agotado_sucursal_ids": agotados_por_plato.get(pl.id, []),
+                "requiere_validacion": bool(r_info.get("requiere_validacion")),
+                "solo_retiro_local": bool(r_info.get("solo_retiro_local")),
+                "nota_restriccion": r_info.get("nota_restriccion") or "",
                 "ingredientes_removibles": [
                     {"id": ing.id, "nombre": ing.nombre, "disponible": ing.disponible_global}
                     for ing in pl.ingredientes_opciones
@@ -1839,6 +1849,16 @@ def crear_plato_con_ingredientes(
 
     db.commit()
 
+    from app.services.restriccion_producto_service import save_restriccion_producto
+    save_restriccion_producto(
+        db,
+        tenant_id,
+        plato.id,
+        payload.requiere_validacion,
+        payload.solo_retiro_local,
+        payload.nota_restriccion,
+    )
+
     record_audit_log(
         db=db,
         accion="CREAR_PLATO_MENU",
@@ -1946,6 +1966,16 @@ def editar_plato_existente(
             )
 
     db.commit()
+
+    from app.services.restriccion_producto_service import save_restriccion_producto
+    save_restriccion_producto(
+        db,
+        plato.tenant_id,
+        plato.id,
+        payload.requiere_validacion,
+        payload.solo_retiro_local,
+        payload.nota_restriccion,
+    )
 
     record_audit_log(
         db=db,

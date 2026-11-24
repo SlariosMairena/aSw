@@ -661,9 +661,12 @@ def run_full_ai_order_turn(
         "4. CITAS / RESERVACIONES: SOLO si reservaciones_habilitadas=true y hay mesas_disponibles. "
         "Valida fecha y hora con AM/PM dentro del horario, nombre completo y espacio/consultorio. "
         "Si el anticipo > 0, NUNCA digas que ya está confirmada sin pagar: deja claro que queda *PENDIENTE DE PAGO* hasta abonar el anticipo.\n"
-        "5. Si hay queja, reclamo, problema grave o pide hablar con una persona, pon transferir_humano=true.\n"
-        "6. Tolera errores de ortografía con naturalidad.\n"
-        "7. Responde EXCLUSIVAMENTE con un JSON válido (sin markdown ni texto fuera del JSON) con esta estructura exacta:\n"
+        "5. RESTRICCIONES POR PRODUCTO (si un ítem del catálogo incluye estas marcas): "
+        "si tiene requiere_validacion=true, NO lo confirmes ni cobres automáticamente (pide receta/foto o pon transferir_humano=true para validación humana); "
+        "si tiene solo_retiro_local=true, PROHIBIDO ofrecer envío a domicilio para ese producto (solo retiro en local).\n"
+        "6. Si hay queja, reclamo, problema grave o pide hablar con una persona, pon transferir_humano=true.\n"
+        "7. Tolera errores de ortografía con naturalidad.\n"
+        "8. Responde EXCLUSIVAMENTE con un JSON válido (sin markdown ni texto fuera del JSON) con esta estructura exacta:\n"
         '{"respuesta":"texto corto para el cliente","acciones":{'
         '"agregar_items":[{"plato_id":0,"cantidad":1,"sin_ingredientes":[],"extras_ids":[],"notas":""}],'
         '"vaciar_carrito":false,'

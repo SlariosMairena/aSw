@@ -1494,15 +1494,25 @@ def _handle_solo_ia_turn(
         .first()
     )
 
+    from app.services.restriccion_producto_service import get_restricciones_map
+    restr_map = get_restricciones_map(db, comercio.id)
+
     catalogo_ctx = []
     for p in platos[:45]:
         rem, exs = _get_item_customization_options(db, p.id)
+        r_info = restr_map.get(p.id) or {}
         item_ctx: Dict[str, Any] = {
             "plato_id": p.id,
             "categoria": p.categoria.nombre if p.categoria else "General",
             "nombre": p.nombre,
             "precio": float(p.precio_base),
         }
+        if r_info.get("requiere_validacion"):
+            item_ctx["requiere_validacion"] = True
+        if r_info.get("solo_retiro_local"):
+            item_ctx["solo_retiro_local"] = True
+        if r_info.get("nota_restriccion"):
+            item_ctx["nota_restriccion"] = r_info["nota_restriccion"]
         if rem and copy["uses_tables"]:
             item_ctx["ingredientes"] = [r.nombre for r in rem]
         if exs:
@@ -1785,41 +1795,85 @@ def _handle_solo_ia_turn(
         sesion.modo_atencion = "HUMANO_ACTIVO"
         sesion.resumen_ia_chat = f"Atención humana solicitada (IA): {texto[:160]}"
     elif acciones.get("confirmar_pedido"):
-        # Validación dura en servidor: solo crear pedido si están TODOS los datos obligatorios
-        has_items = bool(state.get("items"))
-        has_entrega = state.get("tipo_entrega") in ("DOMICILIO", "RECOGER_LOCAL", "MESA")
-        has_dir = (state.get("tipo_entrega") != "DOMICILIO") or bool(state.get("direccion_entrega"))
-        has_pago = state.get("metodo_pago") in ("EFECTIVO", "TRANSFERENCIA")
+        # Validación dura en servidor: restricciones de producto (Capa 2) + datos obligatorios
+        items_car = state.get("items") or []
+        items_solo_retiro = [
+            it.get("nombre")
+            for it in items_car
+            if (restr_map.get(int(it.get("plato_id") or 0)) or {}).get("solo_retiro_local")
+        ]
+        items_req_val = [
+            it.get("nombre")
+            for it in items_car
+            if (restr_map.get(int(it.get("plato_id") or 0)) or {}).get("requiere_validacion")
+        ]
 
-        if has_items and has_entrega and has_dir and has_pago:
-            pedido = _create_order_from_session(db, sesion, comercio, sucursal, state, "SOLO_IA")
-            checkout_data = simulated_gateway.create_checkout_session(db, pedido)
-            checkout_rel = checkout_data["checkout_url"]
-            checkout_full = f"{base_url}{checkout_rel}"
-            pedido_creado = {
-                "id": pedido.id,
-                "folio": pedido.folio,
-                "total": pedido.total,
-                "estado_pedido": pedido.estado_pedido,
-                "estado_pago": pedido.estado_pago,
-                "checkout_url": checkout_rel,
-            }
-            state.clear()
-            state.update(_empty_state())
-            state["pedido_activo_id"] = pedido.id
-            sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
-            # Exigir pago previo antes de entrar al panel del comercio (listo para Pagadito API)
-            from app.core.demo_seeds import get_giro_notification_copy
-
-            gc = get_giro_notification_copy(comercio.giro)
-            noun_cap = gc["item_noun"].capitalize()
+        if items_solo_retiro and state.get("tipo_entrega") == "DOMICILIO":
+            state["tipo_entrega"] = "RECOGER_LOCAL"
+            state["direccion_entrega"] = f"Recoger en {sucursal.nombre_sucursal}"
+            state["costo_envio"] = 0.0
+            lista_sr = ", ".join(f"*{n}*" for n in items_solo_retiro if n)
             reply_text = (
-                f"*{noun_cap} registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
-                f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
-                f"Para confirmar tu {gc['item_noun']} y enviarlo a {copy['prep_word']}, realiza tu pago en este enlace seguro:\n"
-                f"{checkout_full}\n\n"
-                f"_Tu {gc['item_noun']} se confirmará automáticamente en cuanto se apruebe el pago._"
+                f"Nota importante: {lista_sr} está clasificado como *solo retiro en sucursal* "
+                f"(no disponible para envío a domicilio).\n\n"
+                f"¿Deseas confirmarlo para *retiro en {sucursal.nombre_sucursal}*?"
             )
+        elif items_req_val:
+            sesion.modo_atencion = "HUMANO_ACTIVO"
+            lista_rv = ", ".join(f"*{n}*" for n in items_req_val if n)
+            sesion.resumen_ia_chat = f"Validación humana/receta requerida para: {', '.join(items_req_val)}"
+            g_cur = normalize_giro_code(comercio.giro)
+            if g_cur == "FARMACIA":
+                reply_text = (
+                    f"{lista_rv} requiere *receta médica o validación farmacéutica* antes de confirmar tu pedido.\n\n"
+                    f"Por favor envíanos una *foto legible de tu receta* por este chat. "
+                    f"Ya notifiqué a nuestro equipo farmacéutico para revisarlo y confirmarte de inmediato."
+                )
+            elif g_cur == "SERVICIOS_CITAS":
+                reply_text = (
+                    f"{lista_rv} requiere *valoración o confirmación previa* de nuestro especialista.\n\n"
+                    f"Ya pasé tu solicitud al equipo de *{comercio.nombre_comercial}* para confirmarte por aquí."
+                )
+            else:
+                reply_text = (
+                    f"{lista_rv} requiere *validación previa* de nuestro equipo antes de confirmar el pago.\n\n"
+                    f"Ya pasé tu solicitud a un asesor de *{comercio.nombre_comercial}* para atenderte de inmediato por aquí."
+                )
+        else:
+            has_items = bool(items_car)
+            has_entrega = state.get("tipo_entrega") in ("DOMICILIO", "RECOGER_LOCAL", "MESA")
+            has_dir = (state.get("tipo_entrega") != "DOMICILIO") or bool(state.get("direccion_entrega"))
+            has_pago = state.get("metodo_pago") in ("EFECTIVO", "TRANSFERENCIA")
+
+            if has_items and has_entrega and has_dir and has_pago:
+                pedido = _create_order_from_session(db, sesion, comercio, sucursal, state, "SOLO_IA")
+                checkout_data = simulated_gateway.create_checkout_session(db, pedido)
+                checkout_rel = checkout_data["checkout_url"]
+                checkout_full = f"{base_url}{checkout_rel}"
+                pedido_creado = {
+                    "id": pedido.id,
+                    "folio": pedido.folio,
+                    "total": pedido.total,
+                    "estado_pedido": pedido.estado_pedido,
+                    "estado_pago": pedido.estado_pago,
+                    "checkout_url": checkout_rel,
+                }
+                state.clear()
+                state.update(_empty_state())
+                state["pedido_activo_id"] = pedido.id
+                sesion.estado_conversacion = "SIGUIENDO_PEDIDO"
+                # Exigir pago previo antes de entrar al panel del comercio (listo para Pagadito API)
+                from app.core.demo_seeds import get_giro_notification_copy
+
+                gc = get_giro_notification_copy(comercio.giro)
+                noun_cap = gc["item_noun"].capitalize()
+                reply_text = (
+                    f"*{noun_cap} registrado — Pendiente de Pago* (*#{pedido.folio}*)\n"
+                    f"Total a pagar: *{sym}{pedido.total:.2f}*\n\n"
+                    f"Para confirmar tu {gc['item_noun']} y enviarlo a {copy['prep_word']}, realiza tu pago en este enlace seguro:\n"
+                    f"{checkout_full}\n\n"
+                    f"_Tu {gc['item_noun']} se confirmará automáticamente en cuanto se apruebe el pago._"
+                )
 
     _save_session_state(sesion, state)
     if reply_text:

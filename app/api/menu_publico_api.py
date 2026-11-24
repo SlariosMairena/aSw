@@ -223,10 +223,14 @@ def obtener_menu_publico_json(
         for pid, ts in img_rows
     }
 
+    from app.services.restriccion_producto_service import get_restricciones_map
+    restr_map = get_restricciones_map(db, comercio.id)
+
     platos_data = []
     for p in platos:
         if p.id in agotados_ids:
             continue
+        r_info = restr_map.get(p.id) or {}
         removibles = [
             {"id": ing.id, "nombre": ing.nombre}
             for ing in p.ingredientes_opciones
@@ -246,6 +250,9 @@ def obtener_menu_publico_json(
                 "descripcion": p.descripcion or "",
                 "precio_base": float(p.precio_base),
                 "imagen_url": img_map.get(p.id),
+                "requiere_validacion": bool(r_info.get("requiere_validacion")),
+                "solo_retiro_local": bool(r_info.get("solo_retiro_local")),
+                "nota_restriccion": r_info.get("nota_restriccion") or "",
                 "ingredientes_removibles": removibles,
                 "extras": extras,
             }
