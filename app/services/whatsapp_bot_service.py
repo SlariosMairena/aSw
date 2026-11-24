@@ -1186,11 +1186,13 @@ def _build_fixed_welcome_message(
     menu_link: str,
     nombre_cliente: Optional[str],
     beneficios_vip: Optional[Dict[str, Any]] = None,
+    bot_cfg: Optional[Dict[str, Any]] = None,
 ) -> str:
     """
     Plantilla fija y ordenada de bienvenida (0 tokens, 100% consistente)
-    adaptada al giro del negocio, sus permisos reales y el perfil del cliente.
+    adaptada al giro del negocio, sus permisos reales, la configuración del dueño y el cliente.
     """
+    cfg = bot_cfg or {}
     g_code = normalize_giro_code(comercio.giro)
     copy = _giro_copy(comercio.giro)
     perm_res = bool(
@@ -1200,7 +1202,14 @@ def _build_fixed_welcome_message(
     )
 
     saludo = _saludo_nombre(nombre_cliente)
-    lines = [f"{saludo} 👋 Bienvenido a *{comercio.nombre_comercial}*."]
+    saludo_custom = (cfg.get("saludo_personalizado") or "").strip()
+    asistente = (cfg.get("nombre_asistente") or "").strip()
+    if saludo_custom:
+        lines = [saludo_custom]
+    elif asistente:
+        lines = [f"{saludo} 👋 Soy *{asistente}*, asistente de *{comercio.nombre_comercial}*."]
+    else:
+        lines = [f"{saludo} 👋 Bienvenido a *{comercio.nombre_comercial}*."]
 
     if beneficios_vip and (
         beneficios_vip.get("envio_gratis") or float(beneficios_vip.get("descuento_pct") or 0) > 0
@@ -1212,10 +1221,18 @@ def _build_fixed_welcome_message(
             vip_parts.append(f"{float(beneficios_vip['descuento_pct']):g}% de descuento")
         lines.append(f"_Beneficio VIP activo: {' y '.join(vip_parts)}._")
 
+    promo = (cfg.get("promo_del_dia") or "").strip()
+    if promo:
+        lines.append(f"*Destacado hoy:* {promo}")
+
     if not sucursal.abierto_ahora:
-        lines.append(
-            f"_En este momento estamos cerrados (Horario: {sucursal.horario_apertura} a {sucursal.horario_cierre}), pero puedes revisar nuestras opciones._"
-        )
+        msg_cerrado = (cfg.get("mensaje_cerrado") or "").strip()
+        if msg_cerrado:
+            lines.append(f"_{msg_cerrado}_")
+        else:
+            lines.append(
+                f"_En este momento estamos cerrados (Horario: {sucursal.horario_apertura} a {sucursal.horario_cierre}), pero puedes revisar nuestras opciones._"
+            )
 
     lines.append("")
     if g_code == "SERVICIOS_CITAS":
@@ -1259,12 +1276,14 @@ def _match_solo_ia_deterministic_turn(
     nombre_cliente: Optional[str],
     beneficios_vip: Optional[Dict[str, Any]],
     pedido_activo_ctx: Optional[Dict[str, Any]],
+    bot_cfg: Optional[Dict[str, Any]] = None,
 ) -> Optional[Tuple[str, bool]]:
     """
     Resuelve interacciones fijas/simples sin llamar al LLM (0 tokens, orden garantizado),
     dejando pasar a la IA cualquier mensaje libre, pedido directo o lenguaje informal con intención.
     Retorna (reply_text, transferir_humano) o None si debe atenderlo la IA.
     """
+    cfg = bot_cfg or {}
     norm = _normalize_text(texto)
     if not norm:
         return None
@@ -1276,12 +1295,17 @@ def _match_solo_ia_deterministic_turn(
     mesas_act = [m for m in sucursal.mesas if m.activa] if copy["uses_tables"] else []
     perm_res = bool(copy["uses_tables"] and comercio.reservaciones_habilitadas and mesas_act)
 
-    # 1. Solicitud explícita de hablar con una persona / asesor
+    # 1. Solicitud explícita de hablar con una persona / asesor o palabras clave personalizadas de escalamiento
+    custom_esc = [
+        _normalize_text(w)
+        for w in (cfg.get("palabras_escalamiento") or "").split(",")
+        if _normalize_text(w)
+    ]
     if norm in {
         "asesor", "humano", "persona", "agente",
         "hablar con alguien", "hablar con un asesor", "hablar con una persona",
         "quiero hablar con alguien", "quiero un asesor",
-    }:
+    } or (custom_esc and _fuzzy_contains_any(norm, custom_esc, cutoff=0.84)):
         return (
             f"¡Con gusto! Te comunico ahora mismo con el equipo de *{comercio.nombre_comercial}*. "
             "En un momento te responden por aquí.",
@@ -1293,7 +1317,22 @@ def _match_solo_ia_deterministic_turn(
     if has_active_flow:
         return None
 
-    # 2. Consulta directa y corta de horario
+    # 2. Consulta directa y corta de ubicación / cómo llegar (si el dueño la configuró)
+    ubi_txt = (cfg.get("ubicacion_texto") or "").strip()
+    ubi_url = (cfg.get("ubicacion_maps_url") or "").strip()
+    if (ubi_txt or ubi_url) and len(tokens) <= 7 and (
+        norm in {"ubicacion", "donde estan", "donde quedan", "como llegar", "mapa", "maps", "direccion", "direccion del local"}
+        or any(k in norm for k in ("donde estan", "donde quedan", "como llegar", "ubicacion"))
+    ):
+        parts = [f"*{comercio.nombre_comercial}* ({sucursal.nombre_sucursal})"]
+        if ubi_txt:
+            parts.append(f"Ubicación: {ubi_txt}")
+        if ubi_url:
+            parts.append(f"Mapa: {ubi_url}")
+        parts.append("\n¿Deseas ver nuestras opciones? Escribe *inicio* o dime en qué te ayudo.")
+        return ("\n".join(parts), False)
+
+    # 2b. Consulta directa y corta de horario
     if len(tokens) <= 6 and (
         norm in {"horario", "horarios", "hora de atencion", "a que hora abren", "a que hora cierran", "estan abiertos", "abren hoy"}
         or ("horario" in tokens and len(tokens) <= 4)
@@ -1318,7 +1357,7 @@ def _match_solo_ia_deterministic_turn(
     if is_pure_greeting:
         return (
             _build_fixed_welcome_message(
-                comercio, sucursal, menu_link, nombre_cliente, beneficios_vip
+                comercio, sucursal, menu_link, nombre_cliente, beneficios_vip, bot_cfg=cfg
             ),
             False,
         )
@@ -1473,6 +1512,9 @@ def _handle_solo_ia_turn(
             ]
         catalogo_ctx.append(item_ctx)
 
+    from app.services.bot_config_service import get_bot_config_dict
+    bot_cfg = get_bot_config_dict(db, comercio.id)
+
     context_payload = {
         "comercio": {
             "nombre": comercio.nombre_comercial,
@@ -1484,6 +1526,7 @@ def _handle_solo_ia_turn(
             "usa_mesas": copy["uses_tables"],
             "menu_web_url": menu_link,
         },
+        "bot_config": bot_cfg,
         "sucursal": {
             "nombre": sucursal.nombre_sucursal,
             "abierto_ahora": bool(sucursal.abierto_ahora),
@@ -1555,6 +1598,7 @@ def _handle_solo_ia_turn(
         nombre_cliente=sesion.nombre_cliente,
         beneficios_vip=beneficios_vip,
         pedido_activo_ctx=pedido_activo_ctx,
+        bot_cfg=bot_cfg,
     )
     if fixed_match is not None:
         fixed_reply, fixed_human = fixed_match
@@ -1897,6 +1941,22 @@ def process_incoming_whatsapp_message(
             "reply_text": None,
             "sesion_id": sesion.id,
             "modo_atencion": "HUMANO_ACTIVO",
+            "estado_conversacion": sesion.estado_conversacion,
+            "pedido_creado": None,
+            "quick_replies": [],
+            "ai_used": None,
+        }
+
+    # Si el dueño pausó el Bot globalmente desde Configuración, guardar mensaje y avisar al panel sin auto-responder
+    from app.services.bot_config_service import get_bot_config_dict
+    bot_cfg_global = get_bot_config_dict(db, comercio.id)
+    if not bot_cfg_global.get("bot_activo", True):
+        db.commit()
+        publish_tenant_event(comercio.id, "NUEVO_MENSAJE", {"sesion_id": sesion.id})
+        return {
+            "reply_text": None,
+            "sesion_id": sesion.id,
+            "modo_atencion": "BOT_PAUSADO",
             "estado_conversacion": sesion.estado_conversacion,
             "pedido_creado": None,
             "quick_replies": [],

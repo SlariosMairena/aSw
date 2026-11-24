@@ -1045,3 +1045,36 @@ class FidelidadCliente(Base):
     premios_disponibles = Column(Integer, default=0, nullable=False)
     actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
 
+
+# =====================================================================
+# 15. CONFIGURACIÓN PERSONALIZADA DEL BOT DE WHATSAPP POR COMERCIO
+# =====================================================================
+class ConfigBotComercio(Base):
+    """
+    Personalización del Bot de WhatsApp por negocio (tabla dedicada, sin alterar tenants_comercios).
+    Permite encender/pausar el bot, tono, saludo, promo del día, ubicación, FAQs,
+    pedido mínimo, palabras de escalamiento y reglas extra para la IA.
+    """
+
+    __tablename__ = "config_bot_comercio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(
+        Integer, ForeignKey("tenants_comercios.id"), nullable=False, unique=True, index=True
+    )
+    bot_activo = Column(Boolean, default=True, nullable=False)
+    nombre_asistente = Column(String(80), nullable=True)
+    tono_bot = Column(String(24), default="CERCANO", nullable=False)  # CERCANO | PROFESIONAL | DIRECTO
+    saludo_personalizado = Column(Text, nullable=True)
+    mensaje_cerrado = Column(Text, nullable=True)
+    permitir_fuera_horario = Column(Boolean, default=True, nullable=False)
+    promo_del_dia = Column(String(280), nullable=True)
+    ubicacion_texto = Column(String(300), nullable=True)
+    ubicacion_maps_url = Column(String(400), nullable=True)
+    politicas_faq = Column(Text, nullable=True)
+    pedido_minimo = Column(Float, default=0.0, nullable=False)
+    palabras_escalamiento = Column(String(300), nullable=True)
+    reglas_extra = Column(Text, nullable=True)
+    actualizado_en = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+

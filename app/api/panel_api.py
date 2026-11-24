@@ -1341,6 +1341,9 @@ def comercio_dashboard(
             "plan_nombre": comercio.plan.nombre if comercio.plan else "Plan Pro",
             "pedidos_mes_actual": comercio.pedidos_mes_actual,
             "limite_pedidos_mes": comercio.plan.limite_pedidos_mes if comercio.plan else 800,
+            "bot_config": __import__(
+                "app.services.bot_config_service", fromlist=["get_bot_config_dict"]
+            ).get_bot_config_dict(db, comercio.id),
         },
         "sucursales": sucursales_data,
         "pedidos": pedidos_data,
@@ -1361,6 +1364,42 @@ def comercio_dashboard(
             for r in reservaciones
         ],
     }
+
+
+class BotConfigUpdateRequest(BaseModel):
+    bot_activo: Optional[bool] = None
+    nombre_asistente: Optional[str] = None
+    tono_bot: Optional[str] = None
+    saludo_personalizado: Optional[str] = None
+    mensaje_cerrado: Optional[str] = None
+    permitir_fuera_horario: Optional[bool] = None
+    promo_del_dia: Optional[str] = None
+    ubicacion_texto: Optional[str] = None
+    ubicacion_maps_url: Optional[str] = None
+    politicas_faq: Optional[str] = None
+    pedido_minimo: Optional[float] = None
+    palabras_escalamiento: Optional[str] = None
+    reglas_extra: Optional[str] = None
+
+
+@router.put("/comercio/{tenant_id}/bot-config")
+def actualizar_bot_config_comercio(
+    tenant_id: int,
+    payload: BotConfigUpdateRequest,
+    current_user: Usuario = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Guarda la configuración personalizada del Bot de WhatsApp del comercio."""
+    verify_tenant_isolation(current_user, tenant_id)
+    if current_user.rol not in ("COMERCIO_ADMIN", "SUPER_ADMIN"):
+        raise HTTPException(status_code=403, detail="Solo el administrador del comercio puede configurar el bot.")
+    comercio = db.query(TenantComercio).filter(TenantComercio.id == tenant_id).first()
+    if not comercio:
+        raise HTTPException(status_code=404, detail="Comercio no encontrado.")
+    from app.services.bot_config_service import save_bot_config
+
+    saved = save_bot_config(db, tenant_id, payload.model_dump())
+    return {"status": "ok", "bot_config": saved}
 
 
 class CrearReservaManualRequest(BaseModel):

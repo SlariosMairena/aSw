@@ -2669,7 +2669,124 @@ function escapeHtml(str) {
             if (elMin) elMin.value = fCfg.monto_minimo_sello ?? 150;
             const elPremio = document.getElementById('cfgPremioPct');
             if (elPremio) elPremio.value = fCfg.premio_descuento_pct || 15;
+
+            // Poblar configuración del Bot de WhatsApp
+            const bCfg = c.bot_config || {};
+            const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+            const setChk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+            setChk('cfgBotActivo', bCfg.bot_activo !== false);
+            setVal('cfgBotNombreAsistente', bCfg.nombre_asistente || '');
+            setVal('cfgBotTono', bCfg.tono_bot || 'CERCANO');
+            setVal('cfgBotSaludo', bCfg.saludo_personalizado || '');
+            setVal('cfgBotPromo', bCfg.promo_del_dia || '');
+            setVal('cfgBotUbicacionTexto', bCfg.ubicacion_texto || '');
+            setVal('cfgBotUbicacionMaps', bCfg.ubicacion_maps_url || '');
+            setVal('cfgBotMensajeCerrado', bCfg.mensaje_cerrado || '');
+            setVal('cfgBotPedidoMinimo', bCfg.pedido_minimo ?? 0);
+            setChk('cfgBotPermitirCerrado', bCfg.permitir_fuera_horario !== false);
+            setVal('cfgBotPoliticasFaq', bCfg.politicas_faq || '');
+            setVal('cfgBotPalabrasEscalamiento', bCfg.palabras_escalamiento || '');
+            setVal('cfgBotReglasExtra', bCfg.reglas_extra || '');
+
+            const esCitas = getGiroProfile(c.giro).code === 'SERVICIOS_CITAS';
+            const minWrap = document.getElementById('cfgBotPedidoMinWrap');
+            if (minWrap) minWrap.classList.toggle('hidden', esCitas);
+
+            updateBotConfigPreview();
         }
+
+        function updateBotConfigPreview() {
+            const box = document.getElementById('cfgBotPreviewBox');
+            const badge = document.getElementById('cfgBotEstadoBadge');
+            const activo = document.getElementById('cfgBotActivo')?.checked !== false;
+            if (badge) {
+                badge.textContent = activo ? 'ACTIVO' : 'PAUSADO';
+                badge.className = activo
+                    ? 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    : 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30';
+            }
+            if (!box) return;
+            if (!activo) {
+                box.textContent = '[Bot pausado — los mensajes de tus clientes llegarán al panel para respuesta manual sin auto-respuesta.]';
+                return;
+            }
+            const c = currentComercioData?.comercio || {};
+            const sucs = currentComercioData?.sucursales || [];
+            const firstSuc = sucs[0] || {};
+            const giro = getGiroProfile(c.giro).code;
+            const nombreNeg = c.nombre_comercial || 'Tu Negocio';
+            const asistente = (document.getElementById('cfgBotNombreAsistente')?.value || '').trim();
+            const saludoCustom = (document.getElementById('cfgBotSaludo')?.value || '').trim();
+            const promo = (document.getElementById('cfgBotPromo')?.value || '').trim();
+            const slugLink = firstSuc.codigo_whatsapp ? `${window.location.origin}/m/${firstSuc.codigo_whatsapp}` : `${window.location.origin}/m/tu-negocio`;
+            const permRes = Boolean(c.reservaciones_habilitadas && (giro === 'RESTAURANTE' || giro === 'CAFETERIA' || giro === 'SERVICIOS_CITAS'));
+
+            const lines = [];
+            if (saludoCustom) {
+                lines.push(saludoCustom);
+            } else if (asistente) {
+                lines.push(`¡Hola! Soy ${asistente}, asistente de ${nombreNeg}.`);
+            } else {
+                lines.push(`¡Hola! Bienvenido a ${nombreNeg}.`);
+            }
+            if (promo) lines.push(`Destacado hoy: ${promo}`);
+            lines.push('');
+            if (giro === 'SERVICIOS_CITAS') {
+                lines.push(`A) Ver nuestros servicios y precios: ${slugLink}`);
+                lines.push('B) Consultar servicios por chat');
+                if (permRes) lines.push('C) Agendar una cita');
+            } else if (giro === 'FARMACIA') {
+                lines.push(`A) Ver nuestro catálogo de productos: ${slugLink}`);
+                lines.push('B) Hacer pedido por chat');
+            } else if (giro === 'TIENDA') {
+                lines.push(`A) Ver nuestro catálogo con fotos: ${slugLink}`);
+                lines.push('B) Comprar por chat');
+            } else if (giro === 'SUPERMERCADO') {
+                lines.push(`A) Ver nuestro catálogo de productos: ${slugLink}`);
+                lines.push('B) Enviar mi lista de compras por chat');
+            } else {
+                lines.push(`A) Ver nuestro menú con fotos: ${slugLink}`);
+                lines.push('B) Pedir por chat');
+                if (permRes) lines.push('C) Reservar mesa');
+            }
+            lines.push('\n¿Qué prefieres?');
+            box.textContent = lines.join('\n');
+        }
+        window.updateBotConfigPreview = updateBotConfigPreview;
+
+        async function handleGuardarBotConfig(e) {
+            e.preventDefault();
+            if (!activeTenantId) return;
+            const body = {
+                bot_activo: document.getElementById('cfgBotActivo')?.checked !== false,
+                nombre_asistente: (document.getElementById('cfgBotNombreAsistente')?.value || '').trim(),
+                tono_bot: document.getElementById('cfgBotTono')?.value || 'CERCANO',
+                saludo_personalizado: (document.getElementById('cfgBotSaludo')?.value || '').trim(),
+                promo_del_dia: (document.getElementById('cfgBotPromo')?.value || '').trim(),
+                ubicacion_texto: (document.getElementById('cfgBotUbicacionTexto')?.value || '').trim(),
+                ubicacion_maps_url: (document.getElementById('cfgBotUbicacionMaps')?.value || '').trim(),
+                mensaje_cerrado: (document.getElementById('cfgBotMensajeCerrado')?.value || '').trim(),
+                pedido_minimo: parseFloat(document.getElementById('cfgBotPedidoMinimo')?.value || '0') || 0,
+                permitir_fuera_horario: document.getElementById('cfgBotPermitirCerrado')?.checked !== false,
+                politicas_faq: (document.getElementById('cfgBotPoliticasFaq')?.value || '').trim(),
+                palabras_escalamiento: (document.getElementById('cfgBotPalabrasEscalamiento')?.value || '').trim(),
+                reglas_extra: (document.getElementById('cfgBotReglasExtra')?.value || '').trim(),
+            };
+            try {
+                const res = await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/bot-config`, {
+                    method: 'PUT',
+                    body
+                });
+                if (currentComercioData && currentComercioData.comercio && res.bot_config) {
+                    currentComercioData.comercio.bot_config = res.bot_config;
+                }
+                updateBotConfigPreview();
+                showToast('Configuración del Bot de WhatsApp guardada correctamente.');
+            } catch (err) {
+                showToast(err.message || 'Error al guardar configuración del bot', true);
+            }
+        }
+        window.handleGuardarBotConfig = handleGuardarBotConfig;
 
         function openConfigComercioModal() {
             if (!currentComercioData || !currentComercioData.comercio) {

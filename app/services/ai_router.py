@@ -596,6 +596,40 @@ def _build_giro_bot_rules(context_payload: Dict[str, Any]) -> str:
 
     if limites_dinamicos:
         perfil += "LIMITANTES ACTIVAS DE ESTA SUCURSAL:\n" + "\n".join(limites_dinamicos) + "\n"
+
+    # Personalización del dueño del negocio (tabla config_bot_comercio)
+    bcfg = context_payload.get("bot_config") or {}
+    custom_rules = []
+    if bcfg.get("nombre_asistente"):
+        custom_rules.append(f"- Tu nombre como asistente es *{bcfg['nombre_asistente']}*.")
+    tono = str(bcfg.get("tono_bot") or "CERCANO").upper()
+    if tono == "PROFESIONAL":
+        custom_rules.append("- TONO: Profesional, formal y respetuoso (trata al cliente de 'usted').")
+    elif tono == "DIRECTO":
+        custom_rules.append("- TONO: Directo, muy breve y al grano (máximo 3 a 4 líneas por respuesta).")
+    else:
+        custom_rules.append("- TONO: Cercano, cálido y amigable.")
+    if bcfg.get("promo_del_dia"):
+        custom_rules.append(f"- PROMOCIÓN/AVISO DEL DÍA: {bcfg['promo_del_dia']} (menciónala brevemente si encaja con la consulta).")
+    if bcfg.get("ubicacion_texto") or bcfg.get("ubicacion_maps_url"):
+        ubi = " | ".join(x for x in [bcfg.get("ubicacion_texto"), bcfg.get("ubicacion_maps_url")] if x)
+        custom_rules.append(f"- UBICACIÓN OFICIAL DEL LOCAL: {ubi}.")
+    if bcfg.get("politicas_faq"):
+        custom_rules.append(f"- POLÍTICAS / PREGUNTAS FRECUENTES DEL NEGOCIO: {bcfg['politicas_faq']}.")
+    if float(bcfg.get("pedido_minimo") or 0) > 0 and giro != "SERVICIOS_CITAS":
+        sym_c = com.get("simbolo_moneda") or "C$"
+        custom_rules.append(
+            f"- PEDIDO MÍNIMO PARA ENVÍO A DOMICILIO: {sym_c}{float(bcfg['pedido_minimo']):.2f}. "
+            "Si el cliente elige DOMICILIO y su subtotal es menor, infórmale amablemente cuánto le falta o sugiérele retiro en local."
+        )
+    if not abierto and not bcfg.get("permitir_fuera_horario", True):
+        msg_c = bcfg.get("mensaje_cerrado") or f"Estamos cerrados (horario {suc.get('horario', '')})."
+        custom_rules.append(f"- FUERA DE HORARIO ESTRICTO: NO confirmes pedidos ni citas ahora; informa: {msg_c}")
+    if bcfg.get("reglas_extra"):
+        custom_rules.append(f"- INSTRUCCIONES ESPECIALES DEL DUEÑO (OBLIGATORIAS): {bcfg['reglas_extra']}")
+
+    if custom_rules:
+        perfil += "PERSONALIZACIÓN DEL DUEÑO DEL NEGOCIO:\n" + "\n".join(custom_rules) + "\n"
     return perfil
 
 

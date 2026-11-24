@@ -150,7 +150,174 @@
         </div>
     </form>
 
-    <!-- BLOQUE 2: EQUIPO Y USUARIOS DEL NEGOCIO -->
+    <!-- BLOQUE 2: CONFIGURACIÓN DEL BOT DE WHATSAPP -->
+    <form onsubmit="handleGuardarBotConfig(event)" class="glass rounded-2xl p-5 space-y-5 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3.5 border-b border-slate-800/60">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-500 border border-emerald-500/25 flex items-center justify-center text-base shrink-0">
+                    <i class="fa-brands fa-whatsapp"></i>
+                </span>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h4 class="text-sm font-extrabold text-white">Configuración del Bot de WhatsApp</h4>
+                        <span id="cfgBotEstadoBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">ACTIVO</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5">Personaliza saludos, tono, promociones, ubicación y reglas que el bot respetará automáticamente</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="inline-flex items-center gap-2 cursor-pointer px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 font-bold text-xs">
+                    <input id="cfgBotActivo" type="checkbox" checked onchange="updateBotConfigPreview()" class="w-4 h-4 accent-[#059669] rounded">
+                    <span>Bot encendido</span>
+                </label>
+                <button type="submit"
+                    class="px-4 py-2 rounded-xl bg-[#1B4332] hover:bg-[#143326] text-white keep-white font-bold text-xs transition shadow-sm flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk"></i> <span>Guardar Bot</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <!-- COLUMNA IZQUIERDA (7 cols): IDENTIDAD, VENTAS Y REGLAS -->
+            <div class="lg:col-span-7 space-y-4">
+                <!-- 1. Identidad y Tono -->
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-robot"></i>
+                        <span>1. Identidad, Tono y Bienvenida</span>
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-300 font-semibold mb-1">Nombre del Asistente (opcional)</label>
+                            <input id="cfgBotNombreAsistente" type="text" maxlength="80" placeholder="Ej. Sofía, Asistente Napoli"
+                                oninput="updateBotConfigPreview()"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-semibold mb-1">Tono de Conversación</label>
+                            <select id="cfgBotTono" onchange="updateBotConfigPreview()"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                                <option value="CERCANO">Cercano y amigable (Recomendado)</option>
+                                <option value="PROFESIONAL">Profesional y formal (de usted)</option>
+                                <option value="DIRECTO">Directo y muy breve</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Saludo de Bienvenida Personalizado (opcional)</label>
+                        <textarea id="cfgBotSaludo" rows="2" maxlength="350" oninput="updateBotConfigPreview()"
+                            placeholder="Ej. ¡Hola! Bienvenido a nuestra clínica, será un gusto atenderle."
+                            class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        <p class="text-[10px] text-slate-400 mt-1">
+                            Si lo dejas vacío se usa el saludo automático con el nombre del cliente. El sistema siempre protege el orden A / B / C y tu enlace web.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 2. Promoción, Ubicación y Horario -->
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-bullhorn"></i>
+                        <span>2. Promoción del Día, Ubicación y Horario</span>
+                    </p>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Promoción o Aviso Destacado de Hoy (opcional)</label>
+                        <input id="cfgBotPromo" type="text" maxlength="280" oninput="updateBotConfigPreview()"
+                            placeholder="Ej. Hoy 2x1 en pizzas medianas • Limpieza dental con 15% OFF"
+                            class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-300 font-semibold mb-1">Ubicación / Cómo llegar</label>
+                            <input id="cfgBotUbicacionTexto" type="text" maxlength="300"
+                                placeholder="Ej. De Metrocentro 2 cuadras al sur, local #4"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-300 font-semibold mb-1">Enlace Google Maps (opcional)</label>
+                            <input id="cfgBotUbicacionMaps" type="url" maxlength="400"
+                                placeholder="https://maps.google.com/..."
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+                        <div>
+                            <label class="block text-slate-300 font-semibold mb-1">Mensaje cuando esté cerrado (opcional)</label>
+                            <input id="cfgBotMensajeCerrado" type="text" maxlength="350"
+                                placeholder="Ej. Abrimos mañana a las 9:00 AM, pero puedes ver el catálogo."
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div id="cfgBotPedidoMinWrap">
+                            <label class="block text-slate-300 font-semibold mb-1">Pedido mínimo para Domicilio</label>
+                            <input id="cfgBotPedidoMinimo" type="number" min="0" step="10" value="0"
+                                class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold focus:outline-none focus:border-emerald-500">
+                            <p class="text-[10px] text-slate-400 mt-0.5">0 = sin mínimo requerido.</p>
+                        </div>
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer text-[11px] text-slate-300 pt-1">
+                        <input id="cfgBotPermitirCerrado" type="checkbox" checked class="w-4 h-4 accent-[#059669] rounded">
+                        <span>Permitir ver catálogo o dejar solicitudes aunque la sucursal esté marcada como cerrada</span>
+                    </label>
+                </div>
+
+                <!-- 3. Preguntas Frecuentes, Escalamiento y Reglas Extra -->
+                <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>3. Políticas, Derivación a Humano y Reglas Extra</span>
+                    </p>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Políticas / Preguntas Frecuentes (cambios, garantía, requisitos)</label>
+                        <textarea id="cfgBotPoliticasFaq" rows="2" maxlength="600"
+                            placeholder="Ej. Cambios de talla dentro de 7 días con etiqueta. Llegar 10 minutos antes de tu cita."
+                            class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Palabras clave que pasan directo a un humano (separadas por coma)</label>
+                        <input id="cfgBotPalabrasEscalamiento" type="text" maxlength="300"
+                            placeholder="Ej. factura, ruc, evento, mayoreo, seguro medico"
+                            class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 font-semibold mb-1">Instrucciones Especiales del Negocio para la IA (máx. 600 caracteres)</label>
+                        <textarea id="cfgBotReglasExtra" rows="3" maxlength="600"
+                            placeholder="Ej. No hacemos envíos fuera del casco urbano. Si preguntan por ortodoncia, indicar que la valoración inicial es gratis."
+                            class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA (5 cols): VISTA PREVIA EN VIVO TIPO WHATSAPP -->
+            <div class="lg:col-span-5">
+                <div class="sticky top-20 p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between gap-2 pb-2 border-b border-slate-800">
+                        <span class="text-xs font-extrabold text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-mobile-screen-button text-emerald-400"></i>
+                            <span>Vista Previa en WhatsApp</span>
+                        </span>
+                        <span class="text-[10px] font-semibold text-slate-400">Primer mensaje del cliente</span>
+                    </div>
+                    <div class="rounded-xl p-3.5 bg-slate-950/90 border border-slate-800 space-y-2.5">
+                        <div class="flex justify-end">
+                            <div class="px-3 py-1.5 rounded-2xl rounded-tr-sm bg-emerald-600/25 border border-emerald-500/30 text-emerald-200 text-xs max-w-[75%]">
+                                Hola buenas
+                            </div>
+                        </div>
+                        <div class="flex justify-start">
+                            <div id="cfgBotPreviewBox" class="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-slate-900 border border-slate-700/80 text-slate-200 text-xs leading-relaxed whitespace-pre-line max-w-[92%] font-normal">
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-relaxed">
+                        <i class="fa-solid fa-circle-info text-emerald-400 mr-1"></i>
+                        El saludo inicial, las opciones <strong>A / B / C</strong> y consultas de horario o ubicación responden al instante sin perder el orden. Para pedidos o consultas libres, la IA aplica tu tono, promoción y reglas especiales.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- BLOQUE 3: EQUIPO Y USUARIOS DEL NEGOCIO -->
     <div class="glass rounded-2xl p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/60">
             <div>
