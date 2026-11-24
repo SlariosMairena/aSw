@@ -73,6 +73,184 @@ function escapeHtml(str) {
             setTimeout(() => box.classList.add('hidden'), 4200);
         }
 
+        // =========================================================
+        // MODALES GLOBALES DEL SISTEMA (REEMPLAZA confirm / prompt)
+        // =========================================================
+        function _openUiDialog(opts = {}) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('uiDialogModal');
+                const form = document.getElementById('uiDialogForm');
+                const titleEl = document.getElementById('uiDialogTitle');
+                const msgEl = document.getElementById('uiDialogMessage');
+                const iconWrap = document.getElementById('uiDialogIconWrap');
+                const iconEl = document.getElementById('uiDialogIcon');
+                const inputWrap = document.getElementById('uiDialogInputWrap');
+                const inputLabel = document.getElementById('uiDialogInputLabel');
+                const inputEl = document.getElementById('uiDialogInput');
+                const togglePassBtn = document.getElementById('uiDialogTogglePass');
+                const togglePassIcon = document.getElementById('uiDialogTogglePassIcon');
+                const errEl = document.getElementById('uiDialogError');
+                const cancelBtn = document.getElementById('uiDialogCancelBtn');
+                const closeBtn = document.getElementById('uiDialogCloseBtn');
+                const confirmBtn = document.getElementById('uiDialogConfirmBtn');
+                const confirmLbl = document.getElementById('uiDialogConfirmLabel');
+
+                if (!modal || !form) {
+                    resolve(opts.mode === 'prompt' ? null : false);
+                    return;
+                }
+
+                const mode = opts.mode || 'confirm';
+                const variant = opts.variant || 'info';
+
+                titleEl.textContent = opts.title || (mode === 'prompt' ? 'Ingresar dato' : 'Confirmar acción');
+                msgEl.textContent = opts.message || '';
+                msgEl.classList.toggle('hidden', !opts.message);
+                confirmLbl.textContent = opts.confirmText || 'Confirmar';
+                cancelBtn.textContent = opts.cancelText || 'Cancelar';
+                errEl.classList.add('hidden');
+                errEl.textContent = '';
+
+                const variantMap = {
+                    danger: {
+                        wrap: 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-500/15 text-rose-500 border border-rose-500/25',
+                        icon: opts.icon || 'fa-solid fa-triangle-exclamation text-base',
+                        btn: 'px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5'
+                    },
+                    warning: {
+                        wrap: 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-amber-500/15 text-amber-500 border border-amber-500/25',
+                        icon: opts.icon || 'fa-solid fa-bolt text-base',
+                        btn: 'px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5'
+                    },
+                    password: {
+                        wrap: 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25',
+                        icon: opts.icon || 'fa-solid fa-key text-base',
+                        btn: 'px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5'
+                    },
+                    info: {
+                        wrap: 'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-emerald-500/15 text-emerald-500 border border-emerald-500/25',
+                        icon: opts.icon || 'fa-solid fa-pen-to-square text-base',
+                        btn: 'px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-sm flex items-center gap-1.5'
+                    }
+                };
+                const style = variantMap[variant] || variantMap.info;
+                iconWrap.className = style.wrap;
+                iconEl.className = style.icon;
+                confirmBtn.className = style.btn;
+
+                const isPassword = mode === 'prompt' && (opts.inputType === 'password' || variant === 'password');
+                if (mode === 'prompt') {
+                    inputWrap.classList.remove('hidden');
+                    inputLabel.textContent = opts.label || '';
+                    inputLabel.classList.toggle('hidden', !opts.label);
+                    inputEl.type = isPassword ? 'text' : (opts.inputType || 'text');
+                    inputEl.step = opts.inputType === 'number' ? 'any' : '';
+                    inputEl.placeholder = opts.placeholder || '';
+                    inputEl.value = opts.defaultValue !== undefined && opts.defaultValue !== null ? String(opts.defaultValue) : '';
+                    togglePassBtn.classList.toggle('hidden', !isPassword);
+                    if (isPassword) {
+                        togglePassIcon.className = 'fa-solid fa-eye-slash text-xs';
+                    }
+                } else {
+                    inputWrap.classList.add('hidden');
+                    togglePassBtn.classList.add('hidden');
+                }
+
+                const cleanup = () => {
+                    modal.classList.add('hidden');
+                    form.onsubmit = null;
+                    cancelBtn.onclick = null;
+                    closeBtn.onclick = null;
+                    modal.onclick = null;
+                    togglePassBtn.onclick = null;
+                    document.removeEventListener('keydown', onKeyDown);
+                };
+
+                const finishCancel = () => {
+                    cleanup();
+                    resolve(mode === 'prompt' ? null : false);
+                };
+
+                const onKeyDown = (ev) => {
+                    if (ev.key === 'Escape') {
+                        ev.preventDefault();
+                        finishCancel();
+                    }
+                };
+
+                togglePassBtn.onclick = () => {
+                    const showing = inputEl.type === 'text';
+                    inputEl.type = showing ? 'password' : 'text';
+                    togglePassIcon.className = showing ? 'fa-solid fa-eye text-xs' : 'fa-solid fa-eye-slash text-xs';
+                    inputEl.focus();
+                };
+
+                cancelBtn.onclick = finishCancel;
+                closeBtn.onclick = finishCancel;
+                modal.onclick = (ev) => {
+                    if (ev.target === modal) finishCancel();
+                };
+                document.addEventListener('keydown', onKeyDown);
+
+                form.onsubmit = (ev) => {
+                    ev.preventDefault();
+                    if (mode === 'prompt') {
+                        const val = inputEl.value;
+                        if (opts.required && !val.trim()) {
+                            errEl.textContent = opts.requiredMessage || 'Este campo es obligatorio.';
+                            errEl.classList.remove('hidden');
+                            inputEl.focus();
+                            return;
+                        }
+                        if (opts.minLength && val.length < opts.minLength) {
+                            errEl.textContent = `Debe tener al menos ${opts.minLength} caracteres.`;
+                            errEl.classList.remove('hidden');
+                            inputEl.focus();
+                            return;
+                        }
+                        cleanup();
+                        resolve(val);
+                    } else {
+                        cleanup();
+                        resolve(true);
+                    }
+                };
+
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    if (mode === 'prompt') {
+                        inputEl.focus();
+                        inputEl.select();
+                    } else {
+                        confirmBtn.focus();
+                    }
+                }, 30);
+            });
+        }
+
+        function uiConfirm(opts = {}) {
+            return _openUiDialog({ ...opts, mode: 'confirm' });
+        }
+        function uiPrompt(opts = {}) {
+            return _openUiDialog({ ...opts, mode: 'prompt' });
+        }
+        window.uiConfirm = uiConfirm;
+        window.uiPrompt = uiPrompt;
+
+        async function confirmarCancelarPedidoModal(pedidoId, folio) {
+            const ok = await uiConfirm({
+                title: `Cancelar pedido #${folio}`,
+                message: 'El pedido pasará a estado CANCELADO y no podrá continuar en preparación. ¿Deseas continuar?',
+                confirmText: 'Sí, cancelar pedido',
+                variant: 'danger',
+                icon: 'fa-solid fa-ban text-base'
+            });
+            if (!ok) return;
+            await cambiarEstadoPedido(pedidoId, 'CANCELADO');
+            closePedidoDetalleModal();
+        }
+        window.confirmarCancelarPedidoModal = confirmarCancelarPedidoModal;
+
         function playKitchenBell() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1230,7 +1408,7 @@ function escapeHtml(str) {
                 </div>
                 <div class="flex items-center gap-2">
                     ${(p.estado_pedido !== 'ENTREGADO' && p.estado_pedido !== 'CANCELADO') ? `
-                        <button type="button" onclick="if(confirm('¿Cancelar el pedido #${p.folio}?')) cambiarEstadoPedido(${p.id}, 'CANCELADO').then(() => closePedidoDetalleModal())"
+                        <button type="button" onclick="confirmarCancelarPedidoModal(${p.id}, '${escapeHtml(String(p.folio || p.id))}')"
                             class="px-3 py-2 rounded-xl bg-[#FDECE9] hover:bg-[#F9D7D0] border border-[#F6C2B9] text-[#B8321F] font-bold text-xs transition flex items-center gap-1">
                             <i class="fa-solid fa-ban"></i> <span>Cancelar</span>
                         </button>
@@ -2321,7 +2499,17 @@ function escapeHtml(str) {
         // EDICIÓN RÁPIDA DE PRECIOS & CONFIGURACIÓN DE MONEDA (C$)
         // =========================================================
         async function editarPrecioRapidoPlato(platoId, precioActual, nombre, sym) {
-            const nuevoStr = prompt(`Cambiar precio base de "${nombre}" (en ${sym}):`, Number(precioActual).toFixed(2));
+            const nuevoStr = await uiPrompt({
+                title: 'Actualizar precio base',
+                message: `Define el nuevo precio para "${nombre}".`,
+                label: `Precio en ${sym}`,
+                defaultValue: Number(precioActual).toFixed(2),
+                inputType: 'number',
+                required: true,
+                confirmText: 'Guardar precio',
+                variant: 'info',
+                icon: 'fa-solid fa-tag text-base'
+            });
             if (nuevoStr === null) return;
             const nuevo = parseFloat(nuevoStr);
             if (isNaN(nuevo) || nuevo < 0) {
@@ -2341,7 +2529,17 @@ function escapeHtml(str) {
         }
 
         async function editarPrecioRapidoExtra(extraId, precioActual, nombre, sym) {
-            const nuevoStr = prompt(`Cambiar precio adicional de "${nombre}" (en ${sym}):`, Number(precioActual).toFixed(2));
+            const nuevoStr = await uiPrompt({
+                title: 'Actualizar precio adicional',
+                message: `Define el nuevo costo adicional para "${nombre}".`,
+                label: `Precio en ${sym}`,
+                defaultValue: Number(precioActual).toFixed(2),
+                inputType: 'number',
+                required: true,
+                confirmText: 'Guardar precio',
+                variant: 'info',
+                icon: 'fa-solid fa-tag text-base'
+            });
             if (nuevoStr === null) return;
             const nuevo = parseFloat(nuevoStr);
             if (isNaN(nuevo) || nuevo < 0) {
@@ -2360,11 +2558,21 @@ function escapeHtml(str) {
             }
         }
 
-        function editFormExtraPrice(index) {
+        async function editFormExtraPrice(index) {
             const ex = formExtrasList[index];
             if (!ex) return;
             const sym = (currentComercioData && currentComercioData.comercio) ? currentComercioData.comercio.simbolo_moneda : 'C$';
-            const nuevoStr = prompt(`Nuevo precio para "${ex.nombre}" (${sym}):`, Number(ex.precio_adicional || 0).toFixed(2));
+            const nuevoStr = await uiPrompt({
+                title: 'Editar precio de opción',
+                message: `Nuevo precio para "${ex.nombre}".`,
+                label: `Precio en ${sym}`,
+                defaultValue: Number(ex.precio_adicional || 0).toFixed(2),
+                inputType: 'number',
+                required: true,
+                confirmText: 'Aplicar',
+                variant: 'info',
+                icon: 'fa-solid fa-tag text-base'
+            });
             if (nuevoStr === null) return;
             const nuevo = parseFloat(nuevoStr);
             if (isNaN(nuevo) || nuevo < 0) {

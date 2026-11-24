@@ -334,7 +334,17 @@ async function toggleStaffComercioActivo(usuarioId, nuevoActivo) {
 
 async function resetStaffComercioPass(usuarioId) {
     if (!activeTenantId) return;
-    const nueva = window.prompt('Nueva contraseña para el personal Staff (mín. 6 caracteres):', 'Staff#2026!');
+    const nueva = await uiPrompt({
+        title: 'Cambiar contraseña del Staff',
+        message: 'Asigna una nueva contraseña de acceso para este miembro del equipo.',
+        label: 'Nueva contraseña (mín. 6 caracteres)',
+        defaultValue: 'Staff#2026!',
+        inputType: 'password',
+        minLength: 6,
+        required: true,
+        confirmText: 'Actualizar contraseña',
+        variant: 'password'
+    });
     if (!nueva) return;
     try {
         await apiFetch(`/api/v1/panel/comercio/${activeTenantId}/usuarios/${usuarioId}`, {

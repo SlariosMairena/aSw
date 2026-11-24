@@ -500,7 +500,15 @@
         }
 
         async function marcarFacturaPagada(facturaId) {
-            const ref = window.prompt('Ingresa la referencia de pago / transferencia (opcional):', `PAGO-${facturaId}`);
+            const ref = await uiPrompt({
+                title: `Registrar pago de factura #${facturaId}`,
+                message: 'La factura pasará a PAGADO y el comercio se reactivará automáticamente si estaba suspendido.',
+                label: 'Referencia de pago / transferencia (opcional)',
+                defaultValue: `PAGO-${facturaId}`,
+                confirmText: 'Marcar como pagada',
+                variant: 'info',
+                icon: 'fa-solid fa-receipt text-base'
+            });
             if (ref === null) return;
             try {
                 await apiFetch(`/api/v1/panel/superadmin/facturas/${facturaId}`, {
@@ -869,7 +877,17 @@
         }
 
         async function resetPasswordUsuarioAdmin(usuarioId) {
-            const nueva = window.prompt('Nueva contraseña temporal (mín. 6 caracteres):', 'Reset#2026!');
+            const nueva = await uiPrompt({
+                title: 'Restablecer contraseña de usuario',
+                message: 'Define una nueva contraseña temporal para este usuario del comercio.',
+                label: 'Nueva contraseña temporal (mín. 6 caracteres)',
+                defaultValue: 'Reset#2026!',
+                inputType: 'password',
+                minLength: 6,
+                required: true,
+                confirmText: 'Actualizar contraseña',
+                variant: 'password'
+            });
             if (!nueva) return;
             const tenantId = Number(document.getElementById('ucTenantId').value);
             try {

@@ -744,7 +744,14 @@ async function handleEjecutarAjusteStock(e) {
  * Elimina (desactiva) un insumo de inventario
  */
 async function eliminarItemInventario(itemId, itemNombre) {
-    if (!confirm(`¿Estás seguro de eliminar el insumo "${itemNombre}" del inventario?`)) {
+    const ok = await uiConfirm({
+        title: 'Eliminar del inventario',
+        message: `¿Estás seguro de eliminar "${itemNombre}" del inventario? Esta acción lo desactivará del control de stock.`,
+        confirmText: 'Sí, eliminar',
+        variant: 'danger',
+        icon: 'fa-solid fa-trash-can text-base'
+    });
+    if (!ok) {
         return;
     }
 

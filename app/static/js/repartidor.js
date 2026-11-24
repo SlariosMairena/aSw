@@ -203,10 +203,15 @@ async function confirmarEntregaRepartidor(pedidoId, requierePin) {
 window.confirmarEntregaRepartidor = confirmarEntregaRepartidor;
 
 async function liberarPedidoRepartidor(pedidoId) {
-    const motivo = window.prompt(
-        'Indica el motivo para liberar este pedido (se alertará de urgencia a otro repartidor y pasarás a modo Pausa):',
-        'Falla mecánica en moto'
-    );
+    const motivo = await uiPrompt({
+        title: 'Liberar entrega de emergencia',
+        message: 'Se alertará de urgencia a otro repartidor disponible y tu estado pasará a Pausa.',
+        label: 'Motivo de la incidencia',
+        defaultValue: 'Falla mecánica en moto',
+        required: true,
+        confirmText: 'Liberar entrega',
+        variant: 'warning'
+    });
     if (!motivo || !motivo.trim()) return;
     try {
         const res = await apiFetch(`/api/v1/delivery/pedidos/${pedidoId}/liberar`, {
@@ -405,7 +410,14 @@ window.guardarPermisoPropioComercio = guardarPermisoPropioComercio;
 window.togglePermisoPropioComercio = guardarPermisoPropioComercio;
 
 async function eliminarRepartidorAdmin(uid, nombre) {
-    if (!window.confirm(`¿Eliminar definitivamente al repartidor "${nombre}" del sistema?`)) return;
+    const ok = await uiConfirm({
+        title: 'Eliminar repartidor',
+        message: `¿Eliminar definitivamente al repartidor "${nombre}" del sistema? Esta acción no se puede deshacer.`,
+        confirmText: 'Sí, eliminar',
+        variant: 'danger',
+        icon: 'fa-solid fa-trash-can text-base'
+    });
+    if (!ok) return;
     try {
         await apiFetch(`/api/v1/delivery/repartidores/${uid}`, { method: 'DELETE' });
         showToast('Repartidor eliminado del sistema.');
@@ -466,7 +478,17 @@ async function toggleRepartidorActivo(uid, nuevoActivo, esFlotaSaas) {
 window.toggleRepartidorActivo = toggleRepartidorActivo;
 
 async function resetRepartidorPass(uid, esFlotaSaas) {
-    const nueva = window.prompt('Nueva contraseña para el repartidor (mín. 6 caracteres):', 'Delivery#2026!');
+    const nueva = await uiPrompt({
+        title: 'Cambiar contraseña del repartidor',
+        message: 'Define una nueva contraseña temporal para el acceso móvil del repartidor.',
+        label: 'Nueva contraseña (mín. 6 caracteres)',
+        defaultValue: 'Delivery#2026!',
+        inputType: 'password',
+        minLength: 6,
+        required: true,
+        confirmText: 'Actualizar contraseña',
+        variant: 'password'
+    });
     if (!nueva) return;
     try {
         await apiFetch(`/api/v1/delivery/repartidores/${uid}`, {
@@ -483,10 +505,15 @@ async function resetRepartidorPass(uid, esFlotaSaas) {
 window.resetRepartidorPass = resetRepartidorPass;
 
 async function liberarPedidoDeliveryAdmin(pedidoId, esFlotaSaas) {
-    const motivo = window.prompt(
-        'Motivo de liberación/reasignación de emergencia:',
-        'Incidencia de repartidor (reasignación manual)'
-    );
+    const motivo = await uiPrompt({
+        title: 'Liberar y reasignar entrega',
+        message: 'El pedido volverá a la cola de emergencia para alertar a repartidores disponibles.',
+        label: 'Motivo de liberación / reasignación',
+        defaultValue: 'Incidencia de repartidor (reasignación manual)',
+        required: true,
+        confirmText: 'Liberar entrega',
+        variant: 'warning'
+    });
     if (!motivo || !motivo.trim()) return;
     try {
         const res = await apiFetch(`/api/v1/delivery/pedidos/${pedidoId}/liberar`, {
