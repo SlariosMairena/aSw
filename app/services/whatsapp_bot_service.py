@@ -1132,32 +1132,31 @@ def _format_reserva_created_reply(
 ) -> str:
     sym = comercio.simbolo_moneda or "C$"
     es_cita = normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS"
-    espacio_lbl = f"- Consultorio / Especialista: *{mesa_nombre}*" if es_cita else f"- Mesa: *{mesa_nombre}* · *{reserva.cantidad_personas} personas*"
+    espacio_line = (
+        f"🩺 Especialista: *{mesa_nombre}*"
+        if es_cita
+        else f"🪑 Mesa: *{mesa_nombre}* ({reserva.cantidad_personas} pers.)"
+    )
     if float(reserva.monto_pago_requerido or 0.0) > 0:
-        bank_line = (
-            f"\n- Datos bancarios: {comercio.datos_bancarios_texto}"
-            if comercio.datos_bancarios_texto
-            else ""
-        )
-        titulo = "Solicitud de cita registrada" if es_cita else "Solicitud de reservación registrada"
-        confirm_obj = "confirmar tu cita" if es_cita else "confirmar tu mesa"
+        titulo = "Solicitud de cita" if es_cita else "Solicitud de reservación"
         sust = "cita" if es_cita else "reservación"
-        return (
-            f"*{titulo}* — Folio: *#{reserva.folio_reserva}*\n"
-            f"Estado: *PENDIENTE DE PAGO* _(aún no confirmada)_\n\n"
-            f"- A nombre de: *{reserva.nombre_cliente}*\n"
-            f"{espacio_lbl}\n"
-            f"- Fecha y hora: *{reserva.fecha_hora_reserva}*\n"
-            f"- Anticipo requerido: *{sym}{reserva.monto_pago_requerido:.2f}*{bank_line}\n\n"
-            f"Para *{confirm_obj}*, realiza el pago del anticipo y envíanos el comprobante por este chat. "
-            f"Tu {sust} quedará confirmada en cuanto validemos tu pago."
-        )
+        lines = [
+            f"🧾 *{titulo} #{reserva.folio_reserva}* – Pendiente de pago",
+            f"👤 A nombre de: *{reserva.nombre_cliente}*",
+            espacio_line,
+            f"📅 Fecha y hora: *{reserva.fecha_hora_reserva}*",
+            f"💳 Anticipo: *{sym}{reserva.monto_pago_requerido:.2f}*",
+        ]
+        if comercio.datos_bancarios_texto:
+            lines.append(f"🏦 {comercio.datos_bancarios_texto}")
+        lines.append(f"📸 Envía tu comprobante aquí para confirmar tu {sust}.")
+        return "\n".join(lines)
     ok_title = "¡Cita confirmada!" if es_cita else "¡Reservación confirmada!"
     return (
-        f"{ok_title} Folio: *#{reserva.folio_reserva}*\n"
-        f"- A nombre de: *{reserva.nombre_cliente}*\n"
-        f"{espacio_lbl}\n"
-        f"- Fecha y hora: *{reserva.fecha_hora_reserva}*\n\n"
+        f"✅ *{ok_title}* Folio *#{reserva.folio_reserva}*\n"
+        f"👤 A nombre de: *{reserva.nombre_cliente}*\n"
+        f"{espacio_line}\n"
+        f"📅 Fecha y hora: *{reserva.fecha_hora_reserva}*\n"
         "¡Te esperamos pronto!"
     )
 
@@ -1603,16 +1602,119 @@ def _handle_solo_ia_turn(
         for m in reversed(prev_msgs[1:])
     ]
 
-    # Fast-path determinista para captura de nombre de reserva/cita cuando el bot acaba de pedirlo
-    # (evita que modelos rápidos como Groq pidan el nombre dos veces seguidas)
+    # Fast-path determinista para selección de especialista/consultorio/mesa (evita confundir
+    # el nombre del doctor como "carlos r" con el nombre del paciente)
     draft_cur = state.get("reserva_draft") if isinstance(state.get("reserva_draft"), dict) else None
     last_bot_txt = next((m["texto"] for m in reversed(history) if m.get("de") == "BOT"), "")
+    last_bot_norm = _normalize_text(last_bot_txt)
     norm_in = _normalize_text(texto)
+    mesas_act_res = [m for m in sucursal.mesas if m.activa] if copy["uses_tables"] else []
+    es_cita_giro = normalize_giro_code(comercio.giro) == "SERVICIOS_CITAS"
+
+    def _match_mesa_or_specialist(raw_q: str) -> Optional[MesaZona]:
+        if not mesas_act_res or not raw_q:
+            return None
+        q_n = _normalize_text(raw_q)
+        if not q_n:
+            return None
+        if q_n.isdigit():
+            idx = int(q_n) - 1
+            if 0 <= idx < len(mesas_act_res):
+                return mesas_act_res[idx]
+        q_toks = [t for t in q_n.split() if len(t) >= 3]
+        best_m = None
+        best_score = 0.0
+        for m in mesas_act_res:
+            m_n = _normalize_text(m.nombre_mesa)
+            if q_n in m_n:
+                return m
+            m_toks = [t for t in m_n.split() if len(t) >= 3]
+            if q_toks and any(qt in m_n for qt in q_toks):
+                score = sum(1 for qt in q_toks if qt in m_n) / len(q_toks)
+                if score > best_score:
+                    best_score = score
+                    best_m = m
+            else:
+                for qt in q_toks:
+                    for mt in m_toks:
+                        r_sc = difflib.SequenceMatcher(None, qt, mt).ratio()
+                        if r_sc >= 0.80 and r_sc > best_score:
+                            best_score = r_sc
+                            best_m = m
+        return best_m
+
+    bot_asked_specialist = any(
+        k in last_bot_norm
+        for k in ("especialista", "consultorio", "disponibles", "con cual", "que mesa", "cual mesa")
+    )
+    if mesas_act_res and bot_asked_specialist and len(norm_in) <= 50:
+        matched_mesa = _match_mesa_or_specialist(texto)
+        if matched_mesa:
+            draft_cur = dict(draft_cur or {})
+            draft_cur["mesa_id"] = matched_mesa.id
+            draft_cur["mesa_nombre"] = matched_mesa.nombre_mesa
+            draft_cur["anticipo"] = float(matched_mesa.monto_anticipo_reserva or 0.0)
+            if es_cita_giro and not draft_cur.get("cantidad_personas"):
+                draft_cur["cantidad_personas"] = 1
+            state["reserva_draft"] = draft_cur
+
+            ant_m = float(draft_cur.get("anticipo") or 0.0)
+            ant_str = f" (anticipo {sym}{ant_m:.2f})" if ant_m > 0 else ""
+            if not draft_cur.get("fecha_hora"):
+                spec_reply = (
+                    f"✅ Perfecto, *{matched_mesa.nombre_mesa}*{ant_str}.\n"
+                    f"📅 ¿Para qué *fecha y hora* (AM/PM) deseas agendar?\n"
+                    f"🕒 Horario: {sucursal.horario_apertura} a {sucursal.horario_cierre}"
+                )
+            elif not draft_cur.get("nombre_cliente"):
+                spec_reply = (
+                    f"✅ Perfecto, *{matched_mesa.nombre_mesa}*{ant_str}.\n"
+                    f"👤 ¿Cuál es tu *nombre completo* para registrar la {'cita' if es_cita_giro else 'reserva'}?"
+                )
+            else:
+                esp_ico = "🩺" if es_cita_giro else "🪑"
+                lines_s = [
+                    f"📋 *Resumen de tu {'cita' if es_cita_giro else 'reserva'}:*",
+                    f"👤 Nombre: *{draft_cur['nombre_cliente']}*",
+                    f"{esp_ico} {'Especialista' if es_cita_giro else 'Mesa'}: *{matched_mesa.nombre_mesa}*",
+                    f"📅 Fecha y hora: *{draft_cur['fecha_hora']}*",
+                ]
+                if ant_m > 0:
+                    lines_s.append(f"💳 Anticipo: *{sym}{ant_m:.2f}*")
+                lines_s.append(f"¿Confirmamos tu {'cita' if es_cita_giro else 'reserva'}?")
+                spec_reply = "\n".join(lines_s)
+
+            _save_session_state(sesion, state)
+            db.add(
+                MensajeChatWhatsApp(
+                    sesion_id=sesion.id,
+                    tenant_id=comercio.id,
+                    remitente="BOT",
+                    tipo_contenido="TEXTO",
+                    contenido=spec_reply,
+                )
+            )
+            db.commit()
+            publish_tenant_event(comercio.id, "NUEVO_MENSAJE", {"sesion_id": sesion.id})
+            return {
+                "reply_text": spec_reply,
+                "reply_image_url": None,
+                "sesion_id": sesion.id,
+                "modo_atencion": sesion.modo_atencion,
+                "estado_conversacion": sesion.estado_conversacion,
+                "pedido_creado": None,
+                "reserva_creada": None,
+                "quick_replies": [],
+                "ai_used": "plantilla_fija",
+            }
+
+    # Fast-path determinista para captura de nombre de reserva/cita cuando el bot acaba de pedirlo
+    # (evita que modelos rápidos como Groq pidan el nombre dos veces seguidas)
     if (
         draft_cur
         and draft_cur.get("fecha_hora")
         and not draft_cur.get("nombre_cliente")
-        and "nombre" in _normalize_text(last_bot_txt)
+        and "nombre" in last_bot_norm
         and 3 <= len(texto.strip()) <= 70
         and not any(w in norm_in.split() for w in ("cancelar", "no", "menu", "inicio", "asesor", "humano"))
         and not any(ch.isdigit() for ch in texto)
@@ -1805,11 +1907,28 @@ def _handle_solo_ia_turn(
         and (state.get("tipo_entrega") != "DOMICILIO" or state.get("direccion_entrega"))
         and state.get("metodo_pago") in ("EFECTIVO", "TRANSFERENCIA")
     )
+    # Confirmación determinista directa de reserva/cita al decir "sí" tras el resumen
+    ready_res_confirm = bool(
+        isinstance(state.get("reserva_draft"), dict)
+        and copy["uses_tables"]
+        and comercio.reservaciones_habilitadas
+        and state["reserva_draft"].get("fecha_hora")
+        and state["reserva_draft"].get("nombre_cliente")
+    )
     bot_asked_confirm = any(k in last_bot_pre for k in ("confirmamos", "confirmar", "resumen"))
     user_confirmed = norm_pre in {
         "si", "sii", "confirmo", "confirmar", "dale", "ok", "okey", "claro", "listo", "correcto", "de acuerdo",
     }
-    if ready_to_confirm and bot_asked_confirm and user_confirmed:
+    if ready_res_confirm and bot_asked_confirm and user_confirmed and not state.get("items"):
+        draft_ok = dict(state["reserva_draft"])
+        if not draft_ok.get("cantidad_personas"):
+            draft_ok["cantidad_personas"] = 1 if es_cita_giro else 2
+        ai_res = {
+            "respuesta": "",
+            "acciones": {"reservacion": {**draft_ok, "confirmar_reservacion": True}},
+            "_provider": "plantilla_fija",
+        }
+    elif ready_to_confirm and bot_asked_confirm and user_confirmed:
         ai_res = {"respuesta": "", "acciones": {"confirmar_pedido": True}, "_provider": "plantilla_fija"}
     else:
         ai_res = run_full_ai_order_turn(context_payload, history, texto)

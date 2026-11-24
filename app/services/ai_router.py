@@ -545,9 +545,10 @@ def _build_giro_bot_rules(context_payload: Dict[str, Any]) -> str:
             "- PROHIBIDO usar palabras de restaurante o tienda: NUNCA digas 'mesa', 'cocina', 'platillo', 'ingredientes' ni 'envío a domicilio'.\n"
             "- PRIMER SALUDO (solo si HISTORIAL está vacío): ofrece (A) ver el catálogo de servicios y precios en menu_web_url, "
             "(B) consultar tratamientos o precios aquí por chat, y (C) agendar una cita" + ("." if perm_res else " (indica que un asesor coordinará horario).") + "\n"
-            "- FLUJO DE CITA: pregunta qué servicio/tratamiento necesita -> ofrece consultorio/especialista disponible (indicando el anticipo si > 0) "
-            "-> pide fecha y hora clara con AM/PM dentro del horario -> pide nombre completo del paciente -> muestra resumen y pide confirmación explícita "
-            "(usa siempre cantidad_personas=1 automáticamente, NO preguntes cuántas personas).\n"
+            "- FLUJO DE CITA (1 sola pregunta por mensaje): pregunta qué servicio necesita -> si responde 'sí' a agendar, NO vuelvas a preguntar si quiere agendar, pasa directo a pedir fecha/hora o especialista -> "
+            "ofrece consultorio/especialista disponible (indicando el anticipo si > 0) -> pide fecha y hora clara con AM/PM dentro del horario -> "
+            "pide el *nombre completo del paciente* (PROHIBIDO usar el nombre de un doctor/especialista como `nombre_cliente` del paciente) -> "
+            "muestra resumen en líneas con emoji y pide confirmación explícita (usa siempre cantidad_personas=1 automáticamente, NO preguntes cuántas personas).\n"
             "- LIMITANTE MÉDICA ESTRICTA: NUNCA des diagnósticos médicos/odontológicos ni recetes medicamentos; explica con amabilidad que el especialista lo evaluará en consulta.\n"
         )
     elif giro == "FARMACIA":
