@@ -2725,7 +2725,13 @@ function escapeHtml(str) {
             setChk('cfgBotActivo', bCfg.bot_activo !== false);
             setVal('cfgBotNombreAsistente', bCfg.nombre_asistente || '');
             setVal('cfgBotTono', bCfg.tono_bot || 'CERCANO');
-            setVal('cfgBotSaludo', bCfg.saludo_personalizado || '');
+            const saludoEl = document.getElementById('cfgBotSaludo');
+            if (saludoEl) {
+                const defaultSal = buildDefaultBotGreeting(c.nombre_comercial || 'Tu Negocio', bCfg.nombre_asistente || '');
+                const savedSal = (bCfg.saludo_personalizado || '').trim();
+                saludoEl.value = savedSal || defaultSal;
+                saludoEl.dataset.isAutoDefault = savedSal ? '0' : '1';
+            }
             setVal('cfgBotPromo', bCfg.promo_del_dia || '');
             setVal('cfgBotUbicacionTexto', bCfg.ubicacion_texto || '');
             setVal('cfgBotUbicacionMaps', bCfg.ubicacion_maps_url || '');
@@ -3013,6 +3019,44 @@ function escapeHtml(str) {
             setTxt('cfgBotPermitirCerradoLabel', p.permitirLbl);
             setTxt('cfgBotPoliticasLabel', p.politicasLbl);
         }
+
+        function buildDefaultBotGreeting(nombreNeg, asistente = '') {
+            const nom = (nombreNeg || 'Tu Negocio').trim();
+            const asis = (asistente || '').trim();
+            if (asis) return `¡Hola! Soy ${asis}, asistente de ${nom}.`;
+            return `¡Hola! Bienvenido a ${nom}.`;
+        }
+
+        function onBotSaludoInput() {
+            const el = document.getElementById('cfgBotSaludo');
+            if (el) el.dataset.isAutoDefault = '0';
+            updateBotConfigPreview();
+        }
+        window.onBotSaludoInput = onBotSaludoInput;
+
+        function onBotNombreAsistenteInput() {
+            const salEl = document.getElementById('cfgBotSaludo');
+            const asis = (document.getElementById('cfgBotNombreAsistente')?.value || '').trim();
+            const nomNeg = currentComercioData?.comercio?.nombre_comercial || 'Tu Negocio';
+            if (salEl && salEl.dataset.isAutoDefault === '1') {
+                salEl.value = buildDefaultBotGreeting(nomNeg, asis);
+            }
+            updateBotConfigPreview();
+        }
+        window.onBotNombreAsistenteInput = onBotNombreAsistenteInput;
+
+        function restaurarSaludoBotDefault() {
+            const salEl = document.getElementById('cfgBotSaludo');
+            const asis = (document.getElementById('cfgBotNombreAsistente')?.value || '').trim();
+            const nomNeg = currentComercioData?.comercio?.nombre_comercial || 'Tu Negocio';
+            if (salEl) {
+                salEl.value = buildDefaultBotGreeting(nomNeg, asis);
+                salEl.dataset.isAutoDefault = '1';
+                salEl.focus();
+            }
+            updateBotConfigPreview();
+        }
+        window.restaurarSaludoBotDefault = restaurarSaludoBotDefault;
 
         function updateBotConfigPreview() {
             const box = document.getElementById('cfgBotPreviewBox');

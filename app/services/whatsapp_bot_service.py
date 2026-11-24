@@ -1205,6 +1205,9 @@ def _build_fixed_welcome_message(
     saludo_custom = (cfg.get("saludo_personalizado") or "").strip()
     asistente = (cfg.get("nombre_asistente") or "").strip()
     if saludo_custom:
+        # Personalizar automáticamente el inicio "¡Hola!" con el nombre del cliente si se conoce
+        if saludo != "¡Hola!" and re.match(r"^¡?hola!?\b", saludo_custom, flags=re.IGNORECASE):
+            saludo_custom = re.sub(r"^¡?hola!?", saludo, saludo_custom, count=1, flags=re.IGNORECASE)
         lines = [saludo_custom]
     elif asistente:
         lines = [f"{saludo} 👋 Soy *{asistente}*, asistente de *{comercio.nombre_comercial}*."]
