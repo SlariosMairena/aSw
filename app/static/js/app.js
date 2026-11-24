@@ -21,6 +21,37 @@ function setLocalToken(token) {
     } catch (e) {}
 }
 
+function getCachedUser() {
+    try {
+        const raw = localStorage.getItem('saas_cached_user');
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+function setCachedUser(user) {
+    try {
+        if (user && user.rol) {
+            localStorage.setItem('saas_cached_user', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                nombre_completo: user.nombre_completo,
+                rol: user.rol,
+                tenant_id: user.tenant_id,
+                sucursal_id: user.sucursal_id ?? null,
+                totp_enabled: Boolean(user.totp_enabled)
+            }));
+        } else {
+            localStorage.removeItem('saas_cached_user');
+        }
+    } catch (e) {}
+}
+
+function finishAuthBoot() {
+    document.documentElement.classList.remove('auth-booting');
+}
+
 function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -114,6 +145,7 @@ function escapeHtml(str) {
                 authToken = data.access_token;
                 setLocalToken(authToken);
                 currentUser = data.user;
+                setCachedUser(currentUser);
                 showToast(`¡Bienvenido ${currentUser.nombre_completo}!`);
                 await renderAppByRole();
             } catch (err) {
@@ -129,6 +161,8 @@ function escapeHtml(str) {
         function logout() {
             if (typeof stopLiveKanbanPolling === 'function') stopLiveKanbanPolling();
             setLocalToken('');
+            setCachedUser(null);
+            finishAuthBoot();
             currentUser = null;
             currentComercioData = null;
             activeTenantId = null;
@@ -601,6 +635,7 @@ function escapeHtml(str) {
                 await reloadComercioDashboard(true);
                 startLiveKanbanPolling();
             }
+            finishAuthBoot();
         }
 
         async function inspectComercioAsSuperAdmin(tenantId) {
@@ -2637,12 +2672,35 @@ function escapeHtml(str) {
         // Auto-verificar si ya había sesión guardada e inicializar constructor visual de ingredientes
         window.addEventListener('DOMContentLoaded', async () => {
             renderIngredientBuilderUI();
-            if (authToken) {
-                try {
-                    currentUser = await apiFetch('/api/v1/auth/me');
+            if (!authToken) {
+                finishAuthBoot();
+                return;
+            }
+            try {
+                const cachedUser = getCachedUser();
+                if (cachedUser && cachedUser.rol) {
+                    currentUser = cachedUser;
                     await renderAppByRole();
-                } catch (e) {
-                    logout();
+                    // Refrescar sesión/perfil en segundo plano sin bloquear el arranque
+                    apiFetch('/api/v1/auth/me')
+                        .then((freshUser) => {
+                            if (freshUser && freshUser.rol) {
+                                currentUser = freshUser;
+                                setCachedUser(freshUser);
+                                const badge = document.getElementById('userBadgeName');
+                                if (badge) badge.textContent = freshUser.nombre_completo;
+                                if (typeof update2FABadgeNavbar === 'function') update2FABadgeNavbar();
+                            }
+                        })
+                        .catch(() => {});
+                } else {
+                    currentUser = await apiFetch('/api/v1/auth/me');
+                    setCachedUser(currentUser);
+                    await renderAppByRole();
                 }
+            } catch (e) {
+                logout();
+            } finally {
+                finishAuthBoot();
             }
         });
