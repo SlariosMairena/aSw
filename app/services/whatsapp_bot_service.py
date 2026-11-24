@@ -1162,6 +1162,247 @@ def _format_reserva_created_reply(
     )
 
 
+_SOLO_IA_GREETING_EXACT = {
+    "hola", "ola", "holi", "holaa", "holaaa", "buenas", "buen dia",
+    "buenos dias", "buenas tardes", "buenas noches", "que tal", "q tal",
+    "hey", "hi", "hello", "saludos", "inicio", "empezar", "comenzar",
+    "menu", "catalogo", "info", "informacion", "ayuda", "que onda", "q onda",
+    "hola buenas", "hola buenos dias", "hola buenas tardes", "hola buenas noches",
+    "buenas tardes hola", "buenos dias hola", "buenas noches hola",
+}
+
+_SOLO_IA_ACTION_STOPWORDS = {
+    "quiero", "dame", "mandame", "enviame", "pedir", "ordenar", "comprar",
+    "precio", "precios", "cuanto", "vale", "cuesta", "tienen", "hay",
+    "cita", "reservar", "reserva", "agendar", "mesa", "domicilio", "envio",
+    "efectivo", "transferencia", "confirmar", "pagar", "cancelar", "reclamo",
+    "queja", "problema", "direccion", "zona",
+}
+
+
+def _build_fixed_welcome_message(
+    comercio: TenantComercio,
+    sucursal: SucursalComercio,
+    menu_link: str,
+    nombre_cliente: Optional[str],
+    beneficios_vip: Optional[Dict[str, Any]] = None,
+) -> str:
+    """
+    Plantilla fija y ordenada de bienvenida (0 tokens, 100% consistente)
+    adaptada al giro del negocio, sus permisos reales y el perfil del cliente.
+    """
+    g_code = normalize_giro_code(comercio.giro)
+    copy = _giro_copy(comercio.giro)
+    perm_res = bool(
+        copy["uses_tables"]
+        and comercio.reservaciones_habilitadas
+        and any(m.activa for m in sucursal.mesas)
+    )
+
+    saludo = _saludo_nombre(nombre_cliente)
+    lines = [f"{saludo} 👋 Bienvenido a *{comercio.nombre_comercial}*."]
+
+    if beneficios_vip and (
+        beneficios_vip.get("envio_gratis") or float(beneficios_vip.get("descuento_pct") or 0) > 0
+    ):
+        vip_parts = []
+        if beneficios_vip.get("envio_gratis"):
+            vip_parts.append("envío gratis")
+        if float(beneficios_vip.get("descuento_pct") or 0) > 0:
+            vip_parts.append(f"{float(beneficios_vip['descuento_pct']):g}% de descuento")
+        lines.append(f"_Beneficio VIP activo: {' y '.join(vip_parts)}._")
+
+    if not sucursal.abierto_ahora:
+        lines.append(
+            f"_En este momento estamos cerrados (Horario: {sucursal.horario_apertura} a {sucursal.horario_cierre}), pero puedes revisar nuestras opciones._"
+        )
+
+    lines.append("")
+    if g_code == "SERVICIOS_CITAS":
+        lines.append(f"A) Ver nuestros servicios y precios: {menu_link}")
+        lines.append("B) Consultar servicios por chat")
+        if perm_res:
+            lines.append("C) Agendar una cita")
+    elif g_code == "FARMACIA":
+        lines.append(f"A) Ver nuestro catálogo de productos: {menu_link}")
+        lines.append("B) Hacer pedido por chat")
+    elif g_code == "TIENDA":
+        lines.append(f"A) Ver nuestro catálogo con fotos: {menu_link}")
+        lines.append("B) Comprar por chat")
+    elif g_code == "SUPERMERCADO":
+        lines.append(f"A) Ver nuestro catálogo de productos: {menu_link}")
+        lines.append("B) Enviar mi lista de compras por chat")
+    elif g_code == "CAFETERIA":
+        lines.append(f"A) Ver nuestro menú con fotos: {menu_link}")
+        lines.append("B) Pedir por chat")
+        if perm_res:
+            lines.append("C) Reservar mesa")
+    else:
+        lines.append(f"A) Ver nuestro menú con fotos: {menu_link}")
+        lines.append("B) Pedir por chat")
+        if perm_res:
+            lines.append("C) Reservar mesa")
+
+    lines.append("\n¿Qué prefieres?")
+    return "\n".join(lines)
+
+
+def _match_solo_ia_deterministic_turn(
+    comercio: TenantComercio,
+    sucursal: SucursalComercio,
+    categorias: List[CategoriaMenu],
+    platos: List[ProductoPlato],
+    state: Dict[str, Any],
+    history: List[Dict[str, str]],
+    texto: str,
+    menu_link: str,
+    nombre_cliente: Optional[str],
+    beneficios_vip: Optional[Dict[str, Any]],
+    pedido_activo_ctx: Optional[Dict[str, Any]],
+) -> Optional[Tuple[str, bool]]:
+    """
+    Resuelve interacciones fijas/simples sin llamar al LLM (0 tokens, orden garantizado),
+    dejando pasar a la IA cualquier mensaje libre, pedido directo o lenguaje informal con intención.
+    Retorna (reply_text, transferir_humano) o None si debe atenderlo la IA.
+    """
+    norm = _normalize_text(texto)
+    if not norm:
+        return None
+
+    tokens = norm.split()
+    g_code = normalize_giro_code(comercio.giro)
+    copy = _giro_copy(comercio.giro)
+    sym = comercio.simbolo_moneda or "C$"
+    mesas_act = [m for m in sucursal.mesas if m.activa] if copy["uses_tables"] else []
+    perm_res = bool(copy["uses_tables"] and comercio.reservaciones_habilitadas and mesas_act)
+
+    # 1. Solicitud explícita de hablar con una persona / asesor
+    if norm in {
+        "asesor", "humano", "persona", "agente",
+        "hablar con alguien", "hablar con un asesor", "hablar con una persona",
+        "quiero hablar con alguien", "quiero un asesor",
+    }:
+        return (
+            f"¡Con gusto! Te comunico ahora mismo con el equipo de *{comercio.nombre_comercial}*. "
+            "En un momento te responden por aquí.",
+            True,
+        )
+
+    # Si ya tiene pedido activo, carrito armado o reserva en curso, dejar que la IA maneje el contexto completo
+    has_active_flow = bool(pedido_activo_ctx or state.get("items") or state.get("reserva_draft"))
+    if has_active_flow:
+        return None
+
+    # 2. Consulta directa y corta de horario
+    if len(tokens) <= 6 and (
+        norm in {"horario", "horarios", "hora de atencion", "a que hora abren", "a que hora cierran", "estan abiertos", "abren hoy"}
+        or ("horario" in tokens and len(tokens) <= 4)
+    ):
+        estado_txt = "Actualmente estamos *abiertos*" if sucursal.abierto_ahora else "En este momento estamos *cerrados*"
+        return (
+            f"*{comercio.nombre_comercial}* ({sucursal.nombre_sucursal})\n"
+            f"Horario de atención: *{sucursal.horario_apertura} a {sucursal.horario_cierre}*.\n"
+            f"{estado_txt}.\n\n"
+            f"¿Te gustaría ver las opciones disponibles? Escribe *inicio* o dime qué necesitas.",
+            False,
+        )
+
+    # 3. Saludo inicial o comando de inicio (sin robar mensajes con pedido/pregunta real)
+    contains_action = any(t in _SOLO_IA_ACTION_STOPWORDS for t in tokens)
+    is_pure_greeting = norm in _SOLO_IA_GREETING_EXACT or (
+        not history
+        and len(tokens) <= 4
+        and not contains_action
+        and any(t in {"hola", "ola", "holi", "buenas", "buenos", "hey", "hi", "saludos"} for t in tokens)
+    )
+    if is_pure_greeting:
+        return (
+            _build_fixed_welcome_message(
+                comercio, sucursal, menu_link, nombre_cliente, beneficios_vip
+            ),
+            False,
+        )
+
+    # 4. Selección directa de Opción A (ver menú/catálogo web con fotos)
+    if norm in {
+        "a", "la a", "opcion a", "inciso a", "link", "enlace",
+        "ver menu", "ver el menu", "ver catalogo", "ver el catalogo",
+        "menu con fotos", "catalogo con fotos", "ver servicios", "ver nuestros servicios",
+    }:
+        if g_code == "SERVICIOS_CITAS":
+            label_cat = "catálogo de servicios y precios"
+            cta = "consultar un tratamiento o agendar tu cita"
+        elif g_code in ("TIENDA", "FARMACIA", "SUPERMERCADO"):
+            label_cat = "catálogo con fotos"
+            cta = "hacer tu pedido"
+        else:
+            label_cat = "menú con fotos"
+            cta = "pedir"
+        return (
+            f"Aquí tienes nuestro *{label_cat}*:\n{menu_link}\n\n"
+            f"Si prefieres {cta} aquí por chat, solo dime qué deseas.",
+            False,
+        )
+
+    # 5. Selección directa de Opción B (pedir / consultar por chat)
+    if norm in {
+        "b", "la b", "opcion b", "inciso b",
+        "pedir por chat", "comprar por chat", "por chat", "chat",
+        "consultar por chat", "consultar servicios por chat",
+        "hacer pedido por chat", "lista de compras",
+    }:
+        cats_con_items = [c for c in categorias if any(p.categoria_id == c.id for p in platos)]
+        lines = []
+        if g_code == "SERVICIOS_CITAS":
+            lines.append("¡Con gusto! Estas son nuestras áreas de servicios:\n")
+        elif g_code == "SUPERMERCADO":
+            lines.append("¡Con gusto! Estos son nuestros pasillos disponibles:\n")
+        elif g_code in ("TIENDA", "FARMACIA"):
+            lines.append("¡Con gusto! Estas son nuestras categorías disponibles:\n")
+        else:
+            lines.append("¡Con gusto! Estas son las categorías de nuestro menú:\n")
+
+        for c in cats_con_items[:8]:
+            lines.append(f"• *{c.nombre}*")
+
+        if g_code == "SERVICIOS_CITAS":
+            lines.append("\n¿Sobre cuál servicio deseas ver precios o detalles?")
+        elif g_code == "SUPERMERCADO":
+            lines.append("\nEscríbeme los productos que necesitas o dime qué pasillo deseas ver.")
+        else:
+            lines.append("\n¿Qué te gustaría ver o pedir hoy? Puedes decirme la categoría o el nombre del producto.")
+        return ("\n".join(lines), False)
+
+    # 6. Selección directa de Opción C (reservar mesa o agendar cita)
+    if perm_res and norm in {
+        "c", "la c", "opcion c", "inciso c",
+        "reservar", "reservar mesa", "reserva", "quiero reservar",
+        "cita", "agendar", "agendar cita", "agendar una cita", "quiero una cita", "sacar cita",
+    }:
+        horario = f"{sucursal.horario_apertura} a {sucursal.horario_cierre}"
+        if g_code == "SERVICIOS_CITAS":
+            espacios_lines = []
+            for m in mesas_act[:5]:
+                ant = float(m.monto_anticipo_reserva or 0.0)
+                ant_txt = f" (Anticipo {sym}{ant:.2f})" if ant > 0 else ""
+                espacios_lines.append(f"• *{m.nombre_mesa}*{ant_txt}")
+            espacios_blk = ("\n\nEspacios disponibles:\n" + "\n".join(espacios_lines)) if espacios_lines else ""
+            return (
+                f"¡Con gusto! Vamos a agendar tu cita en *{comercio.nombre_comercial}*.{espacios_blk}\n\n"
+                f"¿Qué servicio necesitas y para qué *fecha y hora* (con AM/PM) te gustaría agendar?\n"
+                f"_Horario de atención: {horario}._",
+                False,
+            )
+        return (
+            f"¡Con gusto! Vamos a reservar tu mesa en *{comercio.nombre_comercial}*.\n\n"
+            f"¿Para cuántas personas sería y para qué *fecha y hora* (con AM/PM) deseas reservar?\n"
+            f"_Horario de atención: {horario}._",
+            False,
+        )
+
+    return None
+
+
 def _handle_solo_ia_turn(
     db: Session,
     sesion: SesionChatWhatsApp,
@@ -1299,6 +1540,50 @@ def _handle_solo_ia_turn(
         {"de": m.remitente, "texto": (m.contenido or "")[:350]}
         for m in reversed(prev_msgs[1:])
     ]
+
+    # Fast-path determinista para saludos, opciones A/B/C, horario y asesor (0 tokens, orden garantizado)
+    beneficios_vip = context_payload["cliente"]["beneficios_vip"]
+    fixed_match = _match_solo_ia_deterministic_turn(
+        comercio=comercio,
+        sucursal=sucursal,
+        categorias=categorias,
+        platos=platos,
+        state=state,
+        history=history,
+        texto=texto,
+        menu_link=menu_link,
+        nombre_cliente=sesion.nombre_cliente,
+        beneficios_vip=beneficios_vip,
+        pedido_activo_ctx=pedido_activo_ctx,
+    )
+    if fixed_match is not None:
+        fixed_reply, fixed_human = fixed_match
+        if fixed_human:
+            sesion.modo_atencion = "HUMANO_ACTIVO"
+            sesion.resumen_ia_chat = f"Atención humana solicitada: {texto[:160]}"
+        _save_session_state(sesion, state)
+        db.add(
+            MensajeChatWhatsApp(
+                sesion_id=sesion.id,
+                tenant_id=comercio.id,
+                remitente="BOT",
+                tipo_contenido="TEXTO",
+                contenido=fixed_reply,
+            )
+        )
+        db.commit()
+        publish_tenant_event(comercio.id, "NUEVO_MENSAJE", {"sesion_id": sesion.id})
+        return {
+            "reply_text": fixed_reply,
+            "reply_image_url": None,
+            "sesion_id": sesion.id,
+            "modo_atencion": sesion.modo_atencion,
+            "estado_conversacion": sesion.estado_conversacion,
+            "pedido_creado": None,
+            "reserva_creada": None,
+            "quick_replies": [],
+            "ai_used": "plantilla_fija",
+        }
 
     ai_res = run_full_ai_order_turn(context_payload, history, texto)
     if not ai_res:

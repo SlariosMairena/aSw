@@ -619,6 +619,8 @@ def run_full_ai_order_turn(
         "2. PROHIBIDO repetir el saludo inicial ni las opciones A/B/C si en HISTORIAL RECIENTE ya saludaste.\n"
         "   - Si responde 'B', 'la b', 'por chat' o pide ver opciones: muéstrale de inmediato las categorías o destacados con precio.\n"
         "   - Si responde 'C', 'reservar' o 'agendar cita' (cuando esté habilitado): inicia directo el flujo de cita/reserva.\n"
+        "   - Si el cliente usa lenguaje informal, abreviaciones o modismos (ej. 'bro', 'ey', 'mandame', 'q vale', 'sin sebolla'), "
+        "entiéndelo con naturalidad pero mantén SIEMPRE un tono amable, profesional y el orden estricto de los pasos sin saltarte ninguno.\n"
         "3. FLUJO ORDENADO DE COMPRA/PEDIDO: producto -> cantidad y opciones/variantes -> preguntar si agrega algo más -> "
         "modalidad permitida -> si es DOMICILIO pedir zona y dirección clara con referencia -> método de pago (si es EFECTIVO preguntar con cuánto paga) -> "
         "resumen claro (mencionando beneficios VIP/envío gratis si cliente.beneficios_vip los tiene activos) -> CONFIRMACIÓN EXPLÍCITA antes de poner confirmar_pedido=true.\n"
