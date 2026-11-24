@@ -112,6 +112,15 @@ class SimulatedPaymentGateway(BasePaymentGateway):
             db.add(trans)
 
         if resultado == "EXITOSO":
+            if pedido.estado_pago == "PAGADO":
+                return {
+                    "success": True,
+                    "already_paid": True,
+                    "estado_pago": "PAGADO",
+                    "estado_pedido": pedido.estado_pedido,
+                    "pedido_id": pedido.id,
+                    "folio": pedido.folio,
+                }
             estaba_esperando = pedido.estado_pedido == "ESPERANDO_PAGO"
             pedido.estado_pago = "PAGADO"
             pedido.metodo_pago = "PASARELA_DIGITAL_SIMULADA"

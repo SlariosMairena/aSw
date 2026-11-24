@@ -1705,51 +1705,72 @@ def _handle_solo_ia_turn(
             "ai_used": "plantilla_fija",
         }
 
-    # Pre-extracción segura en servidor de respuestas cortas cuando ya hay ítems en carrito
-    # (evita que modelos rápidos olviden guardar 'local', 'efectivo' o 'no así' y entren en bucle)
+    # Pre-extracción segura en servidor (opciones, entrega, pago y confirmación directa)
+    # Evita bucles, interpreta respuestas numéricas ("1", "2", "3") y typos ("trasnferencai"),
+    # y evita que el LLM duplique el carrito al confirmar con "sí".
+    norm_pre = _normalize_text(texto)
+    toks_pre = norm_pre.split()
+    last_bot_pre = _normalize_text(
+        next((m["texto"] for m in reversed(history) if m.get("de") == "BOT"), "")
+    )
+    bot_asked_opts = any(
+        k in last_bot_pre
+        for k in ("ingrediente", "extra", "algo mas", "agregamos", "agregas", "modificar")
+    )
+    user_declined_opts = norm_pre in {
+        "no", "no asi", "asi", "asi esta bien", "no asi esta bien", "asi nomas",
+        "asi no mas", "nada", "nada mas", "eso es todo", "listo", "ninguno", "sin cambios",
+    }
+    if bot_asked_opts and user_declined_opts:
+        state["opciones_confirmadas"] = True
+
     if state.get("items"):
-        norm_pre = _normalize_text(texto)
-        toks_pre = norm_pre.split()
-        last_bot_pre = _normalize_text(
-            next((m["texto"] for m in reversed(history) if m.get("de") == "BOT"), "")
+        bot_asked_delivery = any(
+            k in last_bot_pre for k in ("domicilio", "retirar en local", "retirar en el local", "recibir tu pedido", "recibirlo")
+        )
+        bot_asked_payment = any(
+            k in last_bot_pre for k in ("como prefieres pagar", "metodo de pago", "efectivo", "transferencia")
         )
         if not state.get("tipo_entrega"):
             if (
-                any(w in toks_pre for w in ("local", "recoger", "retiro", "retirar", "mostrador"))
+                (bot_asked_delivery and norm_pre == "2")
+                or any(w in toks_pre for w in ("local", "recoger", "retiro", "retirar", "mostrador"))
                 or "para llevar" in norm_pre
             ) and sucursal.permite_recoger_local:
                 state["tipo_entrega"] = "RECOGER_LOCAL"
                 state["direccion_entrega"] = f"Recoger en {sucursal.nombre_sucursal}"
                 state["costo_envio"] = 0.0
-            elif any(w in toks_pre for w in ("domicilio", "delivery", "envio")) and sucursal.permite_domicilio:
+                state["opciones_confirmadas"] = True
+            elif (
+                (bot_asked_delivery and norm_pre == "1")
+                or any(w in toks_pre for w in ("domicilio", "delivery", "envio"))
+            ) and sucursal.permite_domicilio:
                 state["tipo_entrega"] = "DOMICILIO"
+                state["opciones_confirmadas"] = True
                 if not state.get("zona_envio_id"):
                     state["costo_envio"] = float(sucursal.costo_envio_base or 0.0)
             elif (
-                any(w in toks_pre for w in ("mesa",)) or "comer aqui" in norm_pre
+                (bot_asked_delivery and norm_pre == "3")
+                or any(w in toks_pre for w in ("mesa",))
+                or "comer aqui" in norm_pre
             ) and copy["uses_tables"]:
                 state["tipo_entrega"] = "MESA"
                 state["direccion_entrega"] = f"Consumo en mesa ({sucursal.nombre_sucursal})"
                 state["costo_envio"] = 0.0
+                state["opciones_confirmadas"] = True
 
         if not state.get("metodo_pago"):
-            if any(w in toks_pre for w in ("efectivo", "cash")) and comercio.acepta_efectivo:
+            if (
+                (bot_asked_payment and norm_pre == "1")
+                or _fuzzy_contains_any(norm_pre, ["efectivo", "cash"], cutoff=0.75)
+            ) and comercio.acepta_efectivo:
                 state["metodo_pago"] = "EFECTIVO"
-            elif any(w in toks_pre for w in ("transferencia", "deposito", "banco")) and comercio.acepta_transferencia:
+            elif (
+                (bot_asked_payment and norm_pre == "2")
+                or _fuzzy_contains_any(norm_pre, ["transferencia", "deposito", "banco"], cutoff=0.72)
+            ) and comercio.acepta_transferencia:
                 state["metodo_pago"] = "TRANSFERENCIA"
                 state["paga_con"] = None
-
-        if not state.get("opciones_confirmadas"):
-            bot_asked_opts = any(
-                k in last_bot_pre
-                for k in ("ingrediente", "extra", "algo mas", "agregamos", "agregas", "modificar")
-            )
-            user_declined_opts = norm_pre in {
-                "no", "no asi", "asi", "asi esta bien", "asi nomas", "asi no mas",
-                "nada", "nada mas", "eso es todo", "listo", "ninguno", "sin cambios",
-            }
-            if bot_asked_opts and user_declined_opts:
-                state["opciones_confirmadas"] = True
 
     def _compute_next_order_step(st: Dict[str, Any]) -> str:
         if not st.get("items"):
@@ -1777,7 +1798,21 @@ def _handle_solo_ia_turn(
         "siguiente_paso_obligatorio": _compute_next_order_step(state),
     }
 
-    ai_res = run_full_ai_order_turn(context_payload, history, texto)
+    # Confirmación determinista directa al responder "sí" tras el resumen (0 tokens, sin duplicar carrito)
+    ready_to_confirm = bool(
+        state.get("items")
+        and state.get("tipo_entrega") in ("DOMICILIO", "RECOGER_LOCAL", "MESA")
+        and (state.get("tipo_entrega") != "DOMICILIO" or state.get("direccion_entrega"))
+        and state.get("metodo_pago") in ("EFECTIVO", "TRANSFERENCIA")
+    )
+    bot_asked_confirm = any(k in last_bot_pre for k in ("confirmamos", "confirmar", "resumen"))
+    user_confirmed = norm_pre in {
+        "si", "sii", "confirmo", "confirmar", "dale", "ok", "okey", "claro", "listo", "correcto", "de acuerdo",
+    }
+    if ready_to_confirm and bot_asked_confirm and user_confirmed:
+        ai_res = {"respuesta": "", "acciones": {"confirmar_pedido": True}, "_provider": "plantilla_fija"}
+    else:
+        ai_res = run_full_ai_order_turn(context_payload, history, texto)
     if not ai_res:
         return None
 
@@ -1786,6 +1821,20 @@ def _handle_solo_ia_turn(
     acciones = ai_res.get("acciones") or {}
     if not isinstance(acciones, dict):
         acciones = {}
+
+    # Bloqueo anti-duplicación: si el cliente solo respondió una confirmación/entrega/pago corta
+    # y ya había ítems en carrito, ignorar cualquier agregar_items repetido del LLM
+    short_non_order_replies = {
+        "si", "sii", "no", "no asi", "asi", "asi esta bien", "no asi esta bien",
+        "confirmo", "confirmar", "dale", "ok", "claro", "listo", "correcto",
+        "local", "recoger", "retiro", "domicilio", "mesa", "efectivo", "transferencia",
+        "1", "2", "3",
+    }
+    if state.get("items") and (
+        norm_pre in short_non_order_replies
+        or _fuzzy_contains_any(norm_pre, ["transferencia", "efectivo"], cutoff=0.72)
+    ):
+        acciones["agregar_items"] = []
 
     if acciones.get("vaciar_carrito"):
         ped_keep = state.get("pedido_activo_id")

@@ -667,6 +667,7 @@ def run_full_ai_order_turn(
         "     • Entrega: confirma breve y lista solo las permitidas en `sucursal` (ej. `🚚 Domicilio – envío desde C$50`, `🏪 Retirar en local – gratis`, `🪑 En mesa`).\n"
         "     • Zonas: si eligió domicilio y hay `zonas_envio`, lista las zonas con su precio.\n"
         "     • Pago: confirma breve y lista los habilitados en `comercio` (ej. `💵 Efectivo`, `💳 Transferencia bancaria`).\n"
+        "   - PROHIBIDO re-enviar en `agregar_items` productos que YA están en `carrito_actual.items`: usa `agregar_items` ÚNICAMENTE para productos NUEVOS pedidos en ESTE mensaje (re-enviarlos duplicaría el cobro).\n"
         "   - Si el cliente da varios datos en un solo mensaje (ej. '2 pizzas sin cebolla para recoger y pago en transferencia'), "
         "extrae y guarda TODOS esos datos en `acciones` al mismo tiempo y haz SOLO la siguiente pregunta que falte.\n"
         "   - Obedece SIEMPRE `carrito_actual.siguiente_paso_obligatorio` y revisa `carrito_actual` antes de preguntar: "
