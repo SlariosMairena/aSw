@@ -1705,6 +1705,78 @@ def _handle_solo_ia_turn(
             "ai_used": "plantilla_fija",
         }
 
+    # Pre-extracción segura en servidor de respuestas cortas cuando ya hay ítems en carrito
+    # (evita que modelos rápidos olviden guardar 'local', 'efectivo' o 'no así' y entren en bucle)
+    if state.get("items"):
+        norm_pre = _normalize_text(texto)
+        toks_pre = norm_pre.split()
+        last_bot_pre = _normalize_text(
+            next((m["texto"] for m in reversed(history) if m.get("de") == "BOT"), "")
+        )
+        if not state.get("tipo_entrega"):
+            if (
+                any(w in toks_pre for w in ("local", "recoger", "retiro", "retirar", "mostrador"))
+                or "para llevar" in norm_pre
+            ) and sucursal.permite_recoger_local:
+                state["tipo_entrega"] = "RECOGER_LOCAL"
+                state["direccion_entrega"] = f"Recoger en {sucursal.nombre_sucursal}"
+                state["costo_envio"] = 0.0
+            elif any(w in toks_pre for w in ("domicilio", "delivery", "envio")) and sucursal.permite_domicilio:
+                state["tipo_entrega"] = "DOMICILIO"
+                if not state.get("zona_envio_id"):
+                    state["costo_envio"] = float(sucursal.costo_envio_base or 0.0)
+            elif (
+                any(w in toks_pre for w in ("mesa",)) or "comer aqui" in norm_pre
+            ) and copy["uses_tables"]:
+                state["tipo_entrega"] = "MESA"
+                state["direccion_entrega"] = f"Consumo en mesa ({sucursal.nombre_sucursal})"
+                state["costo_envio"] = 0.0
+
+        if not state.get("metodo_pago"):
+            if any(w in toks_pre for w in ("efectivo", "cash")) and comercio.acepta_efectivo:
+                state["metodo_pago"] = "EFECTIVO"
+            elif any(w in toks_pre for w in ("transferencia", "deposito", "banco")) and comercio.acepta_transferencia:
+                state["metodo_pago"] = "TRANSFERENCIA"
+                state["paga_con"] = None
+
+        if not state.get("opciones_confirmadas"):
+            bot_asked_opts = any(
+                k in last_bot_pre
+                for k in ("ingrediente", "extra", "algo mas", "agregamos", "agregas", "modificar")
+            )
+            user_declined_opts = norm_pre in {
+                "no", "no asi", "asi", "asi esta bien", "asi nomas", "asi no mas",
+                "nada", "nada mas", "eso es todo", "listo", "ninguno", "sin cambios",
+            }
+            if bot_asked_opts and user_declined_opts:
+                state["opciones_confirmadas"] = True
+
+    def _compute_next_order_step(st: Dict[str, Any]) -> str:
+        if not st.get("items"):
+            return "ayudar_a_elegir_productos"
+        if not st.get("opciones_confirmadas") and not st.get("tipo_entrega"):
+            return "preguntar_solo_si_modifica_opciones_o_agrega_algo_mas"
+        if not st.get("tipo_entrega"):
+            return "preguntar_solo_modalidad_entrega"
+        if st.get("tipo_entrega") == "DOMICILIO" and not st.get("direccion_entrega"):
+            return "preguntar_solo_zona_y_direccion"
+        if not st.get("metodo_pago"):
+            return "preguntar_solo_metodo_pago"
+        return "mostrar_resumen_en_lineas_y_pedir_confirmacion"
+
+    context_payload["carrito_actual"] = {
+        "items": state.get("items") or [],
+        "subtotal": _calc_subtotal(state.get("items") or []),
+        "opciones_y_extras_confirmados": bool(state.get("opciones_confirmadas")),
+        "tipo_entrega": state.get("tipo_entrega"),
+        "zona_nombre": state.get("zona_nombre"),
+        "costo_envio": float(state.get("costo_envio") or 0.0),
+        "direccion_entrega": state.get("direccion_entrega"),
+        "metodo_pago": state.get("metodo_pago"),
+        "paga_con": state.get("paga_con"),
+        "siguiente_paso_obligatorio": _compute_next_order_step(state),
+    }
+
     ai_res = run_full_ai_order_turn(context_payload, history, texto)
     if not ai_res:
         return None
